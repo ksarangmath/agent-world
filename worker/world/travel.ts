@@ -1,7 +1,5 @@
 import { and, count, eq, gt, isNotNull, ne, sql } from 'drizzle-orm'
 import { places, placesById, type Place } from '../../shared/map/places'
-import { spots } from '../../shared/map/spots'
-import { ferryTerminal, route } from '../../shared/map/route'
 import { conversationRequests, people, worldEvents } from '../db/schema'
 import { expirePendingRequests } from './conversations'
 import { done, record, refuse, type Outcome, type World } from './events'
@@ -74,6 +72,10 @@ export async function goTo(
   const { tx, now } = world
   const place = placesById.get(placeId)
   if (!place) return refuse(`There's no place "${placeId}". Use list_places to find place ids.`)
+  const [{ spots }, { ferryTerminal, route }] = await Promise.all([
+    import('../../shared/map/spots'),
+    import('../../shared/map/route'),
+  ])
   const me = (await lockPeople(world, [meId])).get(meId)!
   const status = statusOf(me, now)
   if (status === 'in_conversation') {
