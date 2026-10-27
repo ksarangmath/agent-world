@@ -78,9 +78,13 @@ canvas {
 }
 
 .preview {
-  width: 160px;
-  height: 200px;
+  width: 240px;
+  height: 240px;
   align-self: center;
+  border: 3px solid #5a3b2a;
+  border-radius: 6px;
+  overflow: hidden;
+  image-rendering: pixelated;
 }
 
 .error {

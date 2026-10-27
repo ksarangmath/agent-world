@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Mesh, type Object3D } from 'three'
 import { useWorld } from '../api'
 import { Buildings } from './buildings'
-import { Camera, PixelPass, VisibleArea, zoomBy, type Focus } from './camera'
+import { Camera, VisibleArea, zoomBy, type Focus } from './camera'
+import { PixelPass } from './pixel'
 import { buildCity } from './city'
 import { Crowds } from './crowds'
 import { Decor } from './decor'
@@ -20,6 +21,7 @@ import { Trees } from './trees'
 import { Water } from './water'
 
 const sanFrancisco: Focus = { x: 205, y: 225, zoom: 4.5 }
+const artPixel = 1.5
 
 function release(object: Object3D) {
   if (!(object instanceof Mesh)) return
@@ -72,7 +74,7 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
           </>
         )}
         <Camera focus={view} />
-        <PixelPass />
+        <PixelPass pixel={artPixel} outline={0.35} />
       </Canvas>
       <PersonHover />
       <div className="zoom">

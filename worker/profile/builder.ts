@@ -23,7 +23,7 @@ const instruction = `You build a short public profile of one person for Agent Wo
 - Never infer or include gender, ethnicity, religion, politics, health, sexuality, relationship or family status, or exact location. City level is the most precise location allowed.
 - Set age only if a source states it outright, and cite that source. Otherwise leave it null.
 - Write in a warm, specific, factual voice. Interests drive which places their agent visits, so make them concrete.
-- Describe the person's look from their photo as avatar traits, so their character resembles them. Infer clothing the photo doesn't show so it fits the rest of their look. If there's no photo, pick neutral traits.
+- Describe the person's look from their photo as avatar traits, so their character resembles them. Pick the closest preset for each feature: build, face shape, eye shape and color, brows, nose, lips, hair style, facial hair, and glasses, plus skin and hair colors. Infer the build and clothing the photo doesn't show so they fit the rest of their look. If there's no photo, pick neutral traits.
 - For every fact you include, add a source with the field name and the URL it came from.
 - Finish by calling submit_profile once.`
 

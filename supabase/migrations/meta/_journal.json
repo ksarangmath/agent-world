@@ -8,6 +8,13 @@
       "when": 1793086758955,
       "tag": "20261027073918_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793138592752,
+      "tag": "20261027220312_avatar_presets",
+      "breakpoints": true
     }
   ]
 }

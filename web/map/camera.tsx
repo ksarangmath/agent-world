@@ -1,13 +1,9 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import { Vector3, type OrthographicCamera } from 'three'
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js'
 import { mapHeight, mapWidth } from '../../shared/map/grid'
 import { view, viewFrom } from './clock'
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
-import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
-import { RenderPixelatedPass } from 'three/examples/jsm/postprocessing/RenderPixelatedPass.js'
-import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { revealAt } from './sightlines'
 
 const distance = 800
@@ -94,7 +90,7 @@ export function Camera({ focus }: { focus: Focus }) {
     controls.enableRotate = false
     controls.screenSpacePanning = false
     controls.minZoom = 1.4
-    controls.maxZoom = 96
+    controls.maxZoom = 140
     controls.zoomToCursor = true
     const keepInside = () => {
       const { target } = controls
@@ -179,61 +175,5 @@ export function VisibleArea() {
     })
     revealAt(camera.zoom)
   })
-  return null
-}
-
-const artPixel = 1.5
-
-const grade = {
-  uniforms: { tDiffuse: { value: null } },
-  vertexShader: `
-varying vec2 vUv;
-void main() {
-  vUv = uv;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}`,
-  fragmentShader: `
-uniform sampler2D tDiffuse;
-varying vec2 vUv;
-void main() {
-  vec4 texel = texture2D(tDiffuse, vUv);
-  vec3 color = texel.rgb;
-  float light = dot(color, vec3(0.2126, 0.7152, 0.0722));
-  color *= mix(vec3(0.86, 0.88, 1.1), vec3(1.1, 1.0, 0.84), smoothstep(0.02, 0.5, light));
-  color = mix(vec3(light), color, 1.15);
-  float edge = length((vUv - 0.5) * vec2(1.0, 0.85));
-  color *= 1.0 - 0.28 * smoothstep(0.35, 0.85, edge);
-  gl_FragColor = vec4(color, texel.a);
-}`,
-}
-
-export function PixelPass() {
-  const { gl, scene, camera, size } = useThree()
-  const composer = useMemo(() => {
-    const effects = new EffectComposer(gl)
-    effects.addPass(
-      new RenderPixelatedPass(
-        Math.max(2, Math.round(artPixel * gl.getPixelRatio())),
-        scene,
-        camera,
-        {
-          normalEdgeStrength: 0.25,
-          depthEdgeStrength: 0.35,
-        },
-      ),
-    )
-    effects.addPass(new ShaderPass(grade))
-    effects.addPass(new OutputPass())
-    return effects
-  }, [gl, scene, camera])
-  useEffect(() => composer.setSize(size.width, size.height), [composer, size])
-  useEffect(
-    () => () => {
-      composer.passes.forEach((pass) => pass.dispose())
-      composer.dispose()
-    },
-    [composer],
-  )
-  useFrame(() => composer.render(), 1)
   return null
 }
