@@ -8,3 +8,5 @@ export function database(env: Env) {
 }
 
 export type Database = ReturnType<typeof database>
+
+export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0]

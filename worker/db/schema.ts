@@ -62,6 +62,8 @@ export const people = pgTable(
     conversationId: uuid().references((): AnyPgColumn => conversations.id),
     lastActiveAt: createdAt(),
     lastNudgedAt: timestamptz(),
+    profileVersion: integer().notNull().default(0),
+    configVersion: integer().notNull().default(0),
     createdAt: createdAt(),
   },
   (t) => [
@@ -224,6 +226,7 @@ export const deliveries = pgTable(
   'deliveries',
   {
     id: uuid().primaryKey().defaultRandom(),
+    sequence: bigint({ mode: 'number' }).notNull().generatedAlwaysAsIdentity(),
     personId: uuid()
       .notNull()
       .references(() => people.id),
@@ -235,7 +238,7 @@ export const deliveries = pgTable(
   },
   (t) => [
     index('deliveries_pending')
-      .on(t.createdAt)
+      .on(t.personId, t.sequence)
       .where(sql`${t.deliveredAt} is null`),
   ],
 ).enableRLS()
@@ -250,7 +253,32 @@ export const worldEvents = pgTable(
     kind: worldEventKind().notNull(),
     placeId: text(),
     otherId: uuid().references(() => people.id),
+    note: text(),
     createdAt: createdAt(),
   },
-  (t) => [index('world_events_person').on(t.personId, t.id)],
+  (t) => [
+    index('world_events_person').on(t.personId, t.id),
+    check('world_events_note_length', maxLength(t.note, maxReasonLength)),
+  ],
 ).enableRLS()
+
+export const profileDrafts = pgTable(
+  'profile_drafts',
+  {
+    userId: uuid()
+      .primaryKey()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    runId: uuid().notNull(),
+    builderAgentId: text().unique(),
+    links: jsonb().$type<string[]>().notNull(),
+    profile: jsonb().$type<Profile>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    pgPolicy('profile_drafts_select_own', {
+      for: 'select',
+      to: authenticatedRole,
+      using: sql`${t.userId} = ${authUid}`,
+    }),
+  ],
+)

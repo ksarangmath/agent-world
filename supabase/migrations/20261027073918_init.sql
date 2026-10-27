@@ -34,6 +34,7 @@ CREATE TABLE "conversations" (
 ALTER TABLE "conversations" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "deliveries" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"sequence" bigint GENERATED ALWAYS AS IDENTITY (sequence name "deliveries_sequence_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),
 	"person_id" uuid NOT NULL,
 	"actor_id" uuid,
 	"mode" "delivery_mode" NOT NULL,
@@ -101,19 +102,34 @@ CREATE TABLE "people" (
 	"conversation_id" uuid,
 	"last_active_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"last_nudged_at" timestamp with time zone,
+	"profile_version" integer DEFAULT 0 NOT NULL,
+	"config_version" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "people_userId_unique" UNIQUE("user_id"),
 	CONSTRAINT "people_agentId_unique" UNIQUE("agent_id")
 );
 --> statement-breakpoint
 ALTER TABLE "people" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "profile_drafts" (
+	"user_id" uuid PRIMARY KEY NOT NULL,
+	"run_id" uuid NOT NULL,
+	"builder_agent_id" text,
+	"links" jsonb NOT NULL,
+	"profile" jsonb,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "profile_drafts_builderAgentId_unique" UNIQUE("builder_agent_id")
+);
+--> statement-breakpoint
+ALTER TABLE "profile_drafts" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "world_events" (
 	"id" bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "world_events_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),
 	"person_id" uuid NOT NULL,
 	"kind" "world_event_kind" NOT NULL,
 	"place_id" text,
 	"other_id" uuid,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+	"note" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "world_events_note_length" CHECK (char_length("world_events"."note") <= 300)
 );
 --> statement-breakpoint
 ALTER TABLE "world_events" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
@@ -132,6 +148,7 @@ ALTER TABLE "messages" ADD CONSTRAINT "messages_sender_id_people_id_fk" FOREIGN 
 ALTER TABLE "owner_messages" ADD CONSTRAINT "owner_messages_person_id_people_id_fk" FOREIGN KEY ("person_id") REFERENCES "public"."people"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "people" ADD CONSTRAINT "people_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "people" ADD CONSTRAINT "people_conversation_id_conversations_id_fk" FOREIGN KEY ("conversation_id") REFERENCES "public"."conversations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "profile_drafts" ADD CONSTRAINT "profile_drafts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "world_events" ADD CONSTRAINT "world_events_person_id_people_id_fk" FOREIGN KEY ("person_id") REFERENCES "public"."people"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "world_events" ADD CONSTRAINT "world_events_other_id_people_id_fk" FOREIGN KEY ("other_id") REFERENCES "public"."people"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "conversation_requests_one_pending" ON "conversation_requests" USING btree ("from_id") WHERE "conversation_requests"."status" = 'pending';--> statement-breakpoint
@@ -140,7 +157,7 @@ CREATE INDEX "conversation_requests_pending_expiry" ON "conversation_requests" U
 CREATE INDEX "conversations_pair" ON "conversations" USING btree ("person_a","person_b","started_at");--> statement-breakpoint
 CREATE INDEX "conversations_person_b" ON "conversations" USING btree ("person_b","started_at");--> statement-breakpoint
 CREATE INDEX "conversations_active_last_message" ON "conversations" USING btree ("last_message_at") WHERE "conversations"."ended_at" is null;--> statement-breakpoint
-CREATE INDEX "deliveries_pending" ON "deliveries" USING btree ("created_at") WHERE "deliveries"."delivered_at" is null;--> statement-breakpoint
+CREATE INDEX "deliveries_pending" ON "deliveries" USING btree ("person_id","sequence") WHERE "deliveries"."delivered_at" is null;--> statement-breakpoint
 CREATE INDEX "handled_tool_calls_unposted" ON "handled_tool_calls" USING btree ("due_at") WHERE "handled_tool_calls"."posted_at" is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "impressions_one_per_conversation" ON "impressions" USING btree ("owner_id","conversation_id");--> statement-breakpoint
 CREATE INDEX "impressions_about" ON "impressions" USING btree ("about_id","owner_id");--> statement-breakpoint
@@ -150,4 +167,5 @@ CREATE UNIQUE INDEX "people_tile" ON "people" USING btree ("place_id","tile_x","
 CREATE INDEX "world_events_person" ON "world_events" USING btree ("person_id","id");--> statement-breakpoint
 CREATE POLICY "impressions_select_own" ON "impressions" AS PERMISSIVE FOR SELECT TO "authenticated" USING ("impressions"."owner_id" in (select "people"."id" from "people" where "people"."user_id" = (select auth.uid())));--> statement-breakpoint
 CREATE POLICY "owner_messages_select_own" ON "owner_messages" AS PERMISSIVE FOR SELECT TO "authenticated" USING ("owner_messages"."person_id" in (select "people"."id" from "people" where "people"."user_id" = (select auth.uid())));--> statement-breakpoint
-CREATE POLICY "people_select_own" ON "people" AS PERMISSIVE FOR SELECT TO "authenticated" USING ("people"."user_id" = (select auth.uid()));
+CREATE POLICY "people_select_own" ON "people" AS PERMISSIVE FOR SELECT TO "authenticated" USING ("people"."user_id" = (select auth.uid()));--> statement-breakpoint
+CREATE POLICY "profile_drafts_select_own" ON "profile_drafts" AS PERMISSIVE FOR SELECT TO "authenticated" USING ("profile_drafts"."user_id" = (select auth.uid()));
