@@ -6,5 +6,5 @@ dist/
 .wrangler/
 notes/
 .DS_Store
-supabase/signing_keys.json
+supabase/.branches/
 supabase/.temp/

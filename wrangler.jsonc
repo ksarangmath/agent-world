@@ -3,10 +3,18 @@
   "name": "agent-world",
   "main": "./worker/index.ts",
   "compatibility_date": "2026-10-12",
+  "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "preview_urls": false,
   "routes": [{ "pattern": "joinagentworld.com", "custom_domain": true }],
-  "secrets": { "required": [] },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "f6cfce74f6a1442a979e104ad4741bb6",
+      "localConnectionString": "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+    },
+  ],
+  "secrets": { "required": ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY"] },
   "assets": {
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"],
