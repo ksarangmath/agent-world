@@ -279,3 +279,35 @@ export function route(from: Tile, to: Tile): Route {
   const nonEmpty = legs.filter((leg) => leg.path.length > 1)
   return { legs: nonEmpty, seconds: nonEmpty.reduce((sum, leg) => sum + legSeconds(leg), 0) }
 }
+
+export type Position = { x: number; y: number; mode: Leg['mode'] }
+
+function along(path: Tile[], fraction: number): { x: number; y: number } {
+  const lengths = path.slice(1).map((tile, i) => distance(path[i]!, tile))
+  let remaining = Math.max(0, Math.min(1, fraction)) * lengths.reduce((sum, l) => sum + l, 0)
+  for (let i = 0; i < lengths.length; i++) {
+    const length = lengths[i]!
+    if (remaining <= length && length > 0) {
+      const [a, b] = [path[i]!, path[i + 1]!]
+      const t = remaining / length
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
+    }
+    remaining -= length
+  }
+  return path.at(-1)!
+}
+
+export function positionOnRoute(trip: Route, elapsedSeconds: number): Position {
+  let remaining = elapsedSeconds
+  for (const leg of trip.legs) {
+    const seconds = legSeconds(leg)
+    if (remaining < seconds) {
+      const moving = leg.mode === 'ride' ? remaining - rideBoardingSeconds : remaining
+      const span = leg.mode === 'ride' ? seconds - rideBoardingSeconds : seconds
+      return { ...along(leg.path, moving <= 0 ? 0 : moving / span), mode: leg.mode }
+    }
+    remaining -= seconds
+  }
+  const last = trip.legs.at(-1)
+  return { ...(last ? last.path.at(-1)! : { x: 0, y: 0 }), mode: 'walk' }
+}

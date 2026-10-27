@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import app from './index'
+import { app } from './index'
 
 const env = { VITE_SUPABASE_URL: 'http://127.0.0.1:9', VITE_SUPABASE_PUBLISHABLE_KEY: 'test' }
 

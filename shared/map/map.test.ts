@@ -1,6 +1,15 @@
 import { describe, expect, test } from 'vitest'
 import { places, spots } from './places'
-import { mapHeight, mapWidth, rides, roadTiles, route, type Tile } from './route'
+import {
+  legSeconds as legSecondsOf,
+  mapHeight,
+  mapWidth,
+  positionOnRoute,
+  rides,
+  roadTiles,
+  route,
+  type Tile,
+} from './route'
 import { tileKind } from './terrain'
 
 const key = (tile: Tile) => `${tile.x},${tile.y}`
@@ -76,5 +85,16 @@ describe('route', () => {
     expect(trip.legs.some((leg) => leg.mode === 'ride')).toBe(true)
     expect(trip.seconds).toBeGreaterThan(30)
     expect(trip.seconds).toBeLessThan(600)
+  })
+
+  test('a traveler starts at the origin, ends at the destination, and waits to board rides', () => {
+    const from = spots(places.find((place) => place.id === 'dogpatch-robotics')!)[0]!
+    const to = spots(places.find((place) => place.id === 'oakland-art-gallery')!)[0]!
+    const trip = route(from, to)
+    expect(positionOnRoute(trip, 0)).toMatchObject(from)
+    expect(positionOnRoute(trip, trip.seconds + 1)).toMatchObject(to)
+    const walkFirst = trip.legs[0]!
+    const boarding = positionOnRoute(trip, legSecondsOf(walkFirst) + 5)
+    expect(boarding).toMatchObject({ ...trip.legs[1]!.path[0]!, mode: 'ride' })
   })
 })

@@ -1,6 +1,6 @@
 :root {
   color-scheme: dark;
-  background: #101522;
+  background: #4084c4;
   color: #f7f1e3;
   font-family: system-ui, sans-serif;
 }
@@ -9,17 +9,99 @@ body {
   margin: 0;
 }
 
-img {
+img,
+canvas {
   image-rendering: pixelated;
 }
 
-.home {
-  display: grid;
-  place-items: center;
-  min-height: 100dvh;
+.map {
+  position: fixed;
+  inset: 0;
+}
+
+.panel {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 12px;
+  background: rgb(16 21 34 / 85%);
+  border: 3px solid #101522;
 }
 
 .lockup {
-  width: min(80vw, 600px);
+  width: min(60vw, 320px);
   height: auto;
+}
+
+.page {
+  max-width: 640px;
+  margin: 32px auto;
+  padding: 16px;
+  background: rgb(16 21 34 / 92%);
+  border: 3px solid #101522;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form label.check {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.form textarea {
+  min-height: 64px;
+}
+
+.preview {
+  width: 160px;
+  height: 200px;
+  align-self: center;
+}
+
+.error {
+  color: #ff8a80;
+}
+
+a {
+  color: #ffd166;
+}
+
+.thread {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.thread .to_agent {
+  align-self: flex-end;
+  color: #ffd166;
+}
+
+.name-tag {
+  pointer-events: auto;
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 1px 4px;
+  font-size: 11px;
+  color: #f7f1e3;
+  background: rgb(16 21 34 / 80%);
+  white-space: nowrap;
+  text-decoration: none;
 }
