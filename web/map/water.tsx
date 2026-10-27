@@ -25,7 +25,10 @@ void main() {
   vec2 uv = vTile / size;
   bool outside = uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0;
   float tiles = outside ? 31.0 : texture2D(shore, uv).r * 255.0;
-  vec3 color = mix(linear(vec3(0.36, 0.7, 0.8)), linear(vec3(0.13, 0.36, 0.6)), smoothstep(1.0, 6.0, tiles));
+  float depth = clamp(tiles / 7.0, 0.0, 1.0);
+  vec3 color = linear(vec3(0.5, 0.86, 0.82));
+  color = mix(color, linear(vec3(0.24, 0.66, 0.8)), step(0.2, depth));
+  color = mix(color, linear(vec3(0.15, 0.45, 0.72)), step(0.55, depth));
   vec2 cell = floor(vTile * 2.0);
   float sparkle = step(0.992, hash(cell + floor(time * 1.2)));
   vec2 dash = floor(vec2(vTile.x * 0.5 + time * 0.3, vTile.y * 1.5));

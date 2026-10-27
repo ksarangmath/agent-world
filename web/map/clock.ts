@@ -5,6 +5,8 @@ export const sky = {
 
 export const view = { left: 0, right: 0, top: 0, bottom: 0 }
 
+export const viewFrom = { x: -0.34, y: 0.84, z: 0.94 }
+
 export const onScreen = (x: number, y: number) =>
   x >= view.left && x <= view.right && y >= view.top && y <= view.bottom
 

@@ -5,7 +5,6 @@ import {
   Color,
   ConeGeometry,
   IcosahedronGeometry,
-  MeshLambertMaterial,
   Object3D,
   type InstancedMesh,
 } from 'three'
@@ -13,7 +12,8 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { treeKinds, type Tree, type TreeKind } from './city'
 import { chunked } from './clock'
 import { hash } from './elevation'
-import { colored } from './paint'
+import { colored, toon } from './paint'
+import { seeThrough } from './sightlines'
 
 const trunk = (height: number, width = 0.12, hex = '#6b4a32') =>
   colored(new BoxGeometry(width, height, width).translate(0, height / 2, 0), hex)
@@ -54,7 +54,8 @@ const shapes: Record<TreeKind, BufferGeometry> = {
   ]),
 }
 
-const material = new MeshLambertMaterial({ vertexColors: true, flatShading: true })
+const material = toon({ vertexColors: true })
+material.onBeforeCompile = seeThrough
 
 function Chunk({ trees, kind }: { trees: Tree[]; kind: TreeKind }) {
   const mesh = useRef<InstancedMesh>(null)
@@ -74,7 +75,7 @@ function Chunk({ trees, kind }: { trees: Tree[]; kind: TreeKind }) {
     if (mesh.current!.instanceColor) mesh.current!.instanceColor.needsUpdate = true
     mesh.current!.computeBoundingSphere()
   }, [trees])
-  return <instancedMesh ref={mesh} args={[shapes[kind], material, trees.length]} />
+  return <instancedMesh ref={mesh} args={[shapes[kind], material, trees.length]} castShadow />
 }
 
 export function Trees({ trees }: { trees: Tree[] }) {

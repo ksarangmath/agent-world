@@ -8,6 +8,7 @@ import { sky } from './clock'
 const altitude = 5
 const [, goldenGate] = warp(-122.478, 37.815)
 const clearAtZoom = 30
+const coastRows = 12
 const animated = { time: { value: 0 }, thickness: { value: 1 }, clear: { value: 1 } }
 
 const pacific = new Intl.DateTimeFormat('en-US', {
@@ -29,16 +30,20 @@ function thickness(date: Date) {
 }
 
 function westCoast(): Float32Array {
-  const coast = new Float32Array(mapHeight).fill(-mapWidth)
+  const firstLand = new Float32Array(mapHeight).fill(Infinity)
   for (let y = 0; y < mapHeight; y++) {
     for (let x = 0; x < mapWidth; x++) {
       if (isDry(groundKinds[ground[y * mapWidth + x]!]!)) {
-        coast[y] = x
+        firstLand[y] = x
         break
       }
     }
   }
-  return coast
+  return firstLand.map((_, y) => {
+    const nearby = firstLand.subarray(Math.max(0, y - coastRows), y + coastRows + 1)
+    const coast = Math.min(...nearby)
+    return Number.isFinite(coast) ? coast : -mapWidth
+  })
 }
 
 const vertexShader = `

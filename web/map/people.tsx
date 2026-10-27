@@ -16,6 +16,7 @@ import {
 import { onScreen } from './clock'
 import { hash, surfaceAt } from './elevation'
 import { hovered } from './hover'
+import { toonBands } from './paint'
 import type { RouteReply, RouteRequest } from './routing.worker'
 
 const capacity = 2000
@@ -295,6 +296,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
       {partKeys.map((key) => (
         <instancedMesh
           key={key}
+          castShadow
           ref={(mesh) => {
             meshes.current[key] = mesh
           }}
@@ -302,7 +304,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
           frustumCulled={false}
         >
           <boxGeometry args={[1, 1, 1]} />
-          <meshLambertMaterial />
+          <meshToonMaterial gradientMap={toonBands} />
         </instancedMesh>
       ))}
     </>

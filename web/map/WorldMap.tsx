@@ -43,13 +43,14 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
       <Canvas
         orthographic
         dpr={[1, 2]}
+        shadows="percentage"
         gl={{ antialias: false }}
         camera={{ near: 1, far: 4000 }}
         onCreated={(state) => {
           scene.current = state.scene
         }}
       >
-        <Sky center={view} />
+        <Sky />
         <VisibleArea />
         <Ground pixels={city.pixels} />
         <Water />

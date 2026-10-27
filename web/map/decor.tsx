@@ -47,7 +47,7 @@ function Props<K extends string>({
     instances.instanceColor!.needsUpdate = true
     instances.computeBoundingSphere()
   }, [items])
-  return <instancedMesh ref={mesh} args={[geometry, material, items.length]} />
+  return <instancedMesh ref={mesh} args={[geometry, material, items.length]} castShadow />
 }
 
 export function Decor({ city }: { city: City }) {

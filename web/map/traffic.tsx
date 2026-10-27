@@ -7,7 +7,6 @@ import {
   Float32BufferAttribute,
   MeshBasicMaterial,
   Matrix4,
-  MeshLambertMaterial,
   Object3D,
   type InstancedMesh,
 } from 'three'
@@ -19,7 +18,7 @@ import { groundAt, isDry } from '../../shared/map/terrain'
 import { onScreen, sky } from './clock'
 import { hash, surfaceAt } from './elevation'
 import { Fog } from './fog'
-import { colored } from './paint'
+import { colored, toon } from './paint'
 
 type Pose = {
   x: number
@@ -40,7 +39,7 @@ type Fleet = {
 }
 
 const epoch = Date.UTC(2026, 0, 1)
-const paint = new MeshLambertMaterial({ vertexColors: true, flatShading: true })
+const paint = toon({ vertexColors: true })
 const lamp = new MeshBasicMaterial({ vertexColors: true })
 const pose: Pose = { x: 0, y: 0, z: 0, heading: 0, pitch: 0, scale: 1, stretch: 1 }
 const dummy = new Object3D()
@@ -608,7 +607,12 @@ function Vehicles({ fleet }: { fleet: Fleet }) {
   })
   return (
     <>
-      <instancedMesh ref={body} args={[fleet.model, paint, fleet.count]} frustumCulled={false} />
+      <instancedMesh
+        ref={body}
+        args={[fleet.model, paint, fleet.count]}
+        frustumCulled={false}
+        castShadow
+      />
       {fleet.glow && (
         <instancedMesh ref={glow} args={[fleet.glow, lamp, fleet.count]} frustumCulled={false} />
       )}

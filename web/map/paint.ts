@@ -1,4 +1,13 @@
-import { Color, Float32BufferAttribute, type BufferGeometry } from 'three'
+import {
+  Color,
+  DataTexture,
+  Float32BufferAttribute,
+  MeshToonMaterial,
+  NearestFilter,
+  RedFormat,
+  type BufferGeometry,
+  type MeshToonMaterialParameters,
+} from 'three'
 
 export function colored(geometry: BufferGeometry, hex: string): BufferGeometry {
   const flat = geometry.index ? geometry.toNonIndexed() : geometry
@@ -10,3 +19,14 @@ export function colored(geometry: BufferGeometry, hex: string): BufferGeometry {
   )
   return flat
 }
+
+export const toonBands = (() => {
+  const texture = new DataTexture(new Uint8Array([120, 185, 235, 255]), 4, 1, RedFormat)
+  texture.minFilter = NearestFilter
+  texture.magFilter = NearestFilter
+  texture.needsUpdate = true
+  return texture
+})()
+
+export const toon = (parameters: MeshToonMaterialParameters = {}) =>
+  new MeshToonMaterial({ gradientMap: toonBands, ...parameters })

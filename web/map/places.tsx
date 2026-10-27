@@ -3,6 +3,7 @@ import { BoxGeometry, Color, Object3D, type InstancedMesh } from 'three'
 import { places, type Place } from '../../shared/map/places'
 import { spots } from '../../shared/map/spots'
 import { hash, surfaceAt } from './elevation'
+import { toonBands } from './paint'
 
 type Prop = {
   x: number
@@ -60,10 +61,6 @@ function propsOf(place: Place): Prop[] {
         stool()
         table('#efe6d6')
         add(0.26, 0.26, [0.05, 0.06, 0.05], place.activity === 'coffee' ? '#f4f1ea' : '#e0a24a')
-        if (i % 2 === 0) {
-          add(0.26, 0.26, [0.03, 0.5, 0.03], '#d0d0d0')
-          add(0.26, 0.74, [0.6, 0.06, 0.6], i % 4 === 0 ? '#d9534f' : '#3a9a8a')
-        }
         break
       case 'reading':
         stool()
@@ -154,8 +151,8 @@ export function Places() {
     mesh.current!.computeBoundingSphere()
   }, [props])
   return (
-    <instancedMesh ref={mesh} args={[box, undefined, props.length]}>
-      <meshLambertMaterial />
+    <instancedMesh ref={mesh} args={[box, undefined, props.length]} castShadow receiveShadow>
+      <meshToonMaterial gradientMap={toonBands} />
     </instancedMesh>
   )
 }

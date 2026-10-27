@@ -3,12 +3,13 @@ import { useEffect, useMemo } from 'react'
 import { Vector3, type OrthographicCamera } from 'three'
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js'
 import { mapHeight, mapWidth } from '../../shared/map/grid'
-import { view } from './clock'
+import { view, viewFrom } from './clock'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { RenderPixelatedPass } from 'three/examples/jsm/postprocessing/RenderPixelatedPass.js'
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
+import { revealAt } from './sightlines'
 
-const viewFrom = { x: -0.34, y: 0.84, z: 0.94 }
 const distance = 800
 
 export type Focus = { x: number; y: number; zoom: number }
@@ -176,11 +177,35 @@ export function VisibleArea() {
       top: top - margin,
       bottom: bottom + margin,
     })
+    revealAt(camera.zoom)
   })
   return null
 }
 
 const artPixel = 1.5
+
+const grade = {
+  uniforms: { tDiffuse: { value: null } },
+  vertexShader: `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}`,
+  fragmentShader: `
+uniform sampler2D tDiffuse;
+varying vec2 vUv;
+void main() {
+  vec4 texel = texture2D(tDiffuse, vUv);
+  vec3 color = texel.rgb;
+  float light = dot(color, vec3(0.2126, 0.7152, 0.0722));
+  color *= mix(vec3(0.86, 0.88, 1.1), vec3(1.1, 1.0, 0.84), smoothstep(0.02, 0.5, light));
+  color = mix(vec3(light), color, 1.15);
+  float edge = length((vUv - 0.5) * vec2(1.0, 0.85));
+  color *= 1.0 - 0.28 * smoothstep(0.35, 0.85, edge);
+  gl_FragColor = vec4(color, texel.a);
+}`,
+}
 
 export function PixelPass() {
   const { gl, scene, camera, size } = useThree()
@@ -197,11 +222,18 @@ export function PixelPass() {
         },
       ),
     )
+    effects.addPass(new ShaderPass(grade))
     effects.addPass(new OutputPass())
     return effects
   }, [gl, scene, camera])
   useEffect(() => composer.setSize(size.width, size.height), [composer, size])
-  useEffect(() => () => composer.dispose(), [composer])
+  useEffect(
+    () => () => {
+      composer.passes.forEach((pass) => pass.dispose())
+      composer.dispose()
+    },
+    [composer],
+  )
   useFrame(() => composer.render(), 1)
   return null
 }

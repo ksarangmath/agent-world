@@ -4,12 +4,12 @@ import {
   BoxGeometry,
   Color,
   MeshBasicMaterial,
-  MeshLambertMaterial,
   Object3D,
   type Group,
   type InstancedMesh,
 } from 'three'
 import { sky } from './clock'
+import { toon } from './paint'
 import { bridges } from './landmarks/bridgeworks'
 import { icons, windmillSite } from './landmarks/icons'
 import { shapes, type Light, type Part, type Shape } from './landmarks/shapes'
@@ -21,11 +21,11 @@ const lights = [...bridgework.lights, ...landmarks.lights]
 
 export const reservedTiles: ReadonlySet<number> = landmarks.reserved
 
-const solidMaterial = new MeshLambertMaterial({ flatShading: true })
+const solidMaterial = toon()
 const lightMaterial = new MeshBasicMaterial()
 const lightGeometry = new BoxGeometry(0.16, 0.16, 0.16)
-const sailMaterial = new MeshLambertMaterial({ color: '#efe9dc' })
-const spokeMaterial = new MeshLambertMaterial({ color: '#6b4a34' })
+const sailMaterial = toon({ color: '#efe9dc' })
+const spokeMaterial = toon({ color: '#6b4a34' })
 
 function Solids({ shape, list }: { shape: Shape; list: Part[] }) {
   const mesh = useRef<InstancedMesh>(null)
@@ -39,7 +39,14 @@ function Solids({ shape, list }: { shape: Shape; list: Part[] }) {
     if (mesh.current!.instanceColor) mesh.current!.instanceColor.needsUpdate = true
     mesh.current!.computeBoundingSphere()
   }, [list])
-  return <instancedMesh ref={mesh} args={[shapes[shape], solidMaterial, list.length]} />
+  return (
+    <instancedMesh
+      ref={mesh}
+      args={[shapes[shape], solidMaterial, list.length]}
+      castShadow
+      receiveShadow
+    />
+  )
 }
 
 function Lights({ list }: { list: Light[] }) {

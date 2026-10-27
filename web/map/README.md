@@ -1,6 +1,6 @@
 # The map view
 
-A three.js scene, rendered at a third of the screen's resolution with
+A toon-shaded three.js scene, rendered at about 1.5 screen points per pixel with
 `RenderPixelatedPass` and seen from the south-southwest through an orthographic
 camera. One world unit is one tile. Nothing here talks to the server except
 the world snapshot that `People` and `Labels` draw.
@@ -14,8 +14,9 @@ the world snapshot that `People` and `Labels` draw.
   lots, one building each; parks, courtyards, and wild hills get trees.
 - **`ground.tsx`**, **`water.tsx`**, **`buildings.tsx`**, **`trees.tsx`**: draw it.
   The ground, buildings, and trees come in 64-tile chunks so off-screen chunks
-  are culled. A ground shader paints lane lines, crosswalks, and curbs up
-  close; windows come from the wall shader and light up at night.
+  are culled. A ground shader paints lane lines and curbs up close and
+  drifting cloud shadows; windows come from the wall shader and light up at
+  night.
 - **`landmarks.tsx`**: bridges and the Bay Area's icons. Its `reservedTiles`
   keep procedural buildings off their footprints.
 - **`traffic.tsx`**, **`fog.tsx`**: cars, cable cars, streetcars, boats,
@@ -29,6 +30,12 @@ the world snapshot that `People` and `Labels` draw.
 - **`crowds.tsx`**, **`hover.ts`**, **`PersonHover.tsx`**: count bubbles that
   group people by zoom and fly the camera in when clicked, and the card shown
   when hovering over a person.
-- **`sky.tsx`**: lighting from the real sun position over San Francisco.
+- **`sightlines.ts`**: a per-tile height above which buildings, trees, and
+  decorations would hide a place's spots from the camera; their shaders dither
+  those fragments away when zoomed in.
+- **`sky.tsx`**: lighting from the real sun height over San Francisco, with
+  the sun at a fixed bearing so shadows fall toward the camera, and moonlight
+  at night. **`paint.ts`** holds the shared toon material, and `PixelPass` in
+  `camera.tsx` pixelates and color-grades the frame.
   **`clock.ts`** shares the time, daylight, and the visible area (set once a
   frame by `camera.tsx`), so moving things skip work off screen.

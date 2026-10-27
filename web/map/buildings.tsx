@@ -8,14 +8,15 @@ import {
   DoubleSide,
   Float32BufferAttribute,
   InstancedBufferAttribute,
-  MeshLambertMaterial,
   Object3D,
   SphereGeometry,
   type InstancedMesh,
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { Building } from './city'
+import { toon } from './paint'
 import { chunked, sky } from './clock'
+import { seeThrough } from './sightlines'
 import type { Crown } from './neighborhoods'
 
 const roofPitch = 0.38
@@ -81,8 +82,9 @@ const crowns: Record<Crown, BufferGeometry> = {
 const crownKinds = Object.keys(crowns) as Crown[]
 
 function wallMaterial() {
-  const material = new MeshLambertMaterial()
+  const material = toon()
   material.onBeforeCompile = (shader) => {
+    seeThrough(shader)
     shader.uniforms.daylight = sky.daylight
     shader.vertexShader = shader.vertexShader
       .replace(
@@ -144,7 +146,8 @@ totalEmissiveRadiance += glow * vec3(1.0, 0.72, 0.38) * 1.4;`,
 }
 
 const walls = wallMaterial()
-const roofs = new MeshLambertMaterial({ flatShading: true, side: DoubleSide })
+const roofs = toon({ side: DoubleSide })
+roofs.onBeforeCompile = seeThrough
 
 function Crowns({ kind, buildings }: { kind: Crown; buildings: Building[] }) {
   const mesh = useRef<InstancedMesh>(null)
@@ -168,7 +171,14 @@ function Crowns({ kind, buildings }: { kind: Crown; buildings: Building[] }) {
     if (mesh.current!.instanceColor) mesh.current!.instanceColor.needsUpdate = true
     mesh.current!.computeBoundingSphere()
   }, [kind, buildings])
-  return <instancedMesh ref={mesh} args={[crowns[kind], roofs, buildings.length]} />
+  return (
+    <instancedMesh
+      ref={mesh}
+      args={[crowns[kind], roofs, buildings.length]}
+      castShadow
+      receiveShadow
+    />
+  )
 }
 
 function Chunk({ buildings }: { buildings: Building[] }) {
@@ -223,9 +233,16 @@ function Chunk({ buildings }: { buildings: Building[] }) {
   useEffect(() => () => geometry.dispose(), [geometry])
   return (
     <>
-      <instancedMesh ref={bodies} args={[geometry, walls, buildings.length]} />
+      <instancedMesh
+        ref={bodies}
+        args={[geometry, walls, buildings.length]}
+        castShadow
+        receiveShadow
+      />
       <instancedMesh
         ref={gables}
+        castShadow
+        receiveShadow
         args={[gable, roofs, Math.max(1, pitched.length)]}
         count={pitched.length}
       />

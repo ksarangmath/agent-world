@@ -3,6 +3,7 @@ import { useRef } from 'react'
 import type { Group } from 'three'
 import type { Activity } from '../../shared/map/places'
 import type { Avatar } from '../../shared/profile'
+import { toonBands } from '../map/paint'
 
 export const partKeys = [
   'leftLeg',
@@ -297,7 +298,7 @@ export function Humanoid({ avatar, walking }: { avatar: Avatar; walking: { curre
         const box = (
           <mesh position={part.offset}>
             <boxGeometry args={part.size} />
-            <meshLambertMaterial color={part.color} />
+            <meshToonMaterial color={part.color} gradientMap={toonBands} />
           </mesh>
         )
         return part.limb ? (
