@@ -21,24 +21,36 @@ const trunk = (height: number, width = 0.12, hex = '#6b4a32') =>
 const shapes: Record<TreeKind, BufferGeometry> = {
   round: mergeGeometries([
     trunk(0.45),
-    colored(new IcosahedronGeometry(0.42, 0).translate(0, 0.75, 0), '#4f8a3c'),
+    colored(new IcosahedronGeometry(0.44, 0).translate(0, 0.78, 0), '#4caf50'),
   ]),
   cypress: mergeGeometries([
     trunk(0.5, 0.14),
-    colored(new IcosahedronGeometry(0.5, 0).scale(1.3, 0.55, 1).translate(0, 0.8, 0), '#2f5e3c'),
+    colored(new IcosahedronGeometry(0.5, 0).scale(1.3, 0.55, 1).translate(0, 0.8, 0), '#2e7d4f'),
   ]),
   pine: mergeGeometries([
     trunk(0.3),
-    colored(new ConeGeometry(0.38, 1.1, 6).translate(0, 0.85, 0), '#2e6a3f'),
+    colored(new ConeGeometry(0.38, 1.1, 6).translate(0, 0.85, 0), '#2f8a4f'),
   ]),
   redwood: mergeGeometries([
-    trunk(0.6, 0.16, '#7a3f2a'),
-    colored(new ConeGeometry(0.42, 2.2, 6).translate(0, 1.5, 0), '#2a5532'),
+    trunk(1.4, 0.28, '#8b3a1e'),
+    colored(new ConeGeometry(0.62, 3.2, 7).translate(0, 2.6, 0), '#2a6b3a'),
+    colored(new ConeGeometry(0.48, 2.2, 7).translate(0, 3.6, 0), '#33804a'),
   ]),
   palm: mergeGeometries([
     trunk(1.2, 0.08, '#8a6a46'),
-    colored(new BoxGeometry(0.9, 0.06, 0.18).translate(0, 1.22, 0), '#4c8a3a'),
-    colored(new BoxGeometry(0.18, 0.06, 0.9).translate(0, 1.22, 0), '#4c8a3a'),
+    colored(new BoxGeometry(0.9, 0.06, 0.18).translate(0, 1.22, 0), '#3fae4a'),
+    colored(new BoxGeometry(0.18, 0.06, 0.9).translate(0, 1.22, 0), '#3fae4a'),
+  ]),
+  oak: mergeGeometries([
+    trunk(0.4, 0.18, '#6b4a32'),
+    colored(
+      new IcosahedronGeometry(0.62, 0).scale(1.25, 0.8, 1.25).translate(0, 0.85, 0),
+      '#5e9e3a',
+    ),
+  ]),
+  blossom: mergeGeometries([
+    trunk(0.4, 0.1, '#7a4f3a'),
+    colored(new IcosahedronGeometry(0.42, 0).translate(0, 0.72, 0), '#f7a8c8'),
   ]),
 }
 

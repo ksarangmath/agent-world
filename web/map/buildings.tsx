@@ -3,14 +3,20 @@ import {
   BoxGeometry,
   BufferGeometry,
   Color,
+  ConeGeometry,
+  CylinderGeometry,
+  DoubleSide,
   Float32BufferAttribute,
   InstancedBufferAttribute,
   MeshLambertMaterial,
   Object3D,
+  SphereGeometry,
   type InstancedMesh,
 } from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { Building } from './city'
 import { chunked, sky } from './clock'
+import type { Crown } from './neighborhoods'
 
 const roofPitch = 0.38
 
@@ -36,6 +42,43 @@ function prism() {
 }
 
 const gable = prism()
+
+const pyramid = (radius: number, height: number) =>
+  new ConeGeometry(radius, height, 4).rotateY(Math.PI / 4).translate(0, height / 2, 0)
+
+function sawtooth() {
+  const [f, b] = [0.5, -0.5]
+  const teeth = [0, 1, 2].flatMap((k) => {
+    const [x0, x1] = [-0.5 + k / 3, -0.5 + (k + 1) / 3]
+    return [
+      [x0, 0, f, x1, 0, f, x1, 1, f],
+      [x1, 0, b, x0, 0, b, x1, 1, b],
+      [x0, 0, b, x0, 0, f, x1, 1, f, x0, 0, b, x1, 1, f, x1, 1, b],
+      [x1, 0, f, x1, 0, b, x1, 1, b, x1, 0, f, x1, 1, b, x1, 1, f],
+    ].flat()
+  })
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute(teeth, 3))
+  geometry.computeVertexNormals()
+  return geometry
+}
+
+const crowns: Record<Crown, BufferGeometry> = {
+  hip: pyramid(Math.SQRT1_2, 1),
+  pagoda: mergeGeometries([
+    new BoxGeometry(1.35, 0.12, 1.35).translate(0, 0.06, 0),
+    pyramid(0.78, 0.6).translate(0, 0.12, 0),
+    new BoxGeometry(0.9, 0.08, 0.9).translate(0, 0.5, 0),
+    pyramid(0.5, 0.42).translate(0, 0.58, 0),
+  ]),
+  dome: mergeGeometries([
+    new CylinderGeometry(0.42, 0.42, 0.25, 12).translate(0, 0.125, 0),
+    new SphereGeometry(0.42, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.25, 0),
+  ]),
+  sawtooth: sawtooth(),
+  spire: new ConeGeometry(0.14, 1, 6).translate(0, 0.5, 0),
+}
+const crownKinds = Object.keys(crowns) as Crown[]
 
 function wallMaterial() {
   const material = new MeshLambertMaterial()
@@ -101,17 +144,49 @@ totalEmissiveRadiance += glow * vec3(1.0, 0.72, 0.38) * 1.4;`,
 }
 
 const walls = wallMaterial()
-const roofs = new MeshLambertMaterial({ flatShading: true })
+const roofs = new MeshLambertMaterial({ flatShading: true, side: DoubleSide })
+
+function Crowns({ kind, buildings }: { kind: Crown; buildings: Building[] }) {
+  const mesh = useRef<InstancedMesh>(null)
+  useLayoutEffect(() => {
+    const dummy = new Object3D()
+    const color = new Color()
+    buildings.forEach((b, i) => {
+      const turned = kind === 'sawtooth' && b.depth > b.width
+      const [width, depth] = turned ? [b.depth, b.width] : [b.width, b.depth]
+      const size = Math.min(b.width, b.depth) * 0.9
+      dummy.position.set(b.x + b.width / 2, b.base + b.height, b.y + b.depth / 2)
+      dummy.rotation.set(0, turned ? Math.PI / 2 : 0, 0)
+      if (kind === 'dome') dummy.scale.set(size, size, size)
+      else if (kind === 'spire') dummy.scale.set(1, b.crownHeight, 1)
+      else dummy.scale.set(width, b.crownHeight, depth)
+      dummy.updateMatrix()
+      mesh.current!.setMatrixAt(i, dummy.matrix)
+      mesh.current!.setColorAt(i, color.set(b.roof))
+    })
+    mesh.current!.instanceMatrix.needsUpdate = true
+    if (mesh.current!.instanceColor) mesh.current!.instanceColor.needsUpdate = true
+    mesh.current!.computeBoundingSphere()
+  }, [kind, buildings])
+  return <instancedMesh ref={mesh} args={[crowns[kind], roofs, buildings.length]} />
+}
 
 function Chunk({ buildings }: { buildings: Building[] }) {
   const bodies = useRef<InstancedMesh>(null)
   const gables = useRef<InstancedMesh>(null)
   const pitched = useMemo(() => buildings.filter((b) => b.gable !== 'none'), [buildings])
+  const crowned = useMemo(
+    () =>
+      crownKinds
+        .map((kind) => ({ kind, list: buildings.filter((b) => b.crown === kind) }))
+        .filter(({ list }) => list.length > 0),
+    [buildings],
+  )
   const roofColors = useMemo(() => {
     const color = new Color()
     const values = new Float32Array(buildings.length * 3)
     buildings.forEach((b, i) =>
-      color.set(b.gable === 'none' ? b.roof : b.wall).toArray(values, i * 3),
+      color.set(b.gable === 'none' && b.crown === 'none' ? b.roof : b.wall).toArray(values, i * 3),
     )
     return new InstancedBufferAttribute(values, 3)
   }, [buildings])
@@ -154,6 +229,9 @@ function Chunk({ buildings }: { buildings: Building[] }) {
         args={[gable, roofs, Math.max(1, pitched.length)]}
         count={pitched.length}
       />
+      {crowned.map(({ kind, list }) => (
+        <Crowns key={kind} kind={kind} buildings={list} />
+      ))}
     </>
   )
 }

@@ -1,11 +1,19 @@
 import { groundKinds, mapHeight, mapWidth } from '../../shared/map/grid'
 import { places, type Activity } from '../../shared/map/places'
-import { spots } from '../../shared/map/spots'
 import { accessRoad, roads } from '../../shared/map/route'
+import { spots } from '../../shared/map/spots'
 import { ground } from '../../shared/map/terrain'
 import { hash, heightAt, noise } from './elevation'
 import { reservedTiles } from './landmarks'
-import { neighborhoodAt, styles, type Style } from './neighborhoods'
+import {
+  accents,
+  neighborhoodAt,
+  peaks,
+  styles,
+  type Crown,
+  type Style,
+  type Wild,
+} from './neighborhoods'
 
 export type Building = {
   x: number
@@ -17,51 +25,36 @@ export type Building = {
   wall: string
   roof: string
   gable: 'none' | 'x' | 'y'
+  crown: Crown | 'none'
+  crownHeight: number
 }
 
-export const treeKinds = ['round', 'cypress', 'pine', 'redwood', 'palm'] as const
+export const treeKinds = ['round', 'cypress', 'pine', 'redwood', 'palm', 'oak', 'blossom'] as const
 export type TreeKind = (typeof treeKinds)[number]
 export type Tree = { x: number; y: number; base: number; size: number; kind: TreeKind }
 
 const plazas: Record<Activity, string> = {
-  coding: '#c9c3d6',
-  coffee: '#d9b38c',
-  reading: '#d8c9a0',
-  music: '#b9a0c9',
-  art: '#e3b6a0',
-  climbing: '#a9b4bf',
-  running: '#c97a5a',
-  hiking: '#b59c6c',
-  surfing: '#efdcae',
-  sailing: '#a88a6a',
-  tinkering: '#b3aca3',
-  eating: '#e0b48a',
-  chatting: '#cdb8a8',
-  picnic: '#93c26f',
-  chess: '#d6d0c4',
-  pitching: '#bfc8d4',
+  coding: '#d6cff0',
+  coffee: '#e8c29a',
+  reading: '#ead9a8',
+  music: '#c9a8e0',
+  art: '#f2bfa8',
+  climbing: '#b4c4d4',
+  running: '#e07a55',
+  hiking: '#c8a874',
+  surfing: '#f7e3b0',
+  sailing: '#b8946a',
+  tinkering: '#c4bcb2',
+  eating: '#f2c08a',
+  chatting: '#dfc4b4',
+  picnic: '#9bd66f',
+  chess: '#e4ddcf',
+  pitching: '#c8d4e4',
 }
 
-const roadColors = ['#55575d', '#4a4c52', '#6f7074']
-
-const peaks: Record<string, number> = {
-  'Financial District': 1,
-  'East Cut': 1,
-  'Union Square': 0.55,
-  Oakland: 0.45,
-  'San Jose': 0.35,
-}
-
-const lotSizes: Record<Style, [long: number, short: number]> = {
-  downtown: [4, 4],
-  midrise: [4, 3],
-  victorian: [3, 2],
-  stucco: [2, 2],
-  marina: [3, 3],
-  industrial: [6, 5],
-  suburb: [2, 2],
-  campus: [5, 4],
-}
+const roadColors = ['#4e5360', '#454a56', '#626774']
+const pavement = '#d9d2c3'
+const containerColors = ['#e8742c', '#2f6fbf', '#3d9970', '#c23a3a', '#f2b632', '#7b2cbf']
 
 const outward = [
   [0, -1],
@@ -114,8 +107,9 @@ function shade(hex: string, amount: number): [number, number, number] {
 
 function mix(a: string, b: string, t: number): string {
   const [x, y] = [Number.parseInt(a.slice(1), 16), Number.parseInt(b.slice(1), 16)]
+  const share = Math.min(1, Math.max(0, t))
   const channel = (shift: number) =>
-    Math.round(((x >> shift) & 255) * (1 - t) + ((y >> shift) & 255) * t)
+    Math.round(((x >> shift) & 255) * (1 - share) + ((y >> shift) & 255) * share)
   return `#${((channel(16) << 16) | (channel(8) << 8) | channel(0)).toString(16).padStart(6, '0')}`
 }
 
@@ -128,6 +122,45 @@ function cornerSpan(x: number, y: number, width: number, depth: number): [number
   ]
   return [Math.min(...corners), Math.max(...corners)]
 }
+
+const wilds: Record<
+  Wild,
+  (x: number, y: number, clusters: number) => { color: string; chance: number; kinds: TreeKind[] }
+> = {
+  meadow: (_x, _y, clusters) => ({
+    color: mix('#a6d36b', '#cfd97c', (clusters + 1) / 2),
+    chance: 0.04 + Math.max(0, clusters) * 0.4,
+    kinds: ['round', 'oak'],
+  }),
+  golden: (x, y, clusters) => ({
+    color:
+      clusters > 0.35
+        ? mix('#e9c46a', '#9cbf55', (clusters - 0.35) * 1.6)
+        : mix('#f4d06f', '#e2b24f', hash(x * 5, y * 3)),
+    chance: 0.03 + Math.max(0, clusters) * 0.5,
+    kinds: ['oak'],
+  }),
+  redwood: (_x, _y, clusters) => ({
+    color: mix('#3f7d4a', '#5e9d55', (clusters + 1) / 2),
+    chance: 0.3 + 0.3 * clusters,
+    kinds: ['redwood', 'redwood', 'redwood', 'pine'],
+  }),
+  orchard: (x, y, clusters) =>
+    clusters > -0.1
+      ? {
+          color: '#b8dd7a',
+          chance: x % 3 === 0 && y % 2 === 0 ? 0.85 : 0,
+          kinds: ['blossom'],
+        }
+      : { color: mix('#dcd27a', '#c9d86f', hash(x, y)), chance: 0.08, kinds: ['oak'] },
+  dunes: (_x, _y, clusters) => ({
+    color: mix('#efe0a6', '#c7d98a', (clusters + 1) / 2),
+    chance: 0.06,
+    kinds: ['cypress'],
+  }),
+}
+
+type Lot = { x: number; y: number; width: number; depth: number; style: Style; name: string }
 
 export function buildCity() {
   const distance = roadDistances()
@@ -168,40 +201,34 @@ export function buildCity() {
     if (kind !== 'land' && !(kind === 'campus' && style === 'campus')) return false
     return distance[i]! <= styles[style].depth
   }
+  const isRoad = (x: number, y: number) =>
+    x >= 0 && y >= 0 && x < mapWidth && y < mapHeight && roads[y * mapWidth + x]! > 0
 
   const block = new Int32Array(mapWidth * mapHeight).fill(-1)
-  const lots: { x: number; y: number; width: number; depth: number; style: Style; name: string }[] =
-    []
-  const split = (
-    id: number,
-    style: Style,
-    name: string,
-    x0: number,
-    y0: number,
-    x1: number,
-    y1: number,
-  ) => {
+  const lots: Lot[] = []
+  const split = (id: number, lot: Lot, x1: number, y1: number) => {
+    const { x: x0, y: y0, style } = lot
     const [width, depth] = [x1 - x0, y1 - y0]
     let count = 0
     for (let y = y0; y < y1; y++) {
       for (let x = x0; x < x1; x++) if (block[y * mapWidth + x] === id) count++
     }
     if (!count) return
-    const [long, short] = lotSizes[style]
+    const [long, short] = styles[style].lot
     const fits = (width <= long && depth <= short) || (width <= short && depth <= long)
     if (count === width * depth && fits) {
-      lots.push({ x: x0, y: y0, width, depth, style, name })
+      lots.push({ ...lot, width, depth })
       return
     }
     const cut = 0.35 + 0.3 * hash(x0 * 3 + y1, y0 * 7 + x1)
     if (width >= depth) {
       const at = x0 + Math.min(width - 1, Math.max(1, Math.round(width * cut)))
-      split(id, style, name, x0, y0, at, y1)
-      split(id, style, name, at, y0, x1, y1)
+      split(id, lot, at, y1)
+      split(id, { ...lot, x: at }, x1, y1)
     } else {
       const at = y0 + Math.min(depth - 1, Math.max(1, Math.round(depth * cut)))
-      split(id, style, name, x0, y0, x1, at)
-      split(id, style, name, x0, at, x1, y1)
+      split(id, lot, x1, at)
+      split(id, { ...lot, y: at }, x1, y1)
     }
   }
   let blocks = 0
@@ -230,54 +257,176 @@ export function buildCity() {
         tiles.push(n)
       }
     }
-    split(id, style, name, left, top, right + 1, bottom + 1)
+    split(id, { x: left, y: top, width: 0, depth: 0, style, name }, right + 1, bottom + 1)
   }
 
-  for (const { x, y, width, depth, style, name } of lots) {
-    const definition = styles[style]
+  const box = (
+    x: number,
+    y: number,
+    width: number,
+    depth: number,
+    base: number,
+    height: number,
+    wall: string,
+    roof = wall,
+  ): Building => ({
+    x,
+    y,
+    width,
+    depth,
+    base,
+    height,
+    wall,
+    roof,
+    gable: 'none',
+    crown: 'none',
+    crownHeight: 0,
+  })
+
+  const awning = (lot: Lot, base: number, color: string): Building | undefined => {
+    const { x, y, width, depth } = lot
+    const along = (from: number, to: number, test: (k: number) => boolean) => {
+      for (let k = from; k < to; k++) if (test(k)) return true
+      return false
+    }
+    const lift = base + 0.45
+    if (along(x, x + width, (k) => isRoad(k, y - 1))) {
+      return box(x + 0.15, y - 0.3, width - 0.3, 0.3, lift, 0.07, color)
+    }
+    if (along(x, x + width, (k) => isRoad(k, y + depth))) {
+      return box(x + 0.15, y + depth, width - 0.3, 0.3, lift, 0.07, color)
+    }
+    if (along(y, y + depth, (k) => isRoad(x - 1, k))) {
+      return box(x - 0.3, y + 0.15, 0.3, depth - 0.3, lift, 0.07, color)
+    }
+    if (along(y, y + depth, (k) => isRoad(x + width, k))) {
+      return box(x + width, y + 0.15, 0.3, depth - 0.3, lift, 0.07, color)
+    }
+    return undefined
+  }
+
+  for (const lot of lots) {
+    const { x, y, width, depth, style, name } = lot
+    const kit = styles[style]
     const seed = hash(x * 7 + 1, y * 13 + 5)
-    if (style === 'suburb' && seed > 0.6) continue
+    if (seed < kit.sparse) continue
     for (let dy = 0; dy < depth; dy++) {
       for (let dx = 0; dx < width; dx++) built[(y + dy) * mapWidth + x + dx] = 1
     }
-    const [low, high] = definition.heights
+    const [base, top] = cornerSpan(x, y, width, depth)
+    const floor = base - 0.1
+    const lift = top - base + 0.1
+    const wall = pick(kit.walls, hash(x + 3, y + 17))
+    const roof = pick(kit.roofs, hash(x + 29, y + 2))
+    const [low, high] = kit.heights
     let height = low + (high - low) * hash(x, y * 3 + 11)
-    if (style === 'downtown') {
+
+    if (kit.extra === 'containers' && hash(x + 13, y + 31) < 0.4) {
+      for (let row = 0; row < depth; row++) {
+        for (let column = 0; column < width; column++) {
+          const stack = 1 + Math.floor(hash(x + column, y + row) * 2)
+          for (let level = 0; level < stack; level++) {
+            buildings.push(
+              box(
+                x + column + 0.05,
+                y + row + 0.3,
+                0.9,
+                0.42,
+                floor + lift + level * 0.42,
+                0.42,
+                pick(containerColors, hash(x + column * 3, y + row * 5 + level)),
+              ),
+            )
+          }
+        }
+      }
+      continue
+    }
+
+    if (kit.extra === 'tiers') {
       const center = neighborhoodAt(x, y)
       const falloff = Math.max(0, 1 - Math.sqrt((center.x - x) ** 2 + (center.y - y) ** 2) / 14)
       height = low + (high - low) * (peaks[name] ?? 0.3) * falloff ** 1.2 * (0.45 + 0.55 * seed)
+      const levels: [inset: number, from: number, to: number][] =
+        height > 5
+          ? [
+              [0, 0, 0.6],
+              [0.18, 0.6, 0.85],
+              [0.32, 0.85, 1],
+            ]
+          : [[0, 0, 1]]
+      levels.forEach(([inset, from, to], level) => {
+        const margin = inset * Math.min(width, depth)
+        const tier = box(
+          x + margin,
+          y + margin,
+          width - 2 * margin,
+          depth - 2 * margin,
+          floor + (level ? lift + height * from : 0),
+          (level ? 0 : lift) + height * (to - from),
+          wall,
+          roof,
+        )
+        if (level === levels.length - 1 && height > 5 && seed > 0.55) {
+          tier.crown = 'spire'
+          tier.crownHeight = 1.5 + 2.5 * hash(x + 9, y + 9)
+        }
+        buildings.push(tier)
+      })
+      continue
     }
-    const [base, top] = cornerSpan(x, y, width, depth)
-    const gable =
-      Math.max(width, depth) <= 3 && hash(x + 5, y + 41) < definition.gables
-        ? width >= depth
-          ? 'x'
-          : 'y'
-        : 'none'
-    const building: Building = {
-      x,
-      y,
-      width,
-      depth,
-      base: base - 0.1,
-      height: top - base + 0.1 + height,
-      wall: pick(definition.walls, hash(x + 3, y + 17)),
-      roof: pick(definition.roofs, hash(x + 29, y + 2)),
-      gable,
+
+    const shape = pick(kit.tops, hash(x + 5, y + 41))
+    const small = Math.max(width, depth) <= 3
+    const building = box(x, y, width, depth, floor, lift + height, wall, roof)
+    if (shape === 'gable' && small) building.gable = width >= depth ? 'x' : 'y'
+    else if (shape !== 'flat' && shape !== 'gable') {
+      building.crown = shape
+      building.crownHeight =
+        shape === 'dome'
+          ? Math.min(width, depth) * 0.6
+          : shape === 'hip'
+            ? 0.3 + 0.12 * Math.min(width, depth)
+            : shape === 'pagoda'
+              ? 0.65
+              : 0.4
     }
     buildings.push(building)
-    if (gable === 'none' && height > 1.6 && width * depth >= 4 && hash(x + 41, y + 7) < 0.5) {
-      buildings.push({
-        x: x + width / 2 - 0.3,
-        y: y + depth / 2 - 0.3,
-        width: 0.6,
-        depth: 0.6,
-        base: building.base + building.height,
-        height: 0.3,
-        wall: '#9aa0a6',
-        roof: '#b4b9be',
-        gable: 'none',
-      })
+    const roofTop = floor + lift + height
+    const flat = building.gable === 'none' && building.crown === 'none'
+
+    if (kit.awnings.length && hash(x + 17, y + 3) < 0.7) {
+      const canopy = awning(lot, floor + lift, pick(kit.awnings, hash(x + 2, y + 23)))
+      if (canopy) buildings.push(canopy)
+    }
+    if (kit.extra === 'accent') {
+      buildings.push(
+        box(
+          x - 0.02,
+          y - 0.02,
+          width + 0.04,
+          depth + 0.04,
+          roofTop - 0.32,
+          0.24,
+          pick(accents, hash(x + 41, y + 11)),
+        ),
+      )
+    }
+    if (kit.extra === 'gardens' && flat && hash(x + 43, y + 19) < 0.6) {
+      buildings.push(
+        box(x + 0.2, y + 0.2, width - 0.4, depth - 0.4, roofTop, 0.08, '#5aa845', '#6cc04a'),
+      )
+      for (let k = 0; k < Math.min(3, width * depth - 1); k++) {
+        const [tx, ty] = [
+          x + 0.4 + (width - 0.8) * hash(x + k, y + 7),
+          y + 0.4 + (depth - 0.8) * hash(x + 7, y + k),
+        ]
+        trees.push({ x: tx, y: ty, base: roofTop + 0.08, size: 0.45, kind: 'round' })
+      }
+    } else if (flat && height > 1.6 && width * depth >= 4 && hash(x + 41, y + 7) < 0.4) {
+      buildings.push(
+        box(x + width / 2 - 0.3, y + depth / 2 - 0.3, 0.6, 0.6, roofTop, 0.3, '#9aa0a6', '#b4b9be'),
+      )
     }
   }
 
@@ -290,34 +439,36 @@ export function buildCity() {
       const seed = hash(x * 3 + 7, y * 5 + 3)
       let color: string
       let treeChance = 0
-      let treeKinds: readonly TreeKind[] = ['round']
+      let kinds: readonly TreeKind[] = ['round']
       const plaza = plazaTiles.get(i)
       if (kind === 'ocean' || kind === 'water') color = '#2f6fa6'
       else if (roads[i]) color = roadColors[roads[i]! - 1]!
       else if (plaza) color = plazas[plaza]
-      else if (walkways.has(i)) color = '#cfc8bb'
-      else if (kind === 'sand') color = '#ecd9a6'
+      else if (walkways.has(i)) color = pavement
+      else if (kind === 'sand') color = '#f5dfa8'
       else if (kind === 'park') {
         const { name } = styleAt(x, y)
-        color = mix('#5f9a4e', '#8cbf63', (clusters + 1) / 2)
-        treeChance = name === 'Presidio' ? 0.55 + 0.3 * clusters : 0.22 + 0.35 * clusters
-        treeKinds =
-          name === 'Presidio' ? ['cypress', 'pine', 'pine'] : ['round', 'round', 'cypress', 'pine']
+        const woods = name === 'Presidio Woods'
+        color = mix('#4fb548', '#86d16b', (clusters + 1) / 2)
+        treeChance = woods ? 0.55 + 0.3 * clusters : 0.22 + 0.35 * clusters
+        kinds = woods
+          ? ['cypress', 'pine', 'pine']
+          : ['round', 'round', 'cypress', 'pine', 'blossom', 'oak']
       } else if (kind === 'campus') {
-        color = '#8fbf6e'
+        color = '#7ccc6a'
         treeChance = 0.18
-        treeKinds = ['round', 'palm']
-      } else if (built[i]) color = '#cfc8bb'
+        kinds = ['round', 'palm']
+      } else if (built[i]) color = pavement
       else if (distance[i]! <= 8) {
-        const { style } = styleAt(x, y)
-        color = style === 'suburb' ? '#9cb873' : distance[i]! === 1 ? '#cfc8bb' : '#86a865'
-        treeChance = distance[i]! === 1 ? 0.08 : 0.4
+        const kit = styles[styleAt(x, y).style]
+        color = distance[i]! === 1 ? pavement : kit.lawn
+        treeChance = distance[i]! === 1 ? 0.08 : 0.35
+        kinds = kit.yard
       } else {
-        const lush = Math.max(0, clusters)
-        color = mix('#cdb36f', '#7f9150', lush)
-        treeChance = lush * 0.55
-        const [cx] = [x / mapWidth]
-        treeKinds = cx < 0.2 && y < 220 ? ['redwood', 'redwood', 'round'] : ['round']
+        const wild = wilds[styles[styleAt(x, y).style].wild](x, y, clusters)
+        color = wild.color
+        treeChance = wild.chance
+        kinds = wild.kinds
       }
       const [r, g, b] = shade(color, grain)
       pixels.set([r, g, b, 255 - roads[i]! * 20], i * 4)
@@ -328,7 +479,7 @@ export function buildCity() {
           y: ty,
           base: heightAt(tx, ty),
           size: 0.75 + 0.5 * hash(x + 5, y + 5),
-          kind: pick(treeKinds, hash(x + 77, y + 33)),
+          kind: pick(kinds, hash(x + 77, y + 33)),
         })
       }
     }

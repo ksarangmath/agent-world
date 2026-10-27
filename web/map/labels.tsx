@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { Vector3 } from 'three'
 import { warp } from '../../shared/map/grid'
-import { places } from '../../shared/map/places'
+import { places, regionNames, type Region } from '../../shared/map/places'
 import { surfaceAt } from './elevation'
 import { neighborhoods } from './neighborhoods'
 
@@ -17,17 +17,17 @@ type Label = {
 
 const areas = neighborhoods.filter((neighborhood) => neighborhood.label)
 
-const regions: [name: string, lon: number, lat: number][] = [
-  ['San Francisco', -122.44, 37.765],
-  ['Marin', -122.55, 37.9],
-  ['East Bay', -122.22, 37.83],
-  ['South Bay', -122.08, 37.4],
-]
+const regionAnchors: Record<Region, [lon: number, lat: number]> = {
+  sf: [-122.44, 37.765],
+  marin: [-122.55, 37.9],
+  east_bay: [-122.22, 37.83],
+  south_bay: [-122.08, 37.4],
+}
 
 const labels: Label[] = [
-  ...regions.map(([text, lon, lat]): Label => {
+  ...Object.entries(regionAnchors).map(([region, [lon, lat]]): Label => {
     const [x, y] = warp(lon, lat)
-    return { text, x, y, lift: 4, kind: 'region', zooms: [0, 3.5] }
+    return { text: regionNames[region as Region], x, y, lift: 4, kind: 'region', zooms: [0, 3.5] }
   }),
   ...areas.map((neighborhood): Label => ({
     text: neighborhood.name,

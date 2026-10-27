@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Mesh, type Object3D } from 'three'
 import { useWorld } from '../api'
 import { Buildings } from './buildings'
-import { Camera, PixelPass, VisibleArea, type Focus } from './camera'
+import { Camera, PixelPass, VisibleArea, zoomBy, type Focus } from './camera'
 import { buildCity } from './city'
 import { Crowds } from './crowds'
+import { Decor } from './decor'
 import { Ground } from './ground'
 import { Labels } from './labels'
 import { Landmarks } from './landmarks'
@@ -18,7 +19,7 @@ import { Traffic } from './traffic'
 import { Trees } from './trees'
 import { Water } from './water'
 
-const sanFrancisco: Focus = { x: 230, y: 230, zoom: 4.5 }
+const sanFrancisco: Focus = { x: 205, y: 225, zoom: 4.5 }
 
 function release(object: Object3D) {
   if (!(object instanceof Mesh)) return
@@ -41,7 +42,7 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
     <div className="map">
       <Canvas
         orthographic
-        dpr={[1, 1.5]}
+        dpr={[1, 2]}
         gl={{ antialias: false }}
         camera={{ near: 1, far: 4000 }}
         onCreated={(state) => {
@@ -55,6 +56,7 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
         <Buildings buildings={city.buildings} />
         <Trees trees={city.trees} />
         <Landmarks />
+        <Decor city={city} />
         <Places />
         <Traffic />
         {world.data && (
@@ -69,9 +71,22 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
           </>
         )}
         <Camera focus={view} />
-        <PixelPass pixelSize={3} />
+        <PixelPass />
       </Canvas>
       <PersonHover />
+      <div className="zoom">
+        <button type="button" aria-label="Zoom in" title="Zoom in (+)" onClick={() => zoomBy(1.6)}>
+          +
+        </button>
+        <button
+          type="button"
+          aria-label="Zoom out"
+          title="Zoom out (−)"
+          onClick={() => zoomBy(1 / 1.6)}
+        >
+          −
+        </button>
+      </div>
     </div>
   )
 }

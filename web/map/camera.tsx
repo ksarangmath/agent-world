@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
-import { Vector3 } from 'three'
+import { Vector3, type OrthographicCamera } from 'three'
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js'
 import { mapHeight, mapWidth } from '../../shared/map/grid'
 import { view } from './clock'
@@ -17,11 +17,64 @@ const flightSeconds = 0.7
 let active: MapControls | null = null
 const flight = { start: -1, from: { x: 0, y: 0, zoom: 1 }, to: { x: 0, y: 0, zoom: 1 } }
 
+const zoomOf = (controls: MapControls) => (controls.object as OrthographicCamera).zoom
+
 export function flyTo(x: number, y: number, zoom: number) {
   if (!active) return
-  const camera = active.object
-  const from = { x: active.target.x, y: active.target.z, zoom: 'zoom' in camera ? camera.zoom : 1 }
-  Object.assign(flight, { start: performance.now() / 1000, from, to: { x, y, zoom } })
+  const from = { x: active.target.x, y: active.target.z, zoom: zoomOf(active) }
+  const to = {
+    x: Math.min(mapWidth, Math.max(0, x)),
+    y: Math.min(mapHeight, Math.max(0, y)),
+    zoom: Math.min(active.maxZoom, Math.max(active.minZoom, zoom)),
+  }
+  Object.assign(flight, { start: performance.now() / 1000, from, to })
+}
+
+const forward = { x: -viewFrom.x, y: -viewFrom.z }
+const forwardLength = Math.sqrt(forward.x ** 2 + forward.y ** 2)
+const panPixels = 160
+
+function heading() {
+  if (!active) return null
+  const destination = flight.start < 0 ? null : flight.to
+  return destination ?? { x: active.target.x, y: active.target.z, zoom: zoomOf(active) }
+}
+
+export function nudge(right: number, up: number) {
+  const from = heading()
+  if (!from) return
+  const step = panPixels / from.zoom
+  const [fx, fy] = [forward.x / forwardLength, forward.y / forwardLength]
+  flyTo(from.x + (fx * up - fy * right) * step, from.y + (fy * up + fx * right) * step, from.zoom)
+}
+
+export function zoomBy(factor: number) {
+  const from = heading()
+  if (from) flyTo(from.x, from.y, from.zoom * factor)
+}
+
+const keys: Record<string, () => void> = {
+  ArrowUp: () => nudge(0, 1),
+  KeyW: () => nudge(0, 1),
+  ArrowDown: () => nudge(0, -1),
+  KeyS: () => nudge(0, -1),
+  ArrowLeft: () => nudge(-1, 0),
+  KeyA: () => nudge(-1, 0),
+  ArrowRight: () => nudge(1, 0),
+  KeyD: () => nudge(1, 0),
+  Equal: () => zoomBy(1.6),
+  NumpadAdd: () => zoomBy(1.6),
+  Minus: () => zoomBy(1 / 1.6),
+  NumpadSubtract: () => zoomBy(1 / 1.6),
+}
+
+function onKey(event: KeyboardEvent) {
+  const target = event.target as HTMLElement | null
+  const typing = target?.closest('input, textarea, select, [contenteditable="true"]')
+  const action = keys[event.code]
+  if (!action || typing || event.metaKey || event.ctrlKey || event.altKey) return
+  event.preventDefault()
+  action()
 }
 
 export function Camera({ focus }: { focus: Focus }) {
@@ -40,7 +93,7 @@ export function Camera({ focus }: { focus: Focus }) {
     controls.enableRotate = false
     controls.screenSpacePanning = false
     controls.minZoom = 1.4
-    controls.maxZoom = 64
+    controls.maxZoom = 96
     controls.zoomToCursor = true
     const keepInside = () => {
       const { target } = controls
@@ -61,7 +114,9 @@ export function Camera({ focus }: { focus: Focus }) {
     controls.addEventListener('start', cancelFlight)
     controls.update()
     active = controls
+    window.addEventListener('keydown', onKey)
     return () => {
+      window.removeEventListener('keydown', onKey)
       active = null
       cancelFlight()
       controls.removeEventListener('change', keepInside)
@@ -125,19 +180,26 @@ export function VisibleArea() {
   return null
 }
 
-export function PixelPass({ pixelSize }: { pixelSize: number }) {
+const artPixel = 1.5
+
+export function PixelPass() {
   const { gl, scene, camera, size } = useThree()
   const composer = useMemo(() => {
     const effects = new EffectComposer(gl)
     effects.addPass(
-      new RenderPixelatedPass(pixelSize, scene, camera, {
-        normalEdgeStrength: 0.25,
-        depthEdgeStrength: 0.35,
-      }),
+      new RenderPixelatedPass(
+        Math.max(2, Math.round(artPixel * gl.getPixelRatio())),
+        scene,
+        camera,
+        {
+          normalEdgeStrength: 0.25,
+          depthEdgeStrength: 0.35,
+        },
+      ),
     )
     effects.addPass(new OutputPass())
     return effects
-  }, [gl, scene, camera, pixelSize])
+  }, [gl, scene, camera])
   useEffect(() => composer.setSize(size.width, size.height), [composer, size])
   useEffect(() => () => composer.dispose(), [composer])
   useFrame(() => composer.render(), 1)

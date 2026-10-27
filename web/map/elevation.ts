@@ -83,11 +83,13 @@ const dryAt = (x: number, y: number) =>
   y < mapHeight &&
   isDry(groundKinds[ground[y * mapWidth + x]!]!)
 
-function shoreDistances(): Uint8Array {
+const coastFade = 6
+
+function distancesFrom(source: (i: number) => boolean): Uint8Array {
   const distance = new Uint8Array(mapWidth * mapHeight).fill(255)
   let frontier: number[] = []
   for (let i = 0; i < distance.length; i++) {
-    if (isDry(groundKinds[ground[i]!]!)) {
+    if (source(i)) {
       distance[i] = 0
       frontier.push(i)
     }
@@ -114,7 +116,10 @@ function shoreDistances(): Uint8Array {
   return distance
 }
 
-export const shoreDistance: Uint8Array = shoreDistances()
+const dryTile = (i: number) => isDry(groundKinds[ground[i]!]!)
+
+export const shoreDistance: Uint8Array = distancesFrom(dryTile)
+const inland = distancesFrom((i) => !dryTile(i))
 
 function heightGrid(): Float32Array {
   const raised = new Float32Array(columns * rows)
@@ -147,8 +152,12 @@ function heightGrid(): Float32Array {
       const hill = raised[row * columns + column]!
       const rugged =
         hill * (1 + 0.3 * noise(x / 9, y / 9)) + 0.15 * noise(x / 4, y / 4) * Math.min(1, hill)
+      const coast = Math.min(
+        1,
+        inland[Math.min(y, mapHeight - 1) * mapWidth + Math.min(x, mapWidth - 1)]! / coastFade,
+      )
       heights[row * columns + column] =
-        dry === 4 ? landHeight + Math.max(0, rugged) : dry > 0 ? shoreHeight : seabedHeight
+        dry === 4 ? landHeight + Math.max(0, rugged) * coast : dry > 0 ? shoreHeight : seabedHeight
     }
   }
   return heights

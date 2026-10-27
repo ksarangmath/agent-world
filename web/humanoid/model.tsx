@@ -11,10 +11,22 @@ export const partKeys = [
   'rightShoe',
   'skirt',
   'torso',
+  'belt',
+  'collar',
+  'hood',
   'leftArm',
   'rightArm',
+  'leftHand',
+  'rightHand',
   'head',
+  'leftEye',
+  'rightEye',
+  'leftBrow',
+  'rightBrow',
+  'mouth',
   'hair',
+  'hairBack',
+  'hairExtra',
   'facialHair',
   'glasses',
   'bubble',
@@ -34,42 +46,64 @@ export type Pose = {
   arms: [number, number]
 }
 
-const hairHeight: Record<Avatar['hair_style'], number> = {
-  short: 0.12,
-  medium: 0.2,
-  long: 0.36,
-  curly: 0.2,
-  ponytail: 0.16,
-  bun: 0.16,
-  buzzed: 0.05,
-  bald: 0,
-}
+const hipHeight = 0.3
+const shoulderHeight = 0.64
+const headCenter = 0.86
+const face = 0.205
 
-const hip = (x: number): Vector => [x, 0.42, 0]
-const shoulder = (x: number): Vector => [x, 0.84, 0]
+const hip = (side: 0 | 1): Vector => [side ? 0.09 : -0.09, hipHeight, 0]
+const shoulder = (side: 0 | 1): Vector => [side ? 0.25 : -0.25, shoulderHeight, 0]
+
+const hairCaps: Record<Avatar['hair_style'], { height: number; width: number } | null> = {
+  short: { height: 0.1, width: 0.46 },
+  medium: { height: 0.14, width: 0.48 },
+  long: { height: 0.14, width: 0.48 },
+  curly: { height: 0.2, width: 0.54 },
+  ponytail: { height: 0.12, width: 0.46 },
+  bun: { height: 0.1, width: 0.46 },
+  buzzed: { height: 0.04, width: 0.45 },
+  bald: null,
+}
 
 export type Extras = { talking: boolean; vehicle?: string }
 
 export function humanoidParts(avatar: Avatar, extras: Extras): Partial<Record<PartKey, Part>> {
   const legColor = avatar.bottom_style === 'shorts' ? avatar.skin_tone : avatar.bottom_color
-  const hair = hairHeight[avatar.hair_style]
+  const cap = hairCaps[avatar.hair_style]
+  const style = avatar.top_style
   const leg = (side: 0 | 1): Part => ({
-    size: [0.16, 0.4, 0.18],
-    offset: [0, -0.2, 0],
+    size: [0.15, 0.3, 0.16],
+    offset: [0, -0.15, 0],
     color: legColor,
-    limb: { pivot: hip(side ? 0.1 : -0.1), side, kind: 'leg' },
+    limb: { pivot: hip(side), side, kind: 'leg' },
   })
   const shoe = (side: 0 | 1): Part => ({
-    size: [0.17, 0.06, 0.24],
-    offset: [0, -0.4, 0.03],
+    size: [0.16, 0.07, 0.23],
+    offset: [0, -0.29, 0.03],
     color: avatar.shoe_color,
-    limb: { pivot: hip(side ? 0.1 : -0.1), side, kind: 'leg' },
+    limb: { pivot: hip(side), side, kind: 'leg' },
   })
   const arm = (side: 0 | 1): Part => ({
-    size: [0.11, 0.4, 0.13],
-    offset: [0, -0.18, 0],
+    size: [0.1, 0.28, 0.12],
+    offset: [0, -0.13, 0],
     color: avatar.top_color,
-    limb: { pivot: shoulder(side ? 0.27 : -0.27), side, kind: 'arm' },
+    limb: { pivot: shoulder(side), side, kind: 'arm' },
+  })
+  const hand = (side: 0 | 1): Part => ({
+    size: [0.1, 0.08, 0.11],
+    offset: [0, -0.31, 0],
+    color: avatar.skin_tone,
+    limb: { pivot: shoulder(side), side, kind: 'arm' },
+  })
+  const eye = (x: number): Part => ({
+    size: [0.07, 0.1, 0.02],
+    offset: [x, headCenter + 0.01, face],
+    color: '#1b1b22',
+  })
+  const brow = (x: number): Part => ({
+    size: [0.09, 0.025, 0.02],
+    offset: [x, headCenter + 0.1, face],
+    color: avatar.hair_color,
   })
   return {
     leftLeg: leg(0),
@@ -77,46 +111,80 @@ export function humanoidParts(avatar: Avatar, extras: Extras): Partial<Record<Pa
     leftShoe: shoe(0),
     rightShoe: shoe(1),
     ...(avatar.bottom_style === 'skirt' && {
-      skirt: { size: [0.4, 0.16, 0.26], offset: [0, 0.38, 0], color: avatar.bottom_color },
+      skirt: { size: [0.38, 0.16, 0.26], offset: [0, hipHeight, 0], color: avatar.bottom_color },
     }),
-    torso: { size: [0.42, 0.44, 0.24], offset: [0, 0.66, 0], color: avatar.top_color },
+    torso: { size: [0.4, 0.36, 0.24], offset: [0, 0.48, 0], color: avatar.top_color },
+    belt: { size: [0.41, 0.05, 0.25], offset: [0, 0.32, 0], color: '#2b2622' },
+    ...((style === 'blazer' || style === 'jacket' || style === 'shirt') && {
+      collar: {
+        size: [0.12, 0.3, 0.02],
+        offset: [0, 0.5, 0.125],
+        color: style === 'shirt' ? '#f4f1ea' : '#e9e4da',
+      },
+    }),
+    ...(style === 'hoodie' && {
+      hood: { size: [0.34, 0.12, 0.1], offset: [0, 0.66, -0.12], color: avatar.top_color },
+    }),
     leftArm: arm(0),
     rightArm: arm(1),
-    head: { size: [0.3, 0.3, 0.28], offset: [0, 1.04, 0], color: avatar.skin_tone },
-    ...(hair > 0 && {
+    leftHand: hand(0),
+    rightHand: hand(1),
+    head: { size: [0.44, 0.4, 0.4], offset: [0, headCenter, 0], color: avatar.skin_tone },
+    leftEye: eye(-0.09),
+    rightEye: eye(0.09),
+    leftBrow: brow(-0.09),
+    rightBrow: brow(0.09),
+    mouth: { size: [0.09, 0.025, 0.02], offset: [0, headCenter - 0.1, face], color: '#9c4a4a' },
+    ...(cap && {
       hair: {
-        size: [0.32, 0.08 + hair, 0.3],
-        offset: [0, 1.24 - hair / 2, -0.02 - hair * 0.15],
+        size: [cap.width, cap.height, 0.44],
+        offset: [0, headCenter + 0.2 + cap.height / 2 - 0.03, -0.01],
         color: avatar.hair_color,
       },
     }),
+    ...((avatar.hair_style === 'long' || avatar.hair_style === 'curly') && {
+      hairBack: {
+        size: [0.48, avatar.hair_style === 'long' ? 0.44 : 0.3, 0.1],
+        offset: [0, avatar.hair_style === 'long' ? 0.82 : 0.9, -0.22],
+        color: avatar.hair_color,
+      },
+    }),
+    ...(avatar.hair_style === 'ponytail' && {
+      hairExtra: { size: [0.12, 0.26, 0.1], offset: [0, 0.86, -0.26], color: avatar.hair_color },
+    }),
+    ...(avatar.hair_style === 'bun' && {
+      hairExtra: { size: [0.18, 0.14, 0.18], offset: [0, 1.2, -0.08], color: avatar.hair_color },
+    }),
     ...(avatar.facial_hair !== 'none' && {
       facialHair: {
-        size: [0.22, avatar.facial_hair === 'beard' ? 0.14 : 0.05, 0.02],
-        offset: [0, avatar.facial_hair === 'mustache' ? 1.0 : 0.95, 0.145],
+        size:
+          avatar.facial_hair === 'mustache'
+            ? [0.18, 0.04, 0.02]
+            : [0.32, avatar.facial_hair === 'beard' ? 0.13 : 0.07, 0.03],
+        offset: [0, avatar.facial_hair === 'mustache' ? 0.79 : 0.72, face + 0.005],
         color: avatar.hair_color,
       },
     }),
     ...(avatar.glasses !== 'none' && {
       glasses: {
-        size: [0.26, 0.06, 0.02],
-        offset: [0, 1.07, 0.145],
+        size: [0.34, 0.07, 0.02],
+        offset: [0, headCenter + 0.025, face + 0.01],
         color: avatar.glasses === 'sunglasses' ? '#111111' : '#d8d8d8',
       },
     }),
     ...(extras.talking && {
-      bubble: { size: [0.42, 0.28, 0.06], offset: [0.36, 1.62, 0], color: '#ffffff' },
-      dots: { size: [0.26, 0.06, 0.02], offset: [0.36, 1.62, 0.04], color: '#3a3f4b' },
+      bubble: { size: [0.5, 0.32, 0.06], offset: [0.42, 1.45, 0], color: '#ffffff' },
+      dots: { size: [0.3, 0.07, 0.02], offset: [0.42, 1.45, 0.04], color: '#3a3f4b' },
     }),
     ...(extras.vehicle && {
-      vehicle: { size: [1.3, 0.5, 2.2], offset: [0, -0.1, 0], color: extras.vehicle },
+      vehicle: { size: [1.3, 0.45, 2], offset: [0, -0.1, 0], color: extras.vehicle },
     }),
   }
 }
 
 const standing: Pose = { lift: 0, roll: 0, legs: [0, 0], arms: [0, 0] }
 const seated = (arms: [number, number]): Pose => ({
-  lift: -0.14,
+  lift: -0.04,
   roll: 0,
   legs: [-1.45, -1.45],
   arms,
@@ -160,7 +228,7 @@ export function activityPose(activity: Activity, t: number): Pose {
       return seated([-0.9, -0.9 - 0.4 * Math.max(0, wave(0.6)) ** 8])
     case 'picnic':
       return {
-        lift: -0.36,
+        lift: -0.27,
         roll: 0,
         legs: [-1.5, -1.5],
         arms: [-0.3, -0.3 - 0.6 * Math.max(0, wave(0.7)) ** 4],
@@ -177,7 +245,7 @@ export function activityPose(activity: Activity, t: number): Pose {
     case 'climbing': {
       const climb = 0.5 + 0.5 * wave(0.45)
       return {
-        lift: climb * 1.2,
+        lift: climb * 0.9,
         roll: 0,
         legs: [0.4 * wave(2), -0.4 * wave(2)],
         arms: [-2.8 + 0.3 * wave(2), -2.8 - 0.3 * wave(2)],

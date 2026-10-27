@@ -30,15 +30,12 @@ void markGround(inout vec4 color) {
   float north = step(0.5, roadClass(tile - vec2(0.0, 1.0)));
   vec3 paint = color.rgb;
   if (here > 0.5) {
-    float branches = east + west + north + south;
     float alongX = step(0.5, east + west) * (1.0 - north) * (1.0 - south);
     float alongZ = step(0.5, north + south) * (1.0 - east) * (1.0 - west);
     float dashX = step(abs(f.y - 0.5), 0.05) * step(fract(vGround.x * 0.5), 0.5) * alongX;
     float dashZ = step(abs(f.x - 0.5), 0.05) * step(fract(vGround.z * 0.5), 0.5) * alongZ;
     vec3 line = here > 2.5 ? vec3(0.92) : vec3(0.95, 0.78, 0.25);
     paint = mix(paint, line, step(1.5, here) * max(dashX, dashZ));
-    float zebra = step(2.5, branches) * step(0.5, fract((f.x + f.y * 0.0) * 5.0)) * (step(f.y, 0.16) + step(0.84, f.y));
-    paint = mix(paint, vec3(0.9), clamp(zebra, 0.0, 1.0) * 0.8);
   } else {
     float curb = max(max(east * step(0.86, f.x), west * step(f.x, 0.14)), max(south * step(0.86, f.y), north * step(f.y, 0.14)));
     paint = mix(paint, vec3(0.86, 0.84, 0.8), curb * 0.55);

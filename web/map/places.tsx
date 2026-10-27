@@ -14,6 +14,7 @@ type Prop = {
 }
 
 const box = new BoxGeometry(1, 1, 1).translate(0, 0.5, 0)
+const propScale = 1.7
 const bright = ['#e8524a', '#f2b632', '#4aa3df', '#5fbf6b', '#b06ad9', '#f28c38']
 
 function propsOf(place: Place): Prop[] {
@@ -35,10 +36,10 @@ function propsOf(place: Place): Prop[] {
       side = 0,
     ) =>
       props.push({
-        x: cx + ux * forward + uz * side,
-        z: cz + uz * forward - ux * side,
-        y: ground + lift,
-        size,
+        x: cx + (ux * forward + uz * side) * propScale,
+        z: cz + (uz * forward - ux * side) * propScale,
+        y: ground + lift * propScale,
+        size: [size[0] * propScale, size[1] * propScale, size[2] * propScale],
         color: tint,
         yaw,
       })

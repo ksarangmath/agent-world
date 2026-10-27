@@ -157,6 +157,31 @@ a {
   background: #fff;
 }
 
+.zoom {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.zoom button {
+  width: 40px;
+  height: 40px;
+  font:
+    700 22px system-ui,
+    sans-serif;
+  color: #f7f1e3;
+  background: rgb(16 21 34 / 88%);
+  border: 3px solid #101522;
+  cursor: pointer;
+}
+
+.zoom button:hover {
+  background: #2a3550;
+}
+
 .hover-card {
   position: fixed;
   display: flex;

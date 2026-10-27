@@ -16,8 +16,8 @@ import { groundAt, isDry } from './terrain'
 const key = (tile: Tile) => `${tile.x},${tile.y}`
 
 describe('places', () => {
-  test('there are 30, with unique ids, and most are in San Francisco', () => {
-    expect(places).toHaveLength(30)
+  test('there are at least 30, with unique ids, and most are in Fog City', () => {
+    expect(places.length).toBeGreaterThanOrEqual(30)
     expect(new Set(places.map((place) => place.id)).size).toBe(places.length)
     const sf = places.filter((place) => place.region === 'sf').length
     expect(sf / places.length).toBeGreaterThan(0.65)
@@ -74,7 +74,7 @@ describe('route', () => {
   test('a trip that once differed between JavaScript engines stays pinned', () => {
     const from = spots(places.find((place) => place.id === 'mountain-summit-trail')!)[0]!
     const to = spots(places.find((place) => place.id === 'dogpatch-robotics')!)[0]!
-    expect(route(from, to).seconds).toMatchInlineSnapshot(`306.4213562373097`)
+    expect(route(from, to).seconds).toMatchInlineSnapshot(`181.77777326691302`)
   })
 
   test('crossing the bay rides instead of walking, and trips take minutes', () => {

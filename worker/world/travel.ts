@@ -1,5 +1,5 @@
 import { and, count, eq, gt, isNotNull, ne, sql } from 'drizzle-orm'
-import { places, placesById, type Place } from '../../shared/map/places'
+import { places, placesById, regionNames, type Place } from '../../shared/map/places'
 import { conversationRequests, people, worldEvents } from '../db/schema'
 import { expirePendingRequests } from './conversations'
 import { done, record, refuse, type Outcome, type World } from './events'
@@ -51,7 +51,7 @@ export async function listPlaces(world: World, meId: string, interest?: string):
       ranked.map(({ place, occupancy }) => ({
         id: place.id,
         name: place.name,
-        region: place.region,
+        region: regionNames[place.region],
         neighborhood: place.neighborhood,
         tags: place.tags,
         description: place.description,

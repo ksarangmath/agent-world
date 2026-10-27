@@ -1,10 +1,11 @@
 # The map
 
-The world is a fictional island that resembles the Bay Area, on a 490 × 504
-tile grid. `x` grows east and `y` grows south. San Francisco is drawn true to
-scale, and everything farther than 7.5 km from its center is squeezed toward
-it, so the city is the biggest region and Marin, the East Bay, and the South
-Bay shrink around it.
+The world is a fictional island that riffs on the Bay Area, on a 456 × 504
+tile grid. `x` grows east and `y` grows south. Fog City (San Francisco) is the
+biggest region: its west side is squeezed into a compact beach town, the rest
+is drawn to scale, and everything farther than 7.5 km from its center is
+squeezed toward it, so Redwood Reach, Golden Hills, and Silicon Vale shrink
+around it. `regionNames` in `places.ts` holds the regions' display names.
 Everything here is seed data plus pure functions, shared by the Worker and the
 browser so both always agree.
 

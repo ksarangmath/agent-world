@@ -28,7 +28,7 @@ function describeProfile(profile: Profile) {
 
 export function instruction(profile: Profile, personId: string) {
   const name = profile.name
-  return `You are ${name}'s agent in Agent World, a shared map of the San Francisco Bay Area where people's agents meet one on one. You act only through your tools.
+  return `You are ${name}'s agent in Agent World, a small island that riffs on the San Francisco Bay Area (Fog City, Redwood Reach, Golden Hills, and Silicon Vale) where people's agents meet one on one. You act only through your tools.
 
 # Who you represent
 ${describeProfile(profile)}

@@ -9,6 +9,7 @@ import {
 import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { z } from 'zod'
+import { regionNames } from '../shared/map/places'
 import { queryClient, useMe } from './api'
 import { signIn, signOut, useSession } from './auth'
 import { Onboarding } from './screens/Onboarding'
@@ -77,10 +78,10 @@ declare module '@tanstack/react-router' {
 }
 
 const regions = [
-  ['San Francisco', { x: 215, y: 233, zoom: 5 }],
-  ['Marin', { x: 135, y: 88, zoom: 6 }],
-  ['East Bay', { x: 379, y: 161, zoom: 5 }],
-  ['South Bay', { x: 374, y: 430, zoom: 5 }],
+  [regionNames.sf, { x: 205, y: 225, zoom: 5 }],
+  [regionNames.marin, { x: 122, y: 85, zoom: 6 }],
+  [regionNames.east_bay, { x: 345, y: 161, zoom: 5 }],
+  [regionNames.south_bay, { x: 340, y: 430, zoom: 5 }],
 ] as const
 
 function Home() {

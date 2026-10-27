@@ -19,7 +19,7 @@ import { hovered } from './hover'
 import type { RouteReply, RouteRequest } from './routing.worker'
 
 const capacity = 2000
-const scale = 0.55
+const scale = 0.8
 const hoverZoom = 14
 const hitPixels = 14
 
@@ -280,7 +280,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         mesh.setMatrixAt(i, matrix.multiplyMatrices(body.matrix, local))
       }
       if (!hoverable) return
-      projected.set(x, ground + 0.35, y).project(camera)
+      projected.set(x, ground + 0.5, y).project(camera)
       screen[i * 2] = ((projected.x + 1) / 2) * size.width
       screen[i * 2 + 1] = ((1 - projected.y) / 2) * size.height
     })
