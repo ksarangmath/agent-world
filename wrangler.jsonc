@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "agent-world",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-10-12",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "joinagentworld.com", "custom_domain": true }],
+  "secrets": { "required": [] },
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+}

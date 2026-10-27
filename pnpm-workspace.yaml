@@ -1,0 +1,7 @@
+minimumReleaseAge: 10080
+minimumReleaseAgeIgnoreMissingTime: false
+trustPolicy: no-downgrade
+saveExact: true
+allowBuilds:
+  esbuild: false
+  workerd: false

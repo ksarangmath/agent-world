@@ -1,0 +1,25 @@
+:root {
+  color-scheme: dark;
+  background: #101522;
+  color: #f7f1e3;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+img {
+  image-rendering: pixelated;
+}
+
+.home {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+}
+
+.lockup {
+  width: min(80vw, 600px);
+  height: auto;
+}
