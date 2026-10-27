@@ -20,10 +20,15 @@ const personOf = async (db: Database, userId: string) =>
 export const me = new Hono<SignedIn>()
   .use(requireUser)
   .get('/', async (c) => {
-    const [person] = await database(c.env)
-      .select({ id: people.id, profile: people.profile })
+    const [row] = await database(c.env)
+      .select({ id: people.id, profile: people.profile, x: people.tileX, y: people.tileY })
       .from(people)
       .where(eq(people.userId, c.var.userId))
+    const person = row && {
+      id: row.id,
+      profile: row.profile,
+      tile: row.x === null || row.y === null ? null : { x: row.x, y: row.y },
+    }
     return c.json<MeResponse>({ person: person ?? null })
   })
   .put('/profile', async (c) => {

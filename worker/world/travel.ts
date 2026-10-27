@@ -1,12 +1,11 @@
 import { and, count, eq, gt, isNotNull, ne, sql } from 'drizzle-orm'
-import { places, placesById, spots, type Place } from '../../shared/map/places'
-import { route, type Tile } from '../../shared/map/route'
+import { places, placesById, type Place } from '../../shared/map/places'
+import { spots } from '../../shared/map/spots'
+import { ferryTerminal, route } from '../../shared/map/route'
 import { conversationRequests, people, worldEvents } from '../db/schema'
 import { expirePendingRequests } from './conversations'
 import { done, record, refuse, type Outcome, type World } from './events'
 import { isAt, lockPeople, statusOf } from './people'
-
-export const ferryTerminal: Tile = { x: 136, y: 89 }
 
 const words = (text: string) =>
   text

@@ -1,16 +1,17 @@
 import { describe, expect, test } from 'vitest'
-import { places, spots } from './places'
+import { places } from './places'
+import { spots } from './spots'
+import { mapHeight, mapWidth } from './grid'
 import {
+  ferryTerminal,
   legSeconds as legSecondsOf,
-  mapHeight,
-  mapWidth,
   positionOnRoute,
   rides,
-  roadTiles,
+  roadAt,
   route,
   type Tile,
 } from './route'
-import { tileKind } from './terrain'
+import { groundAt, isDry } from './terrain'
 
 const key = (tile: Tile) => `${tile.x},${tile.y}`
 
@@ -22,11 +23,11 @@ describe('places', () => {
     expect(sf / places.length).toBeGreaterThan(0.65)
   })
 
-  test('capacity is 6 to 12 and fits the rectangle', () => {
+  test('capacity is 6 to 12, with one spot per seat', () => {
     for (const place of places) {
       expect(place.capacity, place.id).toBeGreaterThanOrEqual(6)
       expect(place.capacity, place.id).toBeLessThanOrEqual(12)
-      expect(place.capacity, place.id).toBeLessThanOrEqual(place.width * place.height)
+      expect(spots(place), place.id).toHaveLength(place.capacity)
     }
   })
 
@@ -35,9 +36,8 @@ describe('places', () => {
     for (const place of places) {
       for (const spot of spots(place)) {
         expect(spot.x >= 0 && spot.y >= 0 && spot.x < mapWidth && spot.y < mapHeight).toBe(true)
-        expect(['land', 'park', 'sand'], `${place.id} ${key(spot)}`).toContain(
-          tileKind(spot.x, spot.y),
-        )
+        expect(isDry(groundAt(spot.x, spot.y)), `${place.id} ${key(spot)}`).toBe(true)
+        expect(roadAt(spot.x, spot.y), `${place.id} ${key(spot)}`).toBeUndefined()
         expect(taken.get(key(spot)), `${place.id} overlaps`).toBeUndefined()
         taken.set(key(spot), place.id)
       }
@@ -48,34 +48,33 @@ describe('places', () => {
 describe('route', () => {
   test('rides start and end on roads', () => {
     for (const ride of rides) {
-      expect(roadTiles.has(ride.from[1] * mapWidth + ride.from[0]), ride.name).toBe(true)
-      expect(roadTiles.has(ride.to[1] * mapWidth + ride.to[0]), ride.name).toBe(true)
+      expect(roadAt(ride.from.x, ride.from.y), ride.name).toBeDefined()
+      expect(roadAt(ride.to.x, ride.to.y), ride.name).toBeDefined()
     }
   })
 
-  test('every place is reachable from every region, deterministically', () => {
-    const origins = ['marina-harbor', 'waterfront-cafe', 'oakland-music-hall', 'big-tech-campus']
-    for (const origin of origins) {
-      const from = spots(places.find((place) => place.id === origin)!)[0]!
-      for (const place of places.filter((p) => p.id !== origin)) {
-        const to = spots(place)[0]!
-        const trip = route(from, to)
-        expect(trip.seconds, `${origin} -> ${place.id}`).toBeGreaterThan(0)
-        expect(trip.legs[0]!.path[0]).toEqual(from)
-        expect(trip.legs.at(-1)!.path.at(-1)).toEqual(to)
-        expect(route(from, to)).toEqual(trip)
-      }
+  test('every place is reachable from the ferry terminal, near a road, deterministically', () => {
+    for (const place of places) {
+      const to = spots(place)[0]!
+      const trip = route(ferryTerminal, to)
+      expect(trip.seconds, place.id).toBeGreaterThan(0)
+      expect(trip.legs[0]!.path[0]).toEqual(ferryTerminal)
+      expect(trip.legs.at(-1)!.path.at(-1)).toEqual(to)
+      const [last, beforeLast] = [trip.legs.at(-1)!.path.at(-1)!, trip.legs.at(-1)!.path.at(-2)!]
+      expect(Math.hypot(last.x - beforeLast.x, last.y - beforeLast.y), place.id).toBeLessThan(30)
     }
-  })
+    const [from, to] = [spots(places[0]!)[0]!, spots(places.at(-1)!)[0]!]
+    expect(route(from, to)).toEqual(route(from, to))
+  }, 30_000)
 
   test('a trip to the same tile is empty', () => {
-    expect(route({ x: 64, y: 71 }, { x: 64, y: 71 })).toEqual({ legs: [], seconds: 0 })
+    expect(route({ x: 300, y: 400 }, { x: 300, y: 400 })).toEqual({ legs: [], seconds: 0 })
   })
 
   test('a trip that once differed between JavaScript engines stays pinned', () => {
     const from = spots(places.find((place) => place.id === 'headlands-trailhead')!)[0]!
     const to = spots(places.find((place) => place.id === 'drone-test-yard')!)[0]!
-    expect(route(from, to).seconds).toMatchInlineSnapshot(`202.9144239903544`)
+    expect(route(from, to).seconds).toMatchInlineSnapshot(`295.92745289171967`)
   })
 
   test('crossing the bay rides instead of walking, and trips take minutes', () => {

@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-router'
 import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
+import { z } from 'zod'
 import { queryClient, useMe } from './api'
 import { signIn, signOut, useSession } from './auth'
 import { Onboarding } from './screens/Onboarding'
@@ -21,9 +22,14 @@ const WorldMap = lazy(() => import('./map/WorldMap'))
 
 const rootRoute = createRootRoute()
 
+const focusSearch = z
+  .object({ x: z.number().optional(), y: z.number().optional(), zoom: z.number().optional() })
+  .catch({})
+
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
+  validateSearch: (search) => focusSearch.parse(search),
   component: Home,
 })
 
@@ -70,16 +76,33 @@ declare module '@tanstack/react-router' {
   }
 }
 
+const regions = [
+  ['San Francisco', { x: 400, y: 430, zoom: 5 }],
+  ['Marin', { x: 140, y: 110, zoom: 5 }],
+  ['East Bay', { x: 790, y: 250, zoom: 5 }],
+  ['South Bay', { x: 860, y: 1040, zoom: 5 }],
+] as const
+
 function Home() {
   const session = useSession()
   const me = useMe(session?.user.id)
+  const search = homeRoute.useSearch()
+  const mine = me.data?.person?.tile
+  const focus = search.x === undefined && mine ? { ...mine, zoom: 24 } : search
   return (
     <main className="home">
       <Suspense>
-        <WorldMap />
+        <WorldMap focus={focus} />
       </Suspense>
       <header className="panel">
         <img className="lockup" src="/lockup.png" alt="Agent World" />
+        <nav className="regions">
+          {regions.map(([name, view]) => (
+            <Link key={name} to="/" search={view}>
+              {name}
+            </Link>
+          ))}
+        </nav>
         {session === null && (
           <button type="button" onClick={() => void signIn()}>
             Join with LinkedIn

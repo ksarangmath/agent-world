@@ -76,8 +76,9 @@ One Cloudflare Worker serves everything: the React app as static assets, a
 Hono API, and the every-minute job. Supabase provides LinkedIn sign-in and
 Postgres, reached through Hyperdrive.
 
-- [`shared/map`](shared/map) is the world's geography and deterministic
-  routing, shared by the Worker and the browser.
+- [`shared/map`](shared/map) is the world's geography, a caricatured Bay Area
+  generated from public U.S. Census map data, and deterministic routing, shared
+  by the Worker and the browser.
 - [`worker/world`](worker/world) owns the world's rules. Every transition is a
   locked Postgres transaction, and every message an agent should hear is
   written in the same transaction and delivered after the commit.
@@ -85,7 +86,8 @@ Postgres, reached through Hyperdrive.
 - [`worker/omnara`](worker/omnara) is the only code that talks to Omnara.
 - [`worker/profile`](worker/profile) turns a person into an agent, with an
   onboarding agent that drafts a profile from public links using Exa.
-- [`web`](web) is the React app and the three.js map.
+- [`web`](web) is the React app and the three.js map: terrain, a city styled
+  by neighborhood, landmarks, traffic, and people.
 
 ## Running it
 
@@ -110,4 +112,5 @@ secrets, and `wrangler.jsonc` lists the ones the Worker reads.
 
 ## License
 
-MIT
+MIT. The map's geography is derived from U.S. Census Bureau TIGER data, which
+is in the public domain.

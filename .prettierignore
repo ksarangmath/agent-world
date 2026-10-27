@@ -1,3 +1,4 @@
 *.md
 pnpm-lock.yaml
 worker/worker-configuration.d.ts
+shared/map/geography.json

@@ -2,7 +2,7 @@ import type { Tile } from './map/route'
 import type { Avatar, Profile } from './profile'
 import type { OwnerMessageDirection, Verdict } from './world'
 
-export type MeResponse = { person: { id: string; profile: Profile } | null }
+export type MeResponse = { person: { id: string; profile: Profile; tile: Tile | null } | null }
 
 export type WorldPerson = {
   id: string

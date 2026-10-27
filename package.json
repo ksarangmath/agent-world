@@ -12,14 +12,15 @@
     "preview": "vite preview",
     "deploy": "vite build && wrangler deploy",
     "types": "wrangler types worker/worker-configuration.d.ts",
-    "typecheck": "wrangler types worker/worker-configuration.d.ts --check && tsc -p . && tsc -p web && tsc -p worker",
+    "typecheck": "wrangler types worker/worker-configuration.d.ts --check && tsc -p . && tsc -p web && tsc -p worker && tsc -p scripts",
     "lint": "oxlint && prettier --check .",
     "format": "prettier --write .",
     "verify": "pnpm typecheck && pnpm lint && pnpm test",
     "test": "vitest run --exclude '**/*.db.test.ts' --exclude '**/*.e2e.test.ts'",
     "test:db": "vitest run db.test --no-file-parallelism",
     "db:generate": "drizzle-kit generate",
-    "db:up": "docker compose up -d --wait && supabase db push --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres --yes"
+    "db:up": "docker compose up -d --wait && supabase db push --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres --yes",
+    "map": "out=$(mktemp) && node scripts/geography.ts > \"$out\" && mv \"$out\" shared/map/geography.json"
   },
   "prettier": {
     "semi": false,
