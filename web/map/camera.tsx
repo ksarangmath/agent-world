@@ -142,12 +142,16 @@ export function Camera({ focus }: { focus: Focus }) {
 
 const near = new Vector3()
 const far = new Vector3()
+const corner = new Vector3()
+const gaze = new Vector3()
 const margin = 6
 const tallest = 30
 
 export function VisibleArea() {
   useFrame(({ camera }) => {
     let [left, right, top, bottom] = [Infinity, -Infinity, Infinity, -Infinity]
+    let [closest, farthest] = [Infinity, -Infinity]
+    camera.getWorldDirection(gaze)
     for (const [x, y] of [
       [-1, -1],
       [1, -1],
@@ -158,13 +162,15 @@ export function VisibleArea() {
         near.set(x, y, -1).unproject(camera)
         far.set(x, y, 1).unproject(camera)
         const t = (height - near.y) / (far.y - near.y)
-        const [gx, gz] = [near.x + (far.x - near.x) * t, near.z + (far.z - near.z) * t]
+        corner.lerpVectors(near, far, t)
         ;[left, right, top, bottom] = [
-          Math.min(left, gx),
-          Math.max(right, gx),
-          Math.min(top, gz),
-          Math.max(bottom, gz),
+          Math.min(left, corner.x),
+          Math.max(right, corner.x),
+          Math.min(top, corner.z),
+          Math.max(bottom, corner.z),
         ]
+        const depth = corner.sub(camera.position).dot(gaze)
+        ;[closest, farthest] = [Math.min(closest, depth), Math.max(farthest, depth)]
       }
     }
     Object.assign(view, {
@@ -173,7 +179,13 @@ export function VisibleArea() {
       top: top - margin,
       bottom: bottom + margin,
     })
+    const [front, back] = [Math.max(1, closest - tallest), farthest + tallest]
+    if (Math.abs(camera.near - front) + Math.abs(camera.far - back) > (back - front) * 0.05) {
+      camera.near = front
+      camera.far = back
+      camera.updateProjectionMatrix()
+    }
     revealAt(camera.zoom)
-  })
+  }, 0.5)
   return null
 }

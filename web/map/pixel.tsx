@@ -20,10 +20,10 @@ void main() {
   vec4 texel = texture2D(tDiffuse, vUv);
   vec3 color = texel.rgb;
   float light = dot(color, vec3(0.2126, 0.7152, 0.0722));
-  color *= mix(vec3(0.86, 0.88, 1.1), vec3(1.07, 1.0, 0.9), smoothstep(0.02, 0.5, light));
-  color = mix(vec3(light), color, 1.15);
-  float edge = length((vUv - 0.5) * vec2(1.0, 0.85));
-  color *= 1.0 - 0.28 * smoothstep(0.35, 0.85, edge);
+  float step = floor(pow(light, 1.0 / 2.2) * 9.0 + 0.5) / 9.0;
+  color *= pow(max(step, 0.02), 2.2) / max(light, 1e-4);
+  color *= mix(vec3(0.84, 0.86, 1.12), vec3(1.07, 1.0, 0.9), smoothstep(0.02, 0.5, light));
+  color = mix(vec3(dot(color, vec3(0.2126, 0.7152, 0.0722))), color, 1.18);
   gl_FragColor = vec4(color, texel.a);
 }`,
 }

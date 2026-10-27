@@ -47,7 +47,16 @@ void markGround(inout vec4 color) {
     float curb = max(max(east * step(0.86, f.x), west * step(f.x, 0.14)), max(south * step(0.86, f.y), north * step(f.y, 0.14)));
     paint = mix(paint, vec3(0.86, 0.84, 0.8), curb * 0.55);
   }
-  paint *= 0.95 + 0.1 * grainHash(floor(vGround.xz * 5.0));
+  float texels = clamp(0.8 / max(fwidth(vGround.x * 12.0), 1e-4) - 1.0, 0.0, 1.0);
+  vec2 texel = floor(vGround.xz * 12.0);
+  float speck = grainHash(texel);
+  float grassy = (1.0 - step(0.5, here)) * smoothstep(0.03, 0.12, paint.g - max(paint.r, paint.b));
+  float tuft = max(step(0.9, speck), step(0.92, grainHash(texel + vec2(-1.0, 1.0))));
+  vec3 textured = paint * (0.96 + 0.08 * speck) * (1.0 - 0.2 * grassy * tuft);
+  textured = mix(textured, paint * 1.18 + 0.02, grassy * step(0.975, grainHash(texel + 31.0)));
+  vec3 petal = mix(vec3(1.0, 0.86, 0.42), vec3(0.98, 0.6, 0.72), step(0.5, grainHash(texel + 5.0)));
+  textured = mix(textured, petal, grassy * step(0.994, grainHash(texel + 71.0)));
+  paint = mix(paint * (0.95 + 0.1 * grainHash(floor(vGround.xz * 5.0))), textured, texels);
   color.rgb = mix(color.rgb, paint, detail);
   vec2 drift = vGround.xz * 0.03 + vec2(time * 0.02, time * 0.008);
   float cloud = smoothstep(0.58, 0.74, 0.65 * cloudNoise(drift) + 0.35 * cloudNoise(drift * 2.3));

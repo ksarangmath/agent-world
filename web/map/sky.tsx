@@ -30,7 +30,7 @@ export function Sky() {
     light.shadow.autoUpdate = false
     light.shadow.mapSize.set(2048, 2048)
     light.shadow.bias = -0.00005
-    light.shadow.normalBias = 0.03
+    light.shadow.normalBias = 0.06
     light.shadow.camera.near = 1
     light.shadow.camera.far = sunDistance * 2.5
   }, [])

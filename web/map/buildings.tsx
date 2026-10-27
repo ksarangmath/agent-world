@@ -123,7 +123,13 @@ float windowHash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719)
         `#include <color_fragment>
 float glow = 0.0;
 if (vBoxNormal.y > 0.5) {
-  diffuseColor.rgb = vRoof;
+  vec2 across = (vLocal.xz + 0.5) * vScale.xz;
+  float rim = 1.0 - step(0.12, min(min(across.x, vScale.x - across.x), min(across.y, vScale.z - across.y)));
+  float tiles = clamp(0.5 / max(fwidth(across.x * 6.0), 1e-4) - 1.0, 0.0, 1.0);
+  float speck = windowHash(vec3(floor(across * 6.0), vSeed));
+  vec2 panel = fract(across * 2.0);
+  float seam = step(0.9, max(panel.x, panel.y));
+  diffuseColor.rgb = vRoof * mix(1.0, (0.95 + 0.08 * speck) * (1.0 - 0.1 * seam) * (1.0 - 0.2 * rim), tiles);
 } else if (vBoxNormal.y > -0.5) {
   float along = abs(vBoxNormal.x) > 0.5 ? (vLocal.z + 0.5) * vScale.z : (vLocal.x + 0.5) * vScale.x;
   float up = vLocal.y * vScale.y;
@@ -132,6 +138,8 @@ if (vBoxNormal.y > 0.5) {
   float detail = clamp(0.35 / max(fwidth(along * 1.6), 1e-4) - 1.0, 0.0, 1.0);
   float pane = step(0.25, f.x) * step(f.x, 0.75) * step(0.3, f.y) * step(f.y, 0.8) * step(0.2, up) * step(up, vScale.y - 0.1);
   float lit = step(0.5, windowHash(vec3(cell, vSeed)));
+  float siding = step(0.82, fract(up / 0.09)) * clamp(0.4 / max(fwidth(up / 0.09), 1e-4) - 1.0, 0.0, 1.0);
+  diffuseColor.rgb *= 1.0 - 0.07 * siding;
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2, 0.25, 0.32), pane * 0.6 * detail);
   glow = mix(0.12, pane * lit, detail) * (1.0 - daylight);
 }`,
@@ -147,7 +155,15 @@ totalEmissiveRadiance += glow * vec3(1.0, 0.72, 0.38) * 1.4;`,
 
 const walls = wallMaterial()
 const roofs = toon({ side: DoubleSide })
-roofs.onBeforeCompile = seeThrough
+roofs.onBeforeCompile = (shader) => {
+  seeThrough(shader)
+  shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <color_fragment>',
+    `#include <color_fragment>
+float shingle = step(0.78, fract(vSightline.y * 14.0)) * clamp(0.4 / max(fwidth(vSightline.y * 14.0), 1e-4) - 1.0, 0.0, 1.0);
+diffuseColor.rgb *= 1.0 - 0.2 * shingle;`,
+  )
+}
 
 function Crowns({ kind, buildings }: { kind: Crown; buildings: Building[] }) {
   const mesh = useRef<InstancedMesh>(null)

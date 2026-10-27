@@ -78,12 +78,12 @@ varying vec3 vSightline;
 float bayer2(vec2 a) { a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }`,
     )
     .replace(
-      '#include <clipping_planes_fragment>',
-      `#include <clipping_planes_fragment>
-if (reveal > 0.0) {
+      '#include <opaque_fragment>',
+      `if (reveal > 0.0) {
   float ceiling = texture2D(sightlines, vSightline.xz / vec2(${mapWidth}.0, ${mapHeight}.0)).r;
   float dither = bayer2(0.5 * gl_FragCoord.xy) * 0.25 + bayer2(gl_FragCoord.xy);
   if (vSightline.y > ceiling && dither < reveal) discard;
-}`,
+}
+#include <opaque_fragment>`,
     )
 }

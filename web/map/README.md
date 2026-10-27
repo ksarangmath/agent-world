@@ -1,7 +1,8 @@
 # The map view
 
-A toon-shaded three.js scene, rendered at about 1.5 screen points per pixel with
-`RenderPixelatedPass` and seen from the south-southwest through an orthographic
+A toon-shaded three.js scene, rendered at 2 screen points per pixel with
+`RenderPixelatedPass` (`pixel.tsx`, which also quantizes and grades color) and
+seen from the south-southwest through an orthographic
 camera. One world unit is one tile. Nothing here talks to the server except
 the world snapshot that `People` and `Labels` draw.
 
@@ -35,7 +36,6 @@ the world snapshot that `People` and `Labels` draw.
   those fragments away when zoomed in.
 - **`sky.tsx`**: lighting from the real sun height over San Francisco, with
   the sun at a fixed bearing so shadows fall toward the camera, and moonlight
-  at night. **`paint.ts`** holds the shared toon material, and `PixelPass` in
-  `camera.tsx` pixelates and color-grades the frame.
+  at night. **`paint.ts`** holds the shared toon material.
   **`clock.ts`** shares the time, daylight, and the visible area (set once a
   frame by `camera.tsx`), so moving things skip work off screen.

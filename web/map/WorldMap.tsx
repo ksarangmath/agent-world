@@ -21,7 +21,7 @@ import { Trees } from './trees'
 import { Water } from './water'
 
 const sanFrancisco: Focus = { x: 205, y: 225, zoom: 4.5 }
-const artPixel = 1.5
+const artPixel = 2
 
 function release(object: Object3D) {
   if (!(object instanceof Mesh)) return
@@ -74,7 +74,7 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
           </>
         )}
         <Camera focus={view} />
-        <PixelPass pixel={artPixel} outline={0.35} />
+        <PixelPass pixel={artPixel} outline={0.5} />
       </Canvas>
       <PersonHover />
       <div className="zoom">

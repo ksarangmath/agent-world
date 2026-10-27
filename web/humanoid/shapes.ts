@@ -600,8 +600,10 @@ const hairline =
     return p.y > level
   }
 
+const parted = (level: number, p: Vector3) => level + 0.3 * (1 - smoothstep(0, 0.55, Math.abs(p.x)))
+
 const framing = (bangs: number, bottom: number) => (p: Vector3) =>
-  p.y > bottom && !(p.z > 0.3 && Math.abs(p.x) < 0.74 && p.y < bangs)
+  p.y > bottom && !(p.z > 0.3 && Math.abs(p.x) < 0.74 && p.y < parted(bangs, p))
 
 const lumps =
   (frequency: number, amount: number): Swell =>
@@ -709,7 +711,7 @@ const hairStyles: Record<Avatar['hair_style'], ((face: Face) => BufferGeometry) 
   medium: (face) =>
     shell(face, {
       grow: 0.09,
-      keep: hairline({ front: 0.28, side: -0.4, back: -0.75 }),
+      keep: (p) => hairline({ front: parted(0.2, p), side: -0.4, back: -0.75 })(p),
       swell: (p) => 1 + 0.6 * smoothstep(-0.1, -0.7, p.y),
     }),
   bob: (face) =>
