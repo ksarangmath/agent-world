@@ -1,11 +1,12 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { DataTexture, FloatType, LinearFilter, RedFormat, ShaderMaterial, type Mesh } from 'three'
-import { groundKinds, mapHeight, mapWidth } from '../../shared/map/grid'
+import { groundKinds, mapHeight, mapWidth, warp } from '../../shared/map/grid'
 import { ground, isDry } from '../../shared/map/terrain'
 import { sky } from './clock'
 
-const altitude = 7
+const altitude = 5
+const [, goldenGate] = warp(-122.478, 37.815)
 const clearAtZoom = 30
 const animated = { time: { value: 0 }, thickness: { value: 1 }, clear: { value: 1 } }
 
@@ -28,7 +29,7 @@ function thickness(date: Date) {
 }
 
 function westCoast(): Float32Array {
-  const coast = new Float32Array(mapHeight).fill(mapWidth)
+  const coast = new Float32Array(mapHeight).fill(-mapWidth)
   for (let y = 0; y < mapHeight; y++) {
     for (let x = 0; x < mapWidth; x++) {
       if (isDry(groundKinds[ground[y * mapWidth + x]!]!)) {
@@ -52,6 +53,7 @@ void main() {
 const fragmentShader = `
 uniform sampler2D coast;
 uniform float height;
+uniform float gateRow;
 uniform float time;
 uniform float thickness;
 uniform float clear;
@@ -76,10 +78,10 @@ float fbm(vec2 p) {
 }
 void main() {
   float shore = texture2D(coast, vec2(0.5, clamp(vTile.y / height, 0.0, 1.0))).r;
-  float gate = exp(-pow((vTile.y - 245.0) / 45.0, 2.0));
-  float front = shore + thickness * (110.0 + 280.0 * gate);
-  float reach = smoothstep(front, front - 70.0, vTile.x);
-  float n = fbm((vTile - vec2(time * 0.8, time * 0.15)) * 0.03);
+  float gate = exp(-pow((vTile.y - gateRow) / 18.0, 2.0));
+  float front = shore + thickness * (45.0 + 115.0 * gate);
+  float reach = smoothstep(front, front - 28.0, vTile.x) * smoothstep(shore - 90.0, shore - 40.0, vTile.x);
+  float n = fbm((vTile - vec2(time * 0.4, time * 0.08)) * 0.07);
   float density = smoothstep(0.5 - 0.15 * thickness, 0.75 - 0.1 * thickness, n) * reach * thickness;
   density = floor(density * 4.0 + 0.5) / 4.0;
   vec3 color = mix(vec3(0.16, 0.18, 0.24), vec3(0.96, 0.97, 0.98), daylight);
@@ -102,6 +104,7 @@ export function Fog() {
       uniforms: {
         coast: { value: texture },
         height: { value: mapHeight },
+        gateRow: { value: goldenGate },
         ...animated,
         daylight: sky.daylight,
       },
@@ -127,11 +130,11 @@ export function Fog() {
     <mesh
       ref={mesh}
       rotation-x={-Math.PI / 2}
-      position={[mapWidth / 2 - 200, altitude, mapHeight / 2]}
+      position={[mapWidth / 2 - 80, altitude, mapHeight / 2]}
       material={material}
       renderOrder={1}
     >
-      <planeGeometry args={[mapWidth + 400, mapHeight]} />
+      <planeGeometry args={[mapWidth + 160, mapHeight]} />
     </mesh>
   )
 }

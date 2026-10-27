@@ -52,18 +52,17 @@ const peaks: Record<string, number> = {
   'San Jose': 0.35,
 }
 
-const cellSizes: Record<Style, number> = {
-  downtown: 2,
-  midrise: 2,
-  victorian: 1,
-  stucco: 1,
-  marina: 1,
-  industrial: 3,
-  suburb: 1,
-  campus: 3,
+const lotSizes: Record<Style, [long: number, short: number]> = {
+  downtown: [4, 4],
+  midrise: [4, 3],
+  victorian: [3, 2],
+  stucco: [2, 2],
+  marina: [3, 3],
+  industrial: [6, 5],
+  suburb: [2, 2],
+  campus: [5, 4],
 }
 
-const bayDepth = 0.14
 const outward = [
   [0, -1],
   [1, 0],
@@ -75,9 +74,8 @@ const kindAt = (i: number) => groundKinds[ground[i]!]!
 const pick = <T>(list: readonly T[], seed: number) =>
   list[Math.floor(seed * list.length) % list.length]!
 
-function toward(): { distance: Uint8Array; facing: Uint8Array } {
+function roadDistances(): Uint8Array {
   const distance = new Uint8Array(mapWidth * mapHeight).fill(255)
-  const facing = new Uint8Array(mapWidth * mapHeight)
   let frontier: number[] = []
   for (let i = 0; i < roads.length; i++) {
     if (roads[i]) {
@@ -85,30 +83,23 @@ function toward(): { distance: Uint8Array; facing: Uint8Array } {
       frontier.push(i)
     }
   }
-  const moves = [
-    [0, -1, 2],
-    [1, 0, 3],
-    [0, 1, 0],
-    [-1, 0, 1],
-  ] as const
   for (let d = 1; d <= 8 && frontier.length; d++) {
     const next: number[] = []
     for (const i of frontier) {
       const [x, y] = [i % mapWidth, Math.floor(i / mapWidth)]
-      for (const [dx, dy, face] of moves) {
+      for (const [dx, dy] of outward) {
         const [nx, ny] = [x + dx, y + dy]
         if (nx < 0 || ny < 0 || nx >= mapWidth || ny >= mapHeight) continue
         const n = ny * mapWidth + nx
         const kind = kindAt(n)
         if (distance[n] !== 255 || kind === 'ocean' || kind === 'water') continue
         distance[n] = d
-        facing[n] = face
         next.push(n)
       }
     }
     frontier = next
   }
-  return { distance, facing }
+  return distance
 }
 
 function shade(hex: string, amount: number): [number, number, number] {
@@ -139,7 +130,7 @@ function cornerSpan(x: number, y: number, width: number, depth: number): [number
 }
 
 export function buildCity() {
-  const { distance, facing } = toward()
+  const distance = roadDistances()
   const pixels = new Uint8Array(mapWidth * mapHeight * 4)
   const buildings: Building[] = []
   const trees: Tree[] = []
@@ -178,90 +169,115 @@ export function buildCity() {
     return distance[i]! <= styles[style].depth
   }
 
-  for (let y = 0; y < mapHeight; y++) {
-    for (let x = 0; x < mapWidth; x++) {
-      const i = y * mapWidth + x
-      const { style, name } = styleAt(x, y)
-      const cell = cellSizes[style]
-      if (x % cell || y % cell) continue
-      const seed = hash(x * 7 + 1, y * 13 + 5)
-      if (style === 'suburb' && seed > 0.55) continue
-      const definition = styles[style]
-      const [low, high] = definition.heights
-      let height = low + (high - low) * hash(x, y * 3 + 11)
-      if (style === 'downtown') {
-        const center = neighborhoodAt(x, y)
-        const falloff = Math.max(0, 1 - Math.sqrt((center.x - x) ** 2 + (center.y - y) ** 2) / 32)
-        height = low + (high - low) * (peaks[name] ?? 0.3) * falloff ** 1.2 * (0.45 + 0.55 * seed)
+  const block = new Int32Array(mapWidth * mapHeight).fill(-1)
+  const lots: { x: number; y: number; width: number; depth: number; style: Style; name: string }[] =
+    []
+  const split = (
+    id: number,
+    style: Style,
+    name: string,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+  ) => {
+    const [width, depth] = [x1 - x0, y1 - y0]
+    let count = 0
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) if (block[y * mapWidth + x] === id) count++
+    }
+    if (!count) return
+    const [long, short] = lotSizes[style]
+    const fits = (width <= long && depth <= short) || (width <= short && depth <= long)
+    if (count === width * depth && fits) {
+      lots.push({ x: x0, y: y0, width, depth, style, name })
+      return
+    }
+    const cut = 0.35 + 0.3 * hash(x0 * 3 + y1, y0 * 7 + x1)
+    if (width >= depth) {
+      const at = x0 + Math.min(width - 1, Math.max(1, Math.round(width * cut)))
+      split(id, style, name, x0, y0, at, y1)
+      split(id, style, name, at, y0, x1, y1)
+    } else {
+      const at = y0 + Math.min(depth - 1, Math.max(1, Math.round(depth * cut)))
+      split(id, style, name, x0, y0, x1, at)
+      split(id, style, name, x0, at, x1, y1)
+    }
+  }
+  let blocks = 0
+  for (let start = 0; start < block.length; start++) {
+    const [sx, sy] = [start % mapWidth, Math.floor(start / mapWidth)]
+    const { style, name } = styleAt(sx, sy)
+    if (block[start] !== -1 || !buildable(start, style)) continue
+    const id = blocks++
+    const tiles = [start]
+    block[start] = id
+    let [left, right, top, bottom] = [sx, sx, sy, sy]
+    for (let k = 0; k < tiles.length; k++) {
+      const [x, y] = [tiles[k]! % mapWidth, Math.floor(tiles[k]! / mapWidth)]
+      ;[left, right, top, bottom] = [
+        Math.min(left, x),
+        Math.max(right, x),
+        Math.min(top, y),
+        Math.max(bottom, y),
+      ]
+      for (const [dx, dy] of outward) {
+        const [nx, ny] = [x + dx, y + dy]
+        const n = ny * mapWidth + nx
+        if (nx < 0 || ny < 0 || nx >= mapWidth || ny >= mapHeight) continue
+        if (block[n] !== -1 || !buildable(n, style)) continue
+        block[n] = id
+        tiles.push(n)
       }
-      const wall = pick(definition.walls, hash(x + 3, y + 17))
-      const roof = pick(definition.roofs, hash(x + 29, y + 2))
-      const whole =
-        cell > 1 &&
-        buildable(i, style) &&
-        Array.from(
-          { length: cell * cell },
-          (_, k) => i + (k % cell) + Math.floor(k / cell) * mapWidth,
-        ).every((tile) => (tile % mapWidth) - x < cell && buildable(tile, style))
-      const footprints = whole
-        ? [{ tx: x, ty: y, size: cell }]
-        : Array.from({ length: cell * cell }, (_, k) => ({
-            tx: x + (k % cell),
-            ty: y + Math.floor(k / cell),
-            size: 1,
-          })).filter(
-            ({ tx, ty }) => tx < mapWidth && ty < mapHeight && buildable(ty * mapWidth + tx, style),
-          )
-      for (const { tx, ty, size } of footprints) {
-        for (let dy = 0; dy < size; dy++) {
-          for (let dx = 0; dx < size; dx++) built[(ty + dy) * mapWidth + tx + dx] = 1
-        }
-        const [base, top] = cornerSpan(tx, ty, size, size)
-        const streetRunsNorthSouth = facing[ty * mapWidth + tx]! % 2 === 1
-        const ridgeAcrossStreet = style === 'victorian'
-        const ridge = streetRunsNorthSouth === ridgeAcrossStreet ? 'x' : 'y'
-        const gable = size === 1 && hash(tx + 5, ty + 41) < definition.gables ? ridge : 'none'
-        const building: Building = {
-          x: tx,
-          y: ty,
-          width: size,
-          depth: size,
-          base: base - 0.1,
-          height: top - base + 0.1 + height * (size === 1 ? 0.92 + 0.16 * hash(tx, ty) : 1),
-          wall,
-          roof,
-          gable,
-        }
-        buildings.push(building)
-        const roofTop = building.base + building.height
-        if (size === 1 && definition.gables > 0.3 && hash(tx + 11, ty + 23) < 0.6) {
-          const [fx, fy] = outward[facing[ty * mapWidth + tx]!]!
-          const [width, depth] = fx ? [bayDepth, 0.5] : [0.5, bayDepth]
-          buildings.push({
-            x: tx + 0.5 + fx * (0.5 + bayDepth / 2) - width / 2,
-            y: ty + 0.5 + fy * (0.5 + bayDepth / 2) - depth / 2,
-            width,
-            depth,
-            base: building.base,
-            height: (roofTop - building.base) * 0.8,
-            wall,
-            roof: wall,
-            gable: 'none',
-          })
-        } else if (gable === 'none' && height > 1.2 && hash(tx + 41, ty + 7) < 0.35) {
-          buildings.push({
-            x: tx + 0.15 + 0.4 * hash(tx + 3, ty),
-            y: ty + 0.15 + 0.4 * hash(tx, ty + 3),
-            width: 0.3,
-            depth: 0.3,
-            base: roofTop,
-            height: 0.18,
-            wall: '#9aa0a6',
-            roof: '#b4b9be',
-            gable: 'none',
-          })
-        }
-      }
+    }
+    split(id, style, name, left, top, right + 1, bottom + 1)
+  }
+
+  for (const { x, y, width, depth, style, name } of lots) {
+    const definition = styles[style]
+    const seed = hash(x * 7 + 1, y * 13 + 5)
+    if (style === 'suburb' && seed > 0.6) continue
+    for (let dy = 0; dy < depth; dy++) {
+      for (let dx = 0; dx < width; dx++) built[(y + dy) * mapWidth + x + dx] = 1
+    }
+    const [low, high] = definition.heights
+    let height = low + (high - low) * hash(x, y * 3 + 11)
+    if (style === 'downtown') {
+      const center = neighborhoodAt(x, y)
+      const falloff = Math.max(0, 1 - Math.sqrt((center.x - x) ** 2 + (center.y - y) ** 2) / 14)
+      height = low + (high - low) * (peaks[name] ?? 0.3) * falloff ** 1.2 * (0.45 + 0.55 * seed)
+    }
+    const [base, top] = cornerSpan(x, y, width, depth)
+    const gable =
+      Math.max(width, depth) <= 3 && hash(x + 5, y + 41) < definition.gables
+        ? width >= depth
+          ? 'x'
+          : 'y'
+        : 'none'
+    const building: Building = {
+      x,
+      y,
+      width,
+      depth,
+      base: base - 0.1,
+      height: top - base + 0.1 + height,
+      wall: pick(definition.walls, hash(x + 3, y + 17)),
+      roof: pick(definition.roofs, hash(x + 29, y + 2)),
+      gable,
+    }
+    buildings.push(building)
+    if (gable === 'none' && height > 1.6 && width * depth >= 4 && hash(x + 41, y + 7) < 0.5) {
+      buildings.push({
+        x: x + width / 2 - 0.3,
+        y: y + depth / 2 - 0.3,
+        width: 0.6,
+        depth: 0.6,
+        base: building.base + building.height,
+        height: 0.3,
+        wall: '#9aa0a6',
+        roof: '#b4b9be',
+        gable: 'none',
+      })
     }
   }
 
@@ -292,7 +308,7 @@ export function buildCity() {
         treeChance = 0.18
         treeKinds = ['round', 'palm']
       } else if (built[i]) color = '#cfc8bb'
-      else if (distance[i]! <= 6) {
+      else if (distance[i]! <= 8) {
         const { style } = styleAt(x, y)
         color = style === 'suburb' ? '#9cb873' : distance[i]! === 1 ? '#cfc8bb' : '#86a865'
         treeChance = distance[i]! === 1 ? 0.08 : 0.4

@@ -13,6 +13,17 @@ const distance = 800
 
 export type Focus = { x: number; y: number; zoom: number }
 
+const flightSeconds = 0.7
+let active: MapControls | null = null
+const flight = { start: -1, from: { x: 0, y: 0, zoom: 1 }, to: { x: 0, y: 0, zoom: 1 } }
+
+export function flyTo(x: number, y: number, zoom: number) {
+  if (!active) return
+  const camera = active.object
+  const from = { x: active.target.x, y: active.target.z, zoom: 'zoom' in camera ? camera.zoom : 1 }
+  Object.assign(flight, { start: performance.now() / 1000, from, to: { x, y, zoom } })
+}
+
 export function Camera({ focus }: { focus: Focus }) {
   const get = useThree((state) => state.get)
   useEffect(() => {
@@ -28,7 +39,7 @@ export function Camera({ focus }: { focus: Focus }) {
     controls.target.set(focus.x, 0, focus.y)
     controls.enableRotate = false
     controls.screenSpacePanning = false
-    controls.minZoom = 0.8
+    controls.minZoom = 1.4
     controls.maxZoom = 64
     controls.zoomToCursor = true
     const keepInside = () => {
@@ -43,13 +54,37 @@ export function Camera({ focus }: { focus: Focus }) {
       camera.position.x += x
       camera.position.z += z
     }
+    const cancelFlight = () => {
+      flight.start = -1
+    }
     controls.addEventListener('change', keepInside)
+    controls.addEventListener('start', cancelFlight)
     controls.update()
+    active = controls
     return () => {
+      active = null
+      cancelFlight()
       controls.removeEventListener('change', keepInside)
+      controls.removeEventListener('start', cancelFlight)
       controls.dispose()
     }
   }, [get, focus.x, focus.y, focus.zoom])
+  useFrame(({ camera }) => {
+    if (!active || flight.start < 0) return
+    const t = Math.min(1, (performance.now() / 1000 - flight.start) / flightSeconds)
+    const eased = t * t * (3 - 2 * t)
+    const { from, to } = flight
+    const [x, y] = [from.x + (to.x - from.x) * eased, from.y + (to.y - from.y) * eased]
+    const [dx, dz] = [x - active.target.x, y - active.target.z]
+    active.target.x += dx
+    active.target.z += dz
+    camera.position.x += dx
+    camera.position.z += dz
+    camera.zoom = from.zoom * (to.zoom / from.zoom) ** eased
+    camera.updateProjectionMatrix()
+    active.update()
+    if (t === 1) flight.start = -1
+  })
   return null
 }
 

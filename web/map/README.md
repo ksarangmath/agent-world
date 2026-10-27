@@ -10,8 +10,8 @@ the world snapshot that `People` and `Labels` draw.
 - **`city.ts`**: derives the city from the ground and roads. Each tile takes
   the style of its nearest neighborhood (`neighborhoods.ts`): Victorian rows in
   the Mission, stucco in the Sunset, towers downtown, warehouses in Dogpatch,
-  houses along the suburbs' main streets. Buildings face their street and fill
-  blocks inward; parks, backyards, and wild hills get trees.
+  houses along the suburbs' main streets. Each block is split into a few big
+  lots, one building each; parks, courtyards, and wild hills get trees.
 - **`ground.tsx`**, **`water.tsx`**, **`buildings.tsx`**, **`trees.tsx`**: draw it.
   The ground, buildings, and trees come in 64-tile chunks so off-screen chunks
   are culled. A ground shader paints lane lines, crosswalks, and curbs up
@@ -24,7 +24,11 @@ the world snapshot that `People` and `Labels` draw.
   thing.
 - **`places.tsx`**, **`people.tsx`**, **`labels.tsx`**: the props at each
   place, the agents walking, riding, doing their place's activity or talking,
-  and the HTML labels for neighborhoods, places, and people.
+  and the HTML labels for regions, neighborhoods, and places.
+  `routing.worker.ts` computes travelers' routes off the main thread.
+- **`crowds.tsx`**, **`hover.ts`**, **`PersonHover.tsx`**: count bubbles that
+  group people by zoom and fly the camera in when clicked, and the card shown
+  when hovering over a person.
 - **`sky.tsx`**: lighting from the real sun position over San Francisco.
   **`clock.ts`** shares the time, daylight, and the visible area (set once a
   frame by `camera.tsx`), so moving things skip work off screen.

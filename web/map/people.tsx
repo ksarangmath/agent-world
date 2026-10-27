@@ -15,11 +15,20 @@ import {
 } from '../humanoid/model'
 import { onScreen } from './clock'
 import { hash, surfaceAt } from './elevation'
+import { hovered } from './hover'
 import type { RouteReply, RouteRequest } from './routing.worker'
 
 const capacity = 2000
-const scale = 0.42
-const nameTagZoom = 14
+const scale = 0.55
+const hoverZoom = 14
+const hitPixels = 14
+
+export const crowd = {
+  count: 0,
+  x: new Float32Array(capacity),
+  y: new Float32Array(capacity),
+  shown: new Uint8Array(capacity),
+}
 const hidden = new Matrix4().makeScale(0, 0, 0)
 const riding: Pose = { lift: 0, roll: 0, legs: [0, 0], arms: [-0.2, -0.2] }
 const tripKey = (person: WorldPerson) =>
@@ -41,11 +50,14 @@ function partnersOf(people: WorldPerson[]): (number | undefined)[] {
   )
 }
 
-type Props = { people: WorldPerson[]; serverOffsetMs: number }
+type Props = {
+  people: WorldPerson[]
+  serverOffsetMs: number
+  onSelect: (personId: string) => void
+}
 
-export function People({ people, serverOffsetMs }: Props) {
+export function People({ people, serverOffsetMs, onSelect }: Props) {
   const meshes = useRef<Partial<Record<PartKey, InstancedMesh | null>>>({})
-  const tags = useRef(new Map<string, HTMLAnchorElement>())
   const { gl, camera, size } = useThree()
   const shown = useMemo(() => people.slice(0, capacity), [people])
   const routes = useRef(new Map<string, Route>())
@@ -117,29 +129,73 @@ export function People({ people, serverOffsetMs }: Props) {
     }
   }, [parts, shown.length])
 
+  const screen = useMemo(() => new Float32Array(capacity * 2).fill(Number.NaN), [])
+  const press = useRef<{ pointer: number; x: number; y: number; moved: boolean } | null>(null)
   useEffect(() => {
-    const container = gl.domElement.parentElement
-    const current = tags.current
-    const ids = new Set(shown.map((person) => person.id))
-    for (const person of shown) {
-      const tag = current.get(person.id) ?? document.createElement('a')
-      tag.className = 'name-tag'
-      tag.textContent = person.name
-      tag.href = `/people/${person.id}`
-      if (!current.has(person.id)) container?.appendChild(tag)
-      current.set(person.id, tag)
-    }
-    for (const [id, tag] of current) {
-      if (!ids.has(id)) {
-        tag.remove()
-        current.delete(id)
+    const canvas = gl.domElement
+    const nearest = (event: PointerEvent) => {
+      const bounds = canvas.getBoundingClientRect()
+      const [px, py] = [event.clientX - bounds.left, event.clientY - bounds.top]
+      let [best, bestDistance] = [-1, hitPixels ** 2]
+      for (let i = 0; i < shown.length; i++) {
+        const [sx, sy] = [screen[i * 2]!, screen[i * 2 + 1]!]
+        if (Number.isNaN(sx)) continue
+        const d = (sx - px) ** 2 + (sy - py) ** 2
+        if (d < bestDistance) [best, bestDistance] = [i, d]
       }
+      return shown[best]
     }
-  }, [gl, shown])
-  useEffect(() => {
-    const current = tags.current
-    return () => current.forEach((tag) => tag.remove())
-  }, [])
+    const move = (event: PointerEvent) => {
+      const pressed = press.current
+      if (pressed?.pointer === event.pointerId) {
+        const distance = Math.abs(event.clientX - pressed.x) + Math.abs(event.clientY - pressed.y)
+        if (distance > 6) pressed.moved = true
+      }
+      const person = nearest(event)
+      canvas.style.cursor = person ? 'pointer' : ''
+      hovered.set(
+        person
+          ? {
+              id: person.id,
+              name: person.name,
+              placeId: person.placeId,
+              x: event.clientX,
+              y: event.clientY,
+            }
+          : null,
+      )
+    }
+    const down = (event: PointerEvent) => {
+      press.current =
+        event.isPrimary && event.button === 0
+          ? { pointer: event.pointerId, x: event.clientX, y: event.clientY, moved: false }
+          : null
+    }
+    const up = (event: PointerEvent) => {
+      const pressed = press.current
+      const click = pressed?.pointer === event.pointerId && !pressed.moved
+      press.current = null
+      const person = click ? nearest(event) : undefined
+      if (person) onSelect(person.id)
+    }
+    const cancel = () => {
+      press.current = null
+    }
+    const leave = () => hovered.set(null)
+    canvas.addEventListener('pointermove', move)
+    canvas.addEventListener('pointerdown', down)
+    canvas.addEventListener('pointerup', up)
+    canvas.addEventListener('pointerleave', leave)
+    canvas.addEventListener('pointercancel', cancel)
+    return () => {
+      canvas.removeEventListener('pointercancel', cancel)
+      canvas.removeEventListener('pointermove', move)
+      canvas.removeEventListener('pointerdown', down)
+      canvas.removeEventListener('pointerup', up)
+      canvas.removeEventListener('pointerleave', leave)
+    }
+  }, [gl, shown, screen, onSelect])
+  useEffect(() => () => hovered.set(null), [])
 
   const body = useMemo(() => new Object3D(), [])
   const local = useMemo(() => new Matrix4(), [])
@@ -150,7 +206,8 @@ export function People({ people, serverOffsetMs }: Props) {
 
   useFrame(() => {
     const now = Date.now() + serverOffsetMs
-    const showTags = camera.zoom >= nameTagZoom
+    const hoverable = camera.zoom >= hoverZoom
+    crowd.count = shown.length
     shown.forEach((person, i) => {
       let [x, y] = [person.tile.x + 0.5, person.tile.y + 0.5]
       const t = now / 1000 + hash(person.tile.x, person.tile.y) * 50
@@ -189,9 +246,11 @@ export function People({ people, serverOffsetMs }: Props) {
           heading = Math.cos(t * 0.5) > 0 ? Math.PI / 2 : -Math.PI / 2
         }
       }
-      const tag = tags.current.get(person.id)
+      crowd.x[i] = x
+      crowd.y[i] = y
+      crowd.shown[i] = hide ? 0 : 1
+      screen[i * 2] = Number.NaN
       if (hide || !onScreen(x, y)) {
-        if (tag) tag.style.display = 'none'
         for (const key of partKeys) meshes.current[key]?.setMatrixAt(i, hidden)
         return
       }
@@ -220,13 +279,10 @@ export function People({ people, serverOffsetMs }: Props) {
         }
         mesh.setMatrixAt(i, matrix.multiplyMatrices(body.matrix, local))
       }
-      if (!tag) return
-      projected.set(x, ground + 0.85, y).project(camera)
-      const visible = showTags && Math.abs(projected.x) < 1 && Math.abs(projected.y) < 1
-      tag.style.display = visible ? 'block' : 'none'
-      if (visible) {
-        tag.style.transform = `translate(${((projected.x + 1) / 2) * size.width}px, ${((1 - projected.y) / 2) * size.height}px) translate(-50%, -100%)`
-      }
+      if (!hoverable) return
+      projected.set(x, ground + 0.35, y).project(camera)
+      screen[i * 2] = ((projected.x + 1) / 2) * size.width
+      screen[i * 2 + 1] = ((1 - projected.y) / 2) * size.height
     })
     for (const key of partKeys) {
       const mesh = meshes.current[key]

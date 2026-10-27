@@ -268,7 +268,7 @@ describe('conversations', () => {
 
 describe('travel', () => {
   test('a place rejects arrivals beyond its capacity, even when they race', async () => {
-    const target = placesById.get('chestnut-cafe')!
+    const target = placesById.get('lands-end-lookout')!
     const travelers = await Promise.all(
       Array.from({ length: target.capacity + 2 }, (_, i) => person(`T${i}`, null)),
     )
@@ -280,7 +280,7 @@ describe('travel', () => {
   })
 
   test('a traveling agent holds its result until arrival and cannot be asked', async () => {
-    const [a, b] = [await person('A'), await person('B', 'chestnut-cafe')]
+    const [a, b] = [await person('A'), await person('B', 'lands-end-lookout')]
     const trip = await run((w) => goTo(w, b, placeId, 'robots'))
     expect(trip.ok).toBe(true)
     expect(trip.dueAt!.getTime()).toBeGreaterThan(t0.getTime())
@@ -297,7 +297,7 @@ describe('travel', () => {
   test('leaving a place expires requests and tells whoever was waiting', async () => {
     const [a, b] = [await person('A'), await person('B')]
     await run((w) => requestConversation(w, a, b, 'Hi'))
-    await run((w) => goTo(w, b, 'chestnut-cafe', 'coffee'))
+    await run((w) => goTo(w, b, 'lands-end-lookout', 'coffee'))
     expect(await pendingFrom(a)).toHaveLength(0)
     expect(await eventsOf(a)).toContainEqual(
       expect.objectContaining({ event: 'request_expired', why: 'B left' }),

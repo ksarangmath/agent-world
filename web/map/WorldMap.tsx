@@ -1,21 +1,24 @@
 import { Canvas } from '@react-three/fiber'
-import { useEffect, useMemo, useRef } from 'react'
+import { useNavigate } from '@tanstack/react-router'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Mesh, type Object3D } from 'three'
 import { useWorld } from '../api'
 import { Buildings } from './buildings'
 import { Camera, PixelPass, VisibleArea, type Focus } from './camera'
 import { buildCity } from './city'
+import { Crowds } from './crowds'
 import { Ground } from './ground'
 import { Labels } from './labels'
 import { Landmarks } from './landmarks'
 import { People } from './people'
+import { PersonHover } from './PersonHover'
 import { Places } from './places'
 import { Sky } from './sky'
 import { Traffic } from './traffic'
 import { Trees } from './trees'
 import { Water } from './water'
 
-const sanFrancisco: Focus = { x: 450, y: 420, zoom: 10 }
+const sanFrancisco: Focus = { x: 230, y: 230, zoom: 4.5 }
 
 function release(object: Object3D) {
   if (!(object instanceof Mesh)) return
@@ -28,6 +31,11 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
   const city = useMemo(() => buildCity(), [])
   const view = { ...sanFrancisco, ...focus }
   const scene = useRef<Object3D | null>(null)
+  const navigate = useNavigate()
+  const select = useCallback(
+    (personId: string) => void navigate({ to: '/people/$personId', params: { personId } }),
+    [navigate],
+  )
   useEffect(() => () => scene.current?.traverse(release), [])
   return (
     <div className="map">
@@ -54,13 +62,16 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
             <People
               people={world.data.snapshot.people}
               serverOffsetMs={world.data.serverOffsetMs}
+              onSelect={select}
             />
-            <Labels people={world.data.snapshot.people} />
+            <Crowds />
+            <Labels />
           </>
         )}
         <Camera focus={view} />
         <PixelPass pixelSize={3} />
       </Canvas>
+      <PersonHover />
     </div>
   )
 }

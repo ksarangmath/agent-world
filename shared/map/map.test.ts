@@ -16,17 +16,17 @@ import { groundAt, isDry } from './terrain'
 const key = (tile: Tile) => `${tile.x},${tile.y}`
 
 describe('places', () => {
-  test('there are at least 60, with unique ids, and most are in San Francisco', () => {
-    expect(places.length).toBeGreaterThanOrEqual(60)
+  test('there are 30, with unique ids, and most are in San Francisco', () => {
+    expect(places).toHaveLength(30)
     expect(new Set(places.map((place) => place.id)).size).toBe(places.length)
     const sf = places.filter((place) => place.region === 'sf').length
     expect(sf / places.length).toBeGreaterThan(0.65)
   })
 
-  test('capacity is 6 to 12, with one spot per seat', () => {
+  test('capacity is 12 to 24, with one spot per seat', () => {
     for (const place of places) {
-      expect(place.capacity, place.id).toBeGreaterThanOrEqual(6)
-      expect(place.capacity, place.id).toBeLessThanOrEqual(12)
+      expect(place.capacity, place.id).toBeGreaterThanOrEqual(12)
+      expect(place.capacity, place.id).toBeLessThanOrEqual(24)
       expect(spots(place), place.id).toHaveLength(place.capacity)
     }
   })
@@ -72,14 +72,14 @@ describe('route', () => {
   })
 
   test('a trip that once differed between JavaScript engines stays pinned', () => {
-    const from = spots(places.find((place) => place.id === 'headlands-trailhead')!)[0]!
-    const to = spots(places.find((place) => place.id === 'drone-test-yard')!)[0]!
-    expect(route(from, to).seconds).toMatchInlineSnapshot(`295.92745289171967`)
+    const from = spots(places.find((place) => place.id === 'mountain-summit-trail')!)[0]!
+    const to = spots(places.find((place) => place.id === 'dogpatch-robotics')!)[0]!
+    expect(route(from, to).seconds).toMatchInlineSnapshot(`306.4213562373097`)
   })
 
   test('crossing the bay rides instead of walking, and trips take minutes', () => {
     const sf = spots(places.find((place) => place.id === 'dogpatch-robotics')!)[0]!
-    const oakland = spots(places.find((place) => place.id === 'oakland-art-gallery')!)[0]!
+    const oakland = spots(places.find((place) => place.id === 'oakland-music-hall')!)[0]!
     const trip = route(sf, oakland)
     expect(trip.legs.some((leg) => leg.mode === 'ride')).toBe(true)
     expect(trip.seconds).toBeGreaterThan(30)
@@ -88,7 +88,7 @@ describe('route', () => {
 
   test('a traveler starts at the origin, ends at the destination, and waits to board rides', () => {
     const from = spots(places.find((place) => place.id === 'dogpatch-robotics')!)[0]!
-    const to = spots(places.find((place) => place.id === 'oakland-art-gallery')!)[0]!
+    const to = spots(places.find((place) => place.id === 'oakland-music-hall')!)[0]!
     const trip = route(from, to)
     expect(positionOnRoute(trip, 0)).toMatchObject(from)
     expect(positionOnRoute(trip, trip.seconds + 1)).toMatchObject(to)

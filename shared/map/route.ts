@@ -1,8 +1,8 @@
 import geography from './geography.json'
 import { mapHeight, mapWidth, warp } from './grid'
 
-export const walkTilesPerSecond = 2
-export const rideTilesPerSecond = 12
+export const walkTilesPerSecond = 1
+export const rideTilesPerSecond = 6
 export const rideBoardingSeconds = 30
 
 export type Tile = { x: number; y: number }

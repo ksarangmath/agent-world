@@ -296,7 +296,7 @@ function cars(): Fleet {
       if (path.length < 6) return
       const middle = Math.floor(path.x.length / 2)
       const [mx, mz] = [path.x[middle]!, path.z[middle]!]
-      const downtown = Math.max(0, 1 - Math.hypot(mx - fidiX, mz - fidiZ) / 110)
+      const downtown = Math.max(0, 1 - Math.hypot(mx - fidiX, mz - fidiZ) / 45)
       const expected =
         path.length * density * (1 + 3 * downtown) * (insideSanFrancisco(mx, mz) ? 1 : 0.5)
       const count = Math.floor(expected + hash(n, roadClass.length))
@@ -403,11 +403,11 @@ const shippingLane: [number, number][] = [
 ]
 
 const anchorages: [lat: number, lon: number, rx: number, rz: number, boats: number][] = [
-  [37.8095, -122.44, 14, 6, 6],
-  [37.852, -122.468, 10, 8, 5],
-  [37.822, -122.43, 16, 10, 6],
-  [37.816, -122.38, 8, 6, 3],
-  [37.87, -122.49, 8, 6, 4],
+  [37.8095, -122.44, 6, 2.5, 5],
+  [37.852, -122.468, 4, 3, 4],
+  [37.822, -122.43, 6, 4, 5],
+  [37.816, -122.38, 3, 2.5, 3],
+  [37.87, -122.49, 3, 2.5, 3],
 ]
 
 function boats(): Fleet[] {
@@ -512,8 +512,8 @@ function planes(): Fleet {
     const length = Math.hypot(bx! - ax!, bz! - az!)
     return [bx! + ((bx! - ax!) / length) * distance, bz! + ((bz! - az!) / length) * distance]
   }
-  const approach = beyond(west, east, 170)
-  const climb = beyond(south, north, 200)
+  const approach = beyond(west, east, 70)
+  const climb = beyond(south, north, 80)
   const landing = makePath([...approach, ...east, ...west], 0, [16, 0.55, 0.55])
   const takeoff = makePath([...south, ...north, ...climb], 0, [0.55, 0.55, 22])
   const flights = [
@@ -550,9 +550,9 @@ function gulls(): Fleet {
   const birds = colonies.flatMap(([lat, lon], n) => {
     const [cx, cz] = warp(lon, lat)
     return Array.from({ length: 6 }, (_, i) => ({
-      cx: cx + (hash(n, i) - 0.5) * 6,
-      cz: cz + (hash(i, n) - 0.5) * 6,
-      radius: 1.5 + 4 * hash(n + 4, i),
+      cx: cx + (hash(n, i) - 0.5) * 3,
+      cz: cz + (hash(i, n) - 0.5) * 3,
+      radius: 1 + 2 * hash(n + 4, i),
       height: 2.5 + 2.5 * hash(n, i + 4),
       speed: (0.4 + 0.5 * hash(n + 2, i + 2)) * (i % 2 ? 1 : -1),
       phase: hash(n * 7, i * 3) * Math.PI * 2,

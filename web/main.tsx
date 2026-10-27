@@ -77,10 +77,10 @@ declare module '@tanstack/react-router' {
 }
 
 const regions = [
-  ['San Francisco', { x: 400, y: 430, zoom: 5 }],
-  ['Marin', { x: 140, y: 110, zoom: 5 }],
-  ['East Bay', { x: 790, y: 250, zoom: 5 }],
-  ['South Bay', { x: 860, y: 1040, zoom: 5 }],
+  ['San Francisco', { x: 215, y: 233, zoom: 5 }],
+  ['Marin', { x: 135, y: 88, zoom: 6 }],
+  ['East Bay', { x: 379, y: 161, zoom: 5 }],
+  ['South Bay', { x: 374, y: 430, zoom: 5 }],
 ] as const
 
 function Home() {
@@ -88,7 +88,7 @@ function Home() {
   const me = useMe(session?.user.id)
   const search = homeRoute.useSearch()
   const mine = me.data?.person?.tile
-  const focus = search.x === undefined && mine ? { ...mine, zoom: 24 } : search
+  const focus = search.x === undefined && mine ? { ...mine, zoom: 30 } : search
   return (
     <main className="home">
       <Suspense>

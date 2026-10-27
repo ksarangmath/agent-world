@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { Vector3 } from 'three'
-import type { WorldPerson } from '../../shared/api'
+import { warp } from '../../shared/map/grid'
 import { places } from '../../shared/map/places'
 import { surfaceAt } from './elevation'
 import { neighborhoods } from './neighborhoods'
@@ -11,21 +11,31 @@ type Label = {
   x: number
   y: number
   lift: number
-  kind: 'area' | 'place'
+  kind: 'region' | 'area' | 'place'
   zooms: [number, number]
 }
 
 const areas = neighborhoods.filter((neighborhood) => neighborhood.label)
-const areaCount = areas.length
+
+const regions: [name: string, lon: number, lat: number][] = [
+  ['San Francisco', -122.44, 37.765],
+  ['Marin', -122.55, 37.9],
+  ['East Bay', -122.22, 37.83],
+  ['South Bay', -122.08, 37.4],
+]
 
 const labels: Label[] = [
+  ...regions.map(([text, lon, lat]): Label => {
+    const [x, y] = warp(lon, lat)
+    return { text, x, y, lift: 4, kind: 'region', zooms: [0, 3.5] }
+  }),
   ...areas.map((neighborhood): Label => ({
     text: neighborhood.name,
     x: neighborhood.x,
     y: neighborhood.y,
     lift: 2,
     kind: 'area',
-    zooms: neighborhood.label === 'major' ? [1, 10] : [4, 10],
+    zooms: neighborhood.label === 'major' ? [3.5, 12] : [8, 12],
   })),
   ...places.map((place): Label => ({
     text: place.name,
@@ -33,21 +43,14 @@ const labels: Label[] = [
     y: place.center.y + 0.5,
     lift: 1.6,
     kind: 'place',
-    zooms: [18, Infinity],
+    zooms: [7, Infinity],
   })),
 ]
 
-export function Labels({ people }: { people: WorldPerson[] }) {
+export function Labels() {
   const { gl, camera, size } = useThree()
   const elements = useRef<HTMLDivElement[]>([])
   const projected = useMemo(() => new Vector3(), [])
-  const counts = useMemo(() => {
-    const here = new Map<string, number>()
-    for (const person of people) {
-      if (!person.trip) here.set(person.placeId, (here.get(person.placeId) ?? 0) + 1)
-    }
-    return here
-  }, [people])
 
   useEffect(() => {
     const container = gl.domElement.parentElement
@@ -61,22 +64,14 @@ export function Labels({ people }: { people: WorldPerson[] }) {
     return () => elements.current.forEach((element) => element.remove())
   }, [gl])
 
-  useEffect(() => {
-    places.forEach((place, i) => {
-      const element = elements.current[areaCount + i]
-      if (element) element.dataset.count = String(counts.get(place.id) ?? 0)
-    })
-  }, [counts])
-
   useFrame(() => {
     labels.forEach((label, i) => {
       const element = elements.current[i]
       if (!element) return
       const [low, high] = label.zooms
       projected.set(label.x, surfaceAt(label.x, label.y) + label.lift, label.y).project(camera)
-      const busy = label.kind === 'place' && element.dataset.count !== '0'
       const visible =
-        camera.zoom >= (busy ? 9 : low) &&
+        camera.zoom >= low &&
         camera.zoom < high &&
         Math.abs(projected.x) < 1.05 &&
         Math.abs(projected.y) < 1.05

@@ -2,12 +2,12 @@ const center = { lon: -122.435, lat: 37.77 }
 const kmPerDegreeLon = 88
 const kmPerDegreeLat = 110.95
 const trueToScaleKm = 7.5
-const falloffKm = 2
-const tilesPerKm = 36
-const origin = { x: 380, y: 440 }
+const falloffKm = 1
+const tilesPerKm = 14
+const origin = { x: 221, y: 225 }
 
-export const mapWidth = 1100
-export const mapHeight = 1180
+export const mapWidth = 490
+export const mapHeight = 504
 
 export function warp(lon: number, lat: number): [x: number, y: number] {
   const x = (lon - center.lon) * kmPerDegreeLon

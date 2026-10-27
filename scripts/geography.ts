@@ -9,8 +9,100 @@ type Geometry =
   | { type: 'MultiLineString'; coordinates: Point[][] }
 type Feature = { properties: Record<string, string | null>; geometry: Geometry | null }
 
-const bayArea: Box = [-122.62, 37.2, -121.8, 38.0]
+const bayArea: Box = [-122.72, 37.22, -121.78, 38.0]
 const sanFrancisco: Box = [-122.53, 37.7, -122.35, 37.84]
+
+const island: Point[] = [
+  [-122.7, 37.9],
+  [-122.62, 37.95],
+  [-122.55, 37.985],
+  [-122.47, 37.99],
+  [-122.38, 37.985],
+  [-122.3, 37.975],
+  [-122.22, 37.95],
+  [-122.15, 37.9],
+  [-122.1, 37.83],
+  [-122.05, 37.75],
+  [-121.97, 37.65],
+  [-121.9, 37.55],
+  [-121.82, 37.42],
+  [-121.8, 37.32],
+  [-121.88, 37.25],
+  [-122.02, 37.26],
+  [-122.15, 37.32],
+  [-122.3, 37.38],
+  [-122.42, 37.42],
+  [-122.55, 37.5],
+  [-122.6, 37.7],
+  [-122.7, 37.8],
+]
+
+const sanPabloBay: Box = [-122.56, 37.92, -122.2, 38.0]
+
+const sanFranciscoStreets = [
+  'Market St',
+  'Mission St',
+  'Valencia St',
+  'Van Ness Ave',
+  'S Van Ness Ave',
+  'Divisadero St',
+  'Masonic Ave',
+  'Stanyan St',
+  'Geary Blvd',
+  'California St',
+  'Lombard St',
+  'Fulton St',
+  'Lincoln Way',
+  'Judah St',
+  'Taraval St',
+  'Sloat Blvd',
+  '19th Ave',
+  'Sunset Blvd',
+  'Great Hwy',
+  'The Embarcadero',
+  '3rd St',
+  'Cesar Chavez St',
+  '16th St',
+  '24th St',
+  'Potrero Ave',
+  'Bayshore Blvd',
+  'Alemany Blvd',
+  'Portola Dr',
+  'Oak St',
+  'Haight St',
+  'Broadway',
+  'Columbus Ave',
+  'Bay St',
+  'Folsom St',
+  'Brannan St',
+  'King St',
+  'Post St',
+  'Polk St',
+  'Fillmore St',
+  'Arguello Blvd',
+  'Park Presidio Blvd',
+  'Clement St',
+  'Noriega St',
+  'Ocean Ave',
+  'Geneva Ave',
+  'Church St',
+  'Castro St',
+  'Chestnut St',
+  'Marina Blvd',
+  'Point Lobos Ave',
+  'Twin Peaks Blvd',
+  'Powell St',
+  'Hyde St',
+  'Grant Ave',
+  'Dolores St',
+  'Lincoln Blvd',
+  'John F Kennedy Dr',
+  'Martin Luther King Jr Dr',
+  'Evans Ave',
+  'Mission Bay Blvd N',
+  'Townsend St',
+  '4th St',
+]
 
 const mainStreets = [
   'Bridgeway',
@@ -252,7 +344,7 @@ function simplify(points: Point[], tolerance: number): Point[] {
 
 function polyline(points: Point[]): number[] {
   const flat: number[] = []
-  for (const [x, y] of simplify(warpAll(points), 0.45)) {
+  for (const [x, y] of simplify(warpAll(points), 0.6)) {
     const [rx, ry] = [Math.round(x), Math.round(y)]
     if (flat.at(-2) === rx && flat.at(-1) === ry) continue
     flat.push(rx, ry)
@@ -266,6 +358,74 @@ const within =
   ([lon, lat]: Point) =>
     lon >= west && lon <= east && lat >= south && lat <= north
 
+function onIsland([lon, lat]: Point): boolean {
+  let inside = false
+  island.forEach(([x0, y0], i) => {
+    const [x1, y1] = island[(i + 1) % island.length]!
+    if (y0 > lat !== y1 > lat && lon < x0 + ((lat - y0) / (y1 - y0)) * (x1 - x0)) inside = !inside
+  })
+  return inside
+}
+
+function densify(ring: Point[], step = 0.005): Point[] {
+  return ring.flatMap(([x0, y0], i) => {
+    const [x1, y1] = ring[(i + 1) % ring.length]!
+    const parts = Math.max(1, Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / step))
+    return Array.from({ length: parts }, (_, k): Point => [
+      x0 + ((x1 - x0) * k) / parts,
+      y0 + ((y1 - y0) * k) / parts,
+    ])
+  })
+}
+
+function wobble(ring: Point[]): Point[] {
+  return ring.map(([lon, lat], i) => {
+    const [before, after] = [
+      ring[(i - 1 + ring.length) % ring.length]!,
+      ring[(i + 1) % ring.length]!,
+    ]
+    const [tx, ty] = [after[0] - before[0], after[1] - before[1]]
+    const length = Math.sqrt(tx * tx + ty * ty) || 1
+    const t = (i / ring.length) * Math.PI * 2
+    const amount =
+      0.012 * Math.sin(t * 7) + 0.008 * Math.sin(t * 13 + 1) + 0.005 * Math.sin(t * 29 + 2)
+    return [lon + (ty / length) * amount, lat - (tx / length) * amount]
+  })
+}
+
+const boxRing = ([west, south, east, north]: Box): Point[] => [
+  [west, south],
+  [east, south],
+  [east, north],
+  [west, north],
+]
+
+function smoothCoast(grid: Uint8Array) {
+  const wet = (kind: number) =>
+    kind === groundKinds.indexOf('ocean') || kind === groundKinds.indexOf('water')
+  for (let pass = 0; pass < 2; pass++) {
+    const before = grid.slice()
+    for (let y = 1; y < mapHeight - 1; y++) {
+      for (let x = 1; x < mapWidth - 1; x++) {
+        let dry = 0
+        let ocean = 0
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const kind = before[(y + dy) * mapWidth + x + dx]!
+            if (!wet(kind)) dry++
+            else if (kind === groundKinds.indexOf('ocean')) ocean++
+          }
+        }
+        const i = y * mapWidth + x
+        if (wet(before[i]!) && dry >= 6) grid[i] = groundKinds.indexOf('land')
+        if (!wet(before[i]!) && dry <= 3) {
+          grid[i] = groundKinds.indexOf(ocean * 2 > 9 - dry ? 'ocean' : 'water')
+        }
+      }
+    }
+  }
+}
+
 function clip(points: Point[], keep: (point: Point) => boolean): Point[][] {
   const pieces: Point[][] = [[]]
   for (const point of points) {
@@ -275,7 +435,7 @@ function clip(points: Point[], keep: (point: Point) => boolean): Point[][] {
   return pieces.filter((piece) => piece.length >= 2)
 }
 
-const polylines = (features: Feature[], keep = within(bayArea)) =>
+const polylines = (features: Feature[], keep = onIsland) =>
   features
     .flatMap((feature) => lines(feature.geometry).flatMap((line) => clip(line, keep)))
     .map(polyline)
@@ -289,7 +449,11 @@ const [counties, water, nps, colleges, freeways, streets, rail, local, main] = a
   layer('Transportation/MapServer/2', bayArea),
   layer('Transportation/MapServer/6', bayArea),
   layer('Transportation/MapServer/9', bayArea, "NAME IN ('Bart','Caltrain')"),
-  layer('Transportation/MapServer/8', sanFrancisco, "MTFCC='S1400'"),
+  layer(
+    'Transportation/MapServer/8',
+    sanFrancisco,
+    `MTFCC='S1400' AND NAME IN (${sanFranciscoStreets.map((name) => `'${name}'`).join(',')})`,
+  ),
   layer(
     'Transportation/MapServer/8',
     bayArea,
@@ -328,6 +492,13 @@ for (const area of water) {
   if (area.properties.MTFCC !== 'H2030' && area.properties.MTFCC !== 'H2040') continue
   for (const polygon of polygons(area.geometry)) fill(grid, polygon.map(warpAll), kind)
 }
+fill(grid, [warpAll(densify(boxRing(sanPabloBay)))], 'land', 'water')
+const inland = new Uint8Array(mapWidth * mapHeight)
+fill(inland, [warpAll(wobble(densify(island)))], 'land')
+inland.forEach((kind, i) => {
+  if (!kind) grid[i] = groundKinds.indexOf('ocean')
+})
+smoothCoast(grid)
 beaches(grid)
 
 console.log(
@@ -337,16 +508,16 @@ console.log(
       freeway: polylines(freeways),
       street: [
         ...polylines(streets),
-        ...polylines(main, (point) => within(bayArea)(point) && !within(sanFrancisco)(point)),
+        ...polylines(main, (point) => onIsland(point) && !within(sanFrancisco)(point)),
       ],
-      local: polylines(local, within(sanFrancisco)),
+      local: polylines(local, (point) => onIsland(point) && within(sanFrancisco)(point)),
     },
     named: Object.fromEntries(
       namedStreets.map((name) => [
         name,
         polylines(
           local.filter((feature) => feature.properties.NAME === name),
-          within(sanFrancisco),
+          (point) => onIsland(point) && within(sanFrancisco)(point),
         ),
       ]),
     ),

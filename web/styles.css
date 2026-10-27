@@ -104,23 +104,14 @@ a {
   color: #ffd166;
 }
 
-.name-tag,
 .place-label,
-.area-label {
+.area-label,
+.region-label {
   position: absolute;
   top: 0;
   left: 0;
   white-space: nowrap;
   pointer-events: none;
-}
-
-.name-tag {
-  pointer-events: auto;
-  padding: 1px 4px;
-  font-size: 11px;
-  color: #f7f1e3;
-  background: rgb(16 21 34 / 80%);
-  text-decoration: none;
 }
 
 .place-label {
@@ -132,9 +123,60 @@ a {
   border: 2px solid #101522;
 }
 
-.place-label:not([data-count='0'])::after {
-  content: ' · ' attr(data-count);
-  color: #c0362c;
+.region-label {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow:
+    3px 0 #101522,
+    -3px 0 #101522,
+    0 3px #101522,
+    0 -3px #101522;
+}
+
+.crowd {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--size);
+  height: var(--size);
+  padding: 0;
+  font:
+    700 12px system-ui,
+    sans-serif;
+  color: #101522;
+  background: #ffd166;
+  border: 3px solid #101522;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.crowd:hover {
+  background: #fff;
+}
+
+.hover-card {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 260px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: #f7f1e3;
+  background: rgb(16 21 34 / 92%);
+  border: 3px solid #101522;
+  pointer-events: none;
+}
+
+.hover-card .muted {
+  color: #b9bfcc;
+}
+
+.hover-card .talking {
+  color: #ffd166;
 }
 
 .area-label {
