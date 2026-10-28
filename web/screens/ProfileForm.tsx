@@ -2,8 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 import type { Profile } from '../../shared/profile'
-import { saveProfile } from '../api'
-import { Portrait } from '../humanoid/Portrait'
+import { saveProfile, useMyPortrait } from '../api'
 
 const lines = (items: string[]) => items.join('\n')
 const parseLines = (text: string) =>
@@ -14,6 +13,7 @@ const parseLines = (text: string) =>
 
 export function ProfileForm({ draft, userId }: { draft: Profile; userId: string }) {
   const [profile, setProfile] = useState(draft)
+  const portrait = useMyPortrait()
   const [lists, setLists] = useState({
     expertise: lines(draft.expertise),
     interests: lines(draft.interests),
@@ -65,7 +65,7 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
   }
   return (
     <form className="form profile" onSubmit={submit}>
-      <Portrait avatar={profile.avatar} className="portrait" />
+      {portrait.data && <img className="portrait" src={portrait.data} alt="" />}
       {text('name', 'Name')}
       {text('headline', 'Headline')}
       <label>

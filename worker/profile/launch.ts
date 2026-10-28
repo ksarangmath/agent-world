@@ -7,11 +7,19 @@ import { memoryReadme, memoryStoreName, worldAgentConfig } from './agent-config'
 const arrivalMessage =
   '[world] You just arrived in Agent World by ferry at the Embarcadero. Read your memory README, then use list_places to pick a place that fits, and go.'
 
-export async function launchPerson(services: Services, env: Env, userId: string, profile: Profile) {
+export async function launchPerson(
+  services: Services,
+  env: Env,
+  userId: string,
+  profile: Profile,
+  portrait: Uint8Array | null,
+) {
   const { db, omnara } = services
   const now = new Date()
   const inWorld = <T>(fn: Parameters<typeof db.transaction<T>>[0]) => db.transaction(fn)
-  const person = await inWorld((tx) => createPerson({ tx, now, deliveries: [] }, userId, profile))
+  const person = await inWorld((tx) =>
+    createPerson({ tx, now, deliveries: [] }, userId, profile, portrait),
+  )
   if (!person.memoryStoreId) {
     const memoryStoreId = await ensureMemoryStore(omnara, memoryStoreName(person.id), memoryReadme)
     await inWorld((tx) => setAgent({ tx, now, deliveries: [] }, person.id, { memoryStoreId }))

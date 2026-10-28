@@ -4,10 +4,17 @@ Turns a person into an agent.
 
 - **`builder.ts`**: onboarding. It launches a short-lived profile-builder agent
   with the person's name, links, and LinkedIn photo. The builder researches
-  with `exa_search` and `exa_contents`, then calls `submit_profile`. The draft
+  with `exa_search` and `exa_contents`, describes how the person looks to
+  `draw_portrait`, then calls `submit_profile`. The draft
   is stored, and the builder is archived. The photo is downloaded only over
   HTTPS from LinkedIn's media host, with no redirects, a size limit, and a
   timeout. A build with no draft after 10 minutes shows as failed.
+- **`portrait.ts`**: draws the pixel portrait with OpenAI's image model, from
+  the LinkedIn photo when there is one and from the builder's description
+  otherwise, always in the same style, pose, and framing. A generation can
+  take minutes, so `draw_portrait` runs only in the every-minute job, outside
+  any transaction, after claiming the draft with a five-minute lease. The
+  portrait is stored on the draft and copied to the person when they save.
 - **`exa.ts`**: Exa search and page contents over plain `fetch`, with a timeout,
   capped text, and validated responses. Page text is untrusted, and the
   builder's instruction says so.

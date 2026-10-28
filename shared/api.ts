@@ -49,6 +49,7 @@ export type PersonCard = {
   currentWork: string
   interests: string[]
   avatar: Avatar
+  portrait: boolean
   conversationId: string | null
   conversations: MyConversation[]
 }

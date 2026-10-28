@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, or } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, or, sql } from 'drizzle-orm'
 import type {
   Matches,
   MyConversation,
@@ -135,7 +135,12 @@ export async function thread(db: Database, personId: string): Promise<ThreadMess
 
 export async function personCard(db: Database, personId: string): Promise<PersonCard | null> {
   const [person] = await db
-    .select({ id: people.id, profile: people.profile, conversationId: people.conversationId })
+    .select({
+      id: people.id,
+      profile: people.profile,
+      conversationId: people.conversationId,
+      portrait: sql<boolean>`${people.portrait} is not null`,
+    })
     .from(people)
     .where(eq(people.id, personId))
   if (!person) return null
@@ -146,7 +151,16 @@ export async function personCard(db: Database, personId: string): Promise<Person
     currentWork: person.profile.current_work,
     interests: person.profile.interests,
     avatar: person.profile.avatar,
+    portrait: person.portrait,
     conversationId: person.conversationId,
     conversations: (await myConversations(db, person.id)).slice(0, 20),
   }
+}
+
+export async function portraitOf(db: Database, personId: string) {
+  const [person] = await db
+    .select({ portrait: people.portrait })
+    .from(people)
+    .where(eq(people.id, personId))
+  return person?.portrait ?? null
 }

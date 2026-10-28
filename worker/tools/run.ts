@@ -1,17 +1,18 @@
-import { and, asc, eq, gt, inArray, isNull, lte, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, inArray, isNotNull, isNull, lt, lte, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
-import type { Database } from '../db/client'
-import { deliveries, handledToolCalls, people } from '../db/schema'
+import type { Database, Transaction } from '../db/client'
+import { deliveries, handledToolCalls, people, profileDrafts } from '../db/schema'
 import { archiveAgent } from '../omnara/agents'
 import { isPermanent, type Omnara } from '../omnara/client'
 import { sendInput } from '../omnara/inputs'
 import { submitResult, type ToolCall, type ToolResult } from '../omnara/tool-calls'
 import { logError } from '../log'
-import { refuse, type Outcome } from '../world/events'
-import { saveDraft } from '../profile/builder'
+import { done, refuse, type Outcome } from '../world/events'
+import { downloadPhoto, saveDraft } from '../profile/builder'
+import { drawPortrait } from '../profile/portrait'
 import { touch } from '../world/people'
 import type { Profile } from '../../shared/profile'
-import { builderTools } from './builder'
+import { builderTools, portraitTools } from './builder'
 import { worldTools } from './world'
 
 export type Services = { db: Database; omnara: Omnara }
@@ -172,7 +173,12 @@ export async function runBuilderCall(
   env: Env,
   draft: { userId: string; links: string[] },
   call: Pick<ToolCall, 'id' | 'agent_id' | 'name' | 'input'>,
+  scheduled: boolean,
 ) {
+  if (Object.hasOwn(portraitTools, call.name)) {
+    if (scheduled) await runPortraitCall(services, env, draft, call)
+    return
+  }
   const row = await services.db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${call.id}))`)
     const [existing] = await tx
@@ -203,4 +209,128 @@ export async function runBuilderCall(
   if (call.name === 'submit_profile' && (row.result as ToolResult).outcome === 'succeeded') {
     await archiveAgent(services.omnara, call.agent_id)
   }
+}
+
+const portraitLeaseMs = 5 * 60 * 1000
+
+type Call = Pick<ToolCall, 'id' | 'agent_id' | 'name' | 'input'>
+type Claim =
+  | { kind: 'handled'; row: Handled }
+  | { kind: 'claimed'; photoUrl: string | null; claimedAt: Date }
+  | { kind: 'busy' }
+
+const ownedDraft = (userId: string, call: Call) =>
+  and(eq(profileDrafts.userId, userId), eq(profileDrafts.builderAgentId, call.agent_id))
+
+async function record(tx: Transaction, call: Call, outcome: Outcome) {
+  const [row] = await tx
+    .insert(handledToolCalls)
+    .values({ toolCallId: call.id, agentId: call.agent_id, result: asResult(outcome) })
+    .onConflictDoNothing()
+    .returning()
+  return row
+}
+
+export async function claimPortrait(
+  db: Database,
+  userId: string,
+  call: Call,
+  now: Date,
+): Promise<Claim> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${call.id}))`)
+    const [existing] = await tx
+      .select()
+      .from(handledToolCalls)
+      .where(eq(handledToolCalls.toolCallId, call.id))
+    if (existing) return { kind: 'handled', row: existing }
+    const owned = ownedDraft(userId, call)
+    const [claimed] = await tx
+      .update(profileDrafts)
+      .set({ portraitCallId: call.id, portraitClaimedAt: now })
+      .where(
+        and(
+          owned,
+          isNull(profileDrafts.profile),
+          isNull(profileDrafts.portrait),
+          or(
+            isNull(profileDrafts.portraitClaimedAt),
+            lt(profileDrafts.portraitClaimedAt, new Date(now.getTime() - portraitLeaseMs)),
+          ),
+        ),
+      )
+      .returning({ photoUrl: profileDrafts.photoUrl })
+    if (claimed) return { kind: 'claimed', photoUrl: claimed.photoUrl, claimedAt: now }
+    const [draft] = await tx
+      .select({
+        drawn: isNotNull(profileDrafts.portrait),
+        done: isNotNull(profileDrafts.profile),
+      })
+      .from(profileDrafts)
+      .where(owned)
+    if (draft && !draft.drawn && !draft.done) return { kind: 'busy' }
+    const reason = draft?.drawn
+      ? 'The portrait is already drawn. Continue with submit_profile.'
+      : 'This profile build is over. Stop here.'
+    return { kind: 'handled', row: (await record(tx, call, refuse(reason)))! }
+  })
+}
+
+export async function finishPortrait(
+  db: Database,
+  userId: string,
+  call: Call,
+  claimedAt: Date,
+  portrait: Uint8Array | null,
+  outcome: Outcome,
+) {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${call.id}))`)
+    const [kept] = await tx
+      .update(profileDrafts)
+      .set({ portraitClaimedAt: null, ...(portrait && { portrait }) })
+      .where(
+        and(
+          ownedDraft(userId, call),
+          eq(profileDrafts.portraitCallId, call.id),
+          eq(profileDrafts.portraitClaimedAt, claimedAt),
+          isNull(profileDrafts.profile),
+        ),
+      )
+      .returning({ userId: profileDrafts.userId })
+    return kept ? record(tx, call, outcome) : undefined
+  })
+}
+
+async function runPortraitCall(
+  services: Services,
+  env: Env,
+  draft: { userId: string },
+  call: Call,
+) {
+  const claim = await claimPortrait(services.db, draft.userId, call, new Date())
+  if (claim.kind === 'handled') {
+    if (!claim.row.postedAt) await postResult(services, claim.row)
+    return
+  }
+  if (claim.kind === 'busy') return
+  let portrait: Uint8Array | null = null
+  const draw = async (description: string) => {
+    const photo = await downloadPhoto(claim.photoUrl)
+    portrait = await drawPortrait(env.OPENAI_API_KEY, photo, description)
+    return done('Drew and saved the portrait.')
+  }
+  const outcome = await portraitTools[call.name]!.call({ draw }, call.input).catch(
+    (error: unknown) =>
+      refuse(`${call.name} failed: ${error instanceof Error ? error.name : 'unknown error'}`),
+  )
+  const row = await finishPortrait(
+    services.db,
+    draft.userId,
+    call,
+    claim.claimedAt,
+    portrait,
+    outcome,
+  )
+  if (row) await postResult(services, row)
 }

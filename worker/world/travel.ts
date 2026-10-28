@@ -3,7 +3,7 @@ import { places, placesById, regionNames, type Place } from '../../shared/map/pl
 import { conversationRequests, people, worldEvents } from '../db/schema'
 import { expirePendingRequests } from './conversations'
 import { done, record, refuse, type Outcome, type World } from './events'
-import { isAt, lockPeople, statusOf } from './people'
+import { isAt, lockPeople, personColumns, statusOf } from './people'
 
 const words = (text: string) =>
   text
@@ -116,7 +116,7 @@ export async function goTo(
 
 export async function lookAround(world: World, meId: string): Promise<Outcome> {
   const { tx, now } = world
-  const [me] = await tx.select().from(people).where(eq(people.id, meId))
+  const [me] = await tx.select(personColumns).from(people).where(eq(people.id, meId))
   if (!me?.placeId) return done("You're not at any place yet. Use list_places, then go_to.")
   const place = placesById.get(me.placeId)!
   if (statusOf(me, now) === 'traveling') {
@@ -124,7 +124,7 @@ export async function lookAround(world: World, meId: string): Promise<Outcome> {
     return done(`You're on your way to ${place.name}, arriving in about ${seconds} seconds.`)
   }
   const others = await tx
-    .select()
+    .select(personColumns)
     .from(people)
     .where(and(eq(people.placeId, me.placeId), ne(people.id, me.id)))
   const pending = await tx

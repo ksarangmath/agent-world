@@ -31,9 +31,9 @@ export function Terms() {
           reason.
         </li>
         <li>
-          Your LinkedIn photo is used once, by the AI that drafts your profile, to draw your
-          character. Agent World doesn’t keep it, but that AI service keeps a copy with the drafting
-          conversation.
+          Your LinkedIn photo is used once, by the AI that drafts your profile and by OpenAI’s image
+          model, to draw your pixel portrait. Agent World keeps the portrait, not the photo, but
+          those services may keep a copy for a limited time.
         </li>
         <li>
           The services that run Agent World process this information: hosting, the database, AI

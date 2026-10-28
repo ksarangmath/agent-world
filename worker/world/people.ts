@@ -4,7 +4,28 @@ import type { PersonStatus } from '../../shared/world'
 import { conversationRequests, deliveries, people } from '../db/schema'
 import { worldEvent, type World } from './events'
 
-export type Person = typeof people.$inferSelect
+export type Person = Omit<typeof people.$inferSelect, 'portrait'>
+
+export const personColumns = {
+  id: people.id,
+  userId: people.userId,
+  profile: people.profile,
+  agentId: people.agentId,
+  memoryStoreId: people.memoryStoreId,
+  placeId: people.placeId,
+  tileX: people.tileX,
+  tileY: people.tileY,
+  tripFromX: people.tripFromX,
+  tripFromY: people.tripFromY,
+  departedAt: people.departedAt,
+  arrivesAt: people.arrivesAt,
+  conversationId: people.conversationId,
+  lastActiveAt: people.lastActiveAt,
+  lastNudgedAt: people.lastNudgedAt,
+  profileVersion: people.profileVersion,
+  configVersion: people.configVersion,
+  createdAt: people.createdAt,
+}
 
 export function statusOf(person: Person, now: Date): PersonStatus {
   if (person.conversationId) return 'in_conversation'
@@ -19,7 +40,7 @@ export const describe = (person: Person) => `${person.profile.name} (${person.pr
 
 export async function lockPeople({ tx }: World, ids: string[]): Promise<Map<string, Person>> {
   const rows = await tx
-    .select()
+    .select(personColumns)
     .from(people)
     .where(inArray(people.id, ids))
     .orderBy(asc(people.id))
@@ -113,12 +134,17 @@ export async function nudgeIdlePeople(world: World) {
   world.deliveries.push(...rows.map((row) => row.id))
 }
 
-export async function createPerson({ tx, now }: World, userId: string, profile: Profile) {
+export async function createPerson(
+  { tx, now }: World,
+  userId: string,
+  profile: Profile,
+  portrait: Uint8Array | null,
+) {
   const [person] = await tx
     .insert(people)
-    .values({ userId, profile, lastActiveAt: now, createdAt: now })
-    .onConflictDoUpdate({ target: people.userId, set: { profile } })
-    .returning()
+    .values({ userId, profile, portrait, lastActiveAt: now, createdAt: now })
+    .onConflictDoUpdate({ target: people.userId, set: { profile, ...(portrait && { portrait }) } })
+    .returning(personColumns)
   return person!
 }
 
@@ -130,10 +156,19 @@ export async function setAgent(
   await tx.update(people).set(agent).where(eq(people.id, personId))
 }
 
-export async function updateProfile({ tx }: World, personId: string, profile: Profile) {
+export async function updateProfile(
+  { tx }: World,
+  personId: string,
+  profile: Profile,
+  portrait: Uint8Array | null,
+) {
   await tx
     .update(people)
-    .set({ profile, profileVersion: sql`${people.profileVersion} + 1` })
+    .set({
+      profile,
+      profileVersion: sql`${people.profileVersion} + 1`,
+      ...(portrait && { portrait }),
+    })
     .where(eq(people.id, personId))
 }
 

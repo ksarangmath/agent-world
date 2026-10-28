@@ -104,3 +104,18 @@ export const usePersonCard = (id: string) =>
     queryFn: () => getJson<PersonCard>(`/api/people/${id}`, false),
     refetchInterval: 3000,
   })
+
+export const useMyPortrait = () =>
+  useQuery({
+    queryKey: ['my-portrait'],
+    queryFn: async () => {
+      const token = (await supabase.auth.getSession()).data.session?.access_token
+      const response = await fetch('/api/me/portrait', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (response.status === 404) return null
+      if (!response.ok) throw new Error(`/api/me/portrait failed with ${response.status}`)
+      return URL.createObjectURL(await response.blob())
+    },
+    staleTime: Infinity,
+  })

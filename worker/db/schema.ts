@@ -2,6 +2,7 @@ import { sql, type SQL } from 'drizzle-orm'
 import {
   bigint,
   check,
+  customType,
   index,
   integer,
   jsonb,
@@ -30,6 +31,9 @@ import {
 
 const timestamptz = () => timestamp({ withTimezone: true })
 const createdAt = () => timestamptz().notNull().defaultNow()
+const bytes = customType<{ data: Uint8Array; driverData: Uint8Array }>({
+  dataType: () => 'bytea',
+})
 const maxLength = (column: AnyPgColumn, limit: number): SQL =>
   sql`char_length(${column}) <= ${sql.raw(String(limit))}`
 const ownedBy = (personId: AnyPgColumn): SQL =>
@@ -64,6 +68,7 @@ export const people = pgTable(
     lastNudgedAt: timestamptz(),
     profileVersion: integer().notNull().default(0),
     configVersion: integer().notNull().default(0),
+    portrait: bytes(),
     createdAt: createdAt(),
   },
   (t) => [
@@ -272,6 +277,10 @@ export const profileDrafts = pgTable(
     builderAgentId: text().unique(),
     links: jsonb().$type<string[]>().notNull(),
     profile: jsonb().$type<Profile>(),
+    photoUrl: text(),
+    portrait: bytes(),
+    portraitCallId: text(),
+    portraitClaimedAt: timestamptz(),
     createdAt: createdAt(),
   },
   (t) => [

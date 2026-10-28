@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef, useSyncExternalStore } from 'react'
 import { usePersonCard } from '../api'
 import { placesById } from '../../shared/map/places'
-import { Portrait } from '../humanoid/Portrait'
 import { hovered, type Hover } from './hover'
 
 const gap = 14
@@ -20,7 +19,9 @@ function Card({ hover }: { hover: Hover }) {
   })
   return (
     <div ref={element} className="hover-card">
-      {card.data && <Portrait avatar={card.data.avatar} className="portrait" />}
+      {card.data?.portrait && (
+        <img className="portrait" src={`/api/portraits/${hover.id}`} alt="" />
+      )}
       <strong>{hover.name}</strong>
       {card.data && <span>{card.data.headline}</span>}
       {place && <span className="muted">At {place.name}</span>}

@@ -5,7 +5,7 @@ import { logError } from './log'
 import { me } from './routes/me'
 import { onboarding } from './routes/onboarding'
 import { webhook } from './routes/webhook'
-import { conversation, person, world } from './routes/world'
+import { conversation, person, portrait, world } from './routes/world'
 import { scheduled } from './scheduled'
 
 export const app = new Hono<{ Bindings: Env }>()
@@ -16,6 +16,7 @@ export const app = new Hono<{ Bindings: Env }>()
   .route('/world', world)
   .route('/conversations', conversation)
   .route('/people', person)
+  .route('/portraits', portrait)
   .route('/omnara/webhook', webhook)
   .onError((error, c) => {
     if (error instanceof HTTPException) return error.getResponse()

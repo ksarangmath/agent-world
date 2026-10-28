@@ -1,0 +1,1 @@
+ALTER TABLE "profile_drafts" ADD COLUMN "portrait_call_id" text;

@@ -15,15 +15,16 @@ export async function saveProfile(services: Services, env: Env, userId: string, 
     .from(people)
     .where(eq(people.userId, userId))
   const [draft] = await db
-    .select({ profile: profileDrafts.profile })
+    .select({ profile: profileDrafts.profile, portrait: profileDrafts.portrait })
     .from(profileDrafts)
     .where(eq(profileDrafts.userId, userId))
   const fixed = person?.profile ?? draft?.profile
   if (!fixed) return null
   const profile = { ...edited, avatar: fixed.avatar, sources: fixed.sources, links: fixed.links }
-  if (!person?.agentId) return launchPerson(services, env, userId, profile)
+  const portrait = !person && draft?.profile ? draft.portrait : null
+  if (!person?.agentId) return launchPerson(services, env, userId, profile, portrait)
   await db.transaction((tx) =>
-    updateProfile({ tx, now: new Date(), deliveries: [] }, person.id, profile),
+    updateProfile({ tx, now: new Date(), deliveries: [] }, person.id, profile, portrait),
   )
   await syncAgentConfig(services, env, person.id).catch((error: unknown) =>
     logError('agent config sync will be retried', error),

@@ -40,7 +40,7 @@ async function reconcileAgent(services: Services, env: Env, agent: Agent, now: D
   if (!person && !draft) return
   for (const call of await readyCustomCalls(services.omnara, agent.id)) {
     if (person) await runToolCall(services, person.id, call)
-    if (draft) await runBuilderCall(services, env, draft, call)
+    if (draft) await runBuilderCall(services, env, draft, call, true)
   }
 }
 

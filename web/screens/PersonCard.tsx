@@ -1,6 +1,5 @@
 import { Link, useParams } from '@tanstack/react-router'
 import { usePersonCard } from '../api'
-import { Portrait } from '../humanoid/Portrait'
 
 export function PersonCardPage() {
   const { personId } = useParams({ from: '/people/$personId' })
@@ -9,7 +8,9 @@ export function PersonCardPage() {
   return (
     <main className="page">
       <Link to="/">Back to the world</Link>
-      <Portrait avatar={card.data.avatar} className="portrait" />
+      {card.data.portrait && (
+        <img className="portrait" src={`/api/portraits/${card.data.id}`} alt="" />
+      )}
       <h1>{card.data.name}</h1>
       <p>{card.data.headline}</p>
       {card.data.currentWork && <p>Working on: {card.data.currentWork}</p>}

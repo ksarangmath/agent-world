@@ -23,7 +23,7 @@ export const webhook = new Hono<{ Bindings: Env }>().post('/', async (c) => {
     const calls = await readyCustomCalls(services.omnara, agentId)
     const call = calls.find((candidate) => candidate.id === toolCallId)
     if (call && person) await runToolCall(services, person.id, call)
-    if (call && draft) await runBuilderCall(services, c.env, draft, call)
+    if (call && draft) await runBuilderCall(services, c.env, draft, call, false)
   }
   c.executionCtx.waitUntil(
     handle().catch((error: unknown) => logError('webhook tool call failed', error)),

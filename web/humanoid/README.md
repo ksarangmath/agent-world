@@ -15,5 +15,3 @@ Everyone in the world is the same figure, dressed and shaped by their
   one matrix per segment (shoulders, elbows, hips, knees).
 - **`Figures.tsx`**: draws any number of figures with one instanced mesh per
   shape in use, for the map's `People`.
-- **`Portrait.tsx`**: puts the 2D pixel portrait from `shared/portrait.ts` on a
-  canvas for profile and hover cards.

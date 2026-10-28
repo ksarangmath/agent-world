@@ -7,7 +7,7 @@ import type { MeResponse } from '../../shared/api'
 import { requireUser, type SignedIn } from '../auth'
 import { database } from '../db/client'
 import type { Database } from '../db/client'
-import { people } from '../db/schema'
+import { people, profileDrafts } from '../db/schema'
 import { omnara } from '../omnara/client'
 import { saveProfile } from '../profile/save'
 import { sendDeliveries } from '../tools/run'
@@ -30,6 +30,23 @@ export const me = new Hono<SignedIn>()
       tile: row.x === null || row.y === null ? null : { x: row.x, y: row.y },
     }
     return c.json<MeResponse>({ person: person ?? null })
+  })
+  .get('/portrait', async (c) => {
+    const db = database(c.env)
+    const [person] = await db
+      .select({ portrait: people.portrait })
+      .from(people)
+      .where(eq(people.userId, c.var.userId))
+    const [draft] = await db
+      .select({ portrait: profileDrafts.portrait })
+      .from(profileDrafts)
+      .where(eq(profileDrafts.userId, c.var.userId))
+    const image = draft?.portrait ?? person?.portrait
+    if (!image) return c.notFound()
+    return c.body(new Uint8Array(image), 200, {
+      'Content-Type': 'image/webp',
+      'Cache-Control': 'private, no-store',
+    })
   })
   .put('/profile', async (c) => {
     const parsed = profileSchema.safeParse(await c.req.json().catch(() => null))
