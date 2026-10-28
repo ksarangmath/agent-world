@@ -5,7 +5,9 @@ export type { ToolCall }
 
 export type ToolResult = {
   outcome: 'succeeded' | 'failed'
-  content_blocks: { type: 'text'; text: string }[]
+  content_blocks: (
+    { type: 'text'; text: string } | { type: 'media'; media_type: 'image/webp'; data: string }
+  )[]
 }
 
 export async function readyCustomCalls(omnara: Omnara, agentId: string): Promise<ToolCall[]> {

@@ -8,7 +8,7 @@ import { sendInput } from '../omnara/inputs'
 import { submitResult, type ToolCall, type ToolResult } from '../omnara/tool-calls'
 import { logError } from '../log'
 import { done, refuse, type Outcome } from '../world/events'
-import { downloadPhoto, saveDraft } from '../profile/builder'
+import { base64, downloadPhoto, saveDraft } from '../profile/builder'
 import { drawPortrait } from '../profile/portrait'
 import { touch } from '../world/people'
 import type { Profile } from '../../shared/profile'
@@ -21,7 +21,12 @@ type Handled = typeof handledToolCalls.$inferSelect
 
 const asResult = (outcome: Outcome): ToolResult => ({
   outcome: outcome.ok ? 'succeeded' : 'failed',
-  content_blocks: [{ type: 'text', text: outcome.text }],
+  content_blocks: [
+    { type: 'text', text: outcome.text },
+    ...(outcome.image
+      ? [{ type: 'media' as const, media_type: outcome.image.mediaType, data: outcome.image.data }]
+      : []),
+  ],
 })
 
 export async function personOfAgent(db: Database, agentId: string) {
@@ -156,12 +161,17 @@ export async function sendPendingDeliveries(services: Services) {
 
 export async function postDueResults(services: Services) {
   const due = await services.db
-    .select()
+    .select({ toolCallId: handledToolCalls.toolCallId })
     .from(handledToolCalls)
     .where(and(isNull(handledToolCalls.postedAt), lte(handledToolCalls.dueAt, new Date())))
     .orderBy(asc(handledToolCalls.dueAt))
     .limit(200)
-  for (const row of due) {
+  for (const { toolCallId } of due) {
+    const [row] = await services.db
+      .select()
+      .from(handledToolCalls)
+      .where(eq(handledToolCalls.toolCallId, toolCallId))
+    if (!row || row.postedAt) continue
     await postResult(services, row).catch((error: unknown) =>
       logError('posting result failed', error),
     )
@@ -318,7 +328,12 @@ async function runPortraitCall(
   const draw = async (description: string) => {
     const photo = await downloadPhoto(claim.photoUrl)
     portrait = await drawPortrait(env.OPENAI_API_KEY, photo, description)
-    return done('Drew and saved the portrait.')
+    return {
+      ...done(
+        "Here is the portrait. Choose the avatar presets so their character on the map matches it: gender, build, skin tone, hair style and color, facial hair, glasses, and the top's style and color, plus pants, shorts, or a skirt and shoes that fit.",
+      ),
+      image: { mediaType: 'image/webp' as const, data: base64(portrait) },
+    }
   }
   const outcome = await portraitTools[call.name]!.call({ draw }, call.input).catch(
     (error: unknown) =>

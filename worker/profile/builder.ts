@@ -23,9 +23,9 @@ const instruction = `You build a short public profile of one person for Agent Wo
 - Never infer or include ethnicity, religion, politics, health, sexuality, relationship or family status, or exact location. City level is the most precise location allowed.
 - Set age only if a source states it outright, and cite that source. Otherwise leave it null.
 - Write in a warm, specific, factual voice. Interests drive which places their agent visits, so make them concrete.
-- Describe the person's look from their photo as avatar traits, so their character resembles them. Pick the closest preset for each feature: build, face shape, eye shape and color, brows, nose, lips, hair style, facial hair, and glasses, plus skin and hair colors. Infer the build and clothing the photo doesn't show so they fit the rest of their look. If there's no photo, pick neutral traits.
 - For every fact you include, add a source with the field name and the URL it came from.
-- Call draw_portrait once with a description of how they look. If the photo shows no person, describe them from your research and their name.
+- Call draw_portrait once with a description of how they look, from the photo and your research. If the photo shows no person, describe them from your research and their name.
+- Then set the avatar presets from the portrait draw_portrait returns, so their character on the map matches it: the closest preset for each feature, and clothes that fit the rest of their look.
 - Finish by calling submit_profile once.`
 
 export function builderConfig(env: Env): AgentConfig {
@@ -42,7 +42,7 @@ export function builderConfig(env: Env): AgentConfig {
   }
 }
 
-function base64(bytes: Uint8Array) {
+export function base64(bytes: Uint8Array) {
   let binary = ''
   for (let i = 0; i < bytes.length; i += 0x8000) {
     binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))

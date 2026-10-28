@@ -4,7 +4,12 @@ import { deliveries, worldEvents } from '../db/schema'
 
 export type World = { tx: Transaction; now: Date; deliveries: string[] }
 
-export type Outcome = { ok: boolean; text: string; dueAt?: Date }
+export type Outcome = {
+  ok: boolean
+  text: string
+  dueAt?: Date
+  image?: { mediaType: 'image/webp'; data: string }
+}
 
 export const done = (text: string, dueAt?: Date): Outcome => ({ ok: true, text, dueAt })
 
