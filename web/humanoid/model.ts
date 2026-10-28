@@ -233,7 +233,7 @@ export function articulate(
   ;(pose.riding ? body : hidden).toArray(out, at + 16 * 10)
 }
 
-export const standing: Pose = {
+const standing: Pose = {
   lift: 0,
   roll: 0,
   legs: [0, 0],

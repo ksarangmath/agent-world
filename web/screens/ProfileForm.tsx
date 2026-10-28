@@ -1,10 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { lazy, Suspense, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import type { Profile } from '../../shared/profile'
 import { saveProfile } from '../api'
-
-const Preview = lazy(() => import('../humanoid/Preview'))
+import { Portrait } from '../humanoid/Portrait'
 
 const lines = (items: string[]) => items.join('\n')
 const parseLines = (text: string) =>
@@ -66,11 +65,7 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
   }
   return (
     <form className="form profile" onSubmit={submit}>
-      <div className="preview">
-        <Suspense>
-          <Preview avatar={profile.avatar} />
-        </Suspense>
-      </div>
+      <Portrait avatar={profile.avatar} className="portrait" />
       {text('name', 'Name')}
       {text('headline', 'Headline')}
       <label>

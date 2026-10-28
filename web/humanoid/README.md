@@ -14,5 +14,6 @@ Everyone in the world is the same figure, dressed and shaped by their
   each place's activity, and `articulate` turns a body matrix and a pose into
   one matrix per segment (shoulders, elbows, hips, knees).
 - **`Figures.tsx`**: draws any number of figures with one instanced mesh per
-  shape in use. The map's `People` and the portrait both use it.
-- **`Preview.tsx`**: the pixel portrait on profile cards.
+  shape in use, for the map's `People`.
+- **`Portrait.tsx`**: puts the 2D pixel portrait from `shared/portrait.ts` on a
+  canvas for profile and hover cards.

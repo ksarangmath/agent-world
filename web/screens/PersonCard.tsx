@@ -1,8 +1,6 @@
 import { Link, useParams } from '@tanstack/react-router'
-import { lazy, Suspense } from 'react'
 import { usePersonCard } from '../api'
-
-const Preview = lazy(() => import('../humanoid/Preview'))
+import { Portrait } from '../humanoid/Portrait'
 
 export function PersonCardPage() {
   const { personId } = useParams({ from: '/people/$personId' })
@@ -11,11 +9,7 @@ export function PersonCardPage() {
   return (
     <main className="page">
       <Link to="/">Back to the world</Link>
-      <div className="preview">
-        <Suspense>
-          <Preview avatar={card.data.avatar} />
-        </Suspense>
-      </div>
+      <Portrait avatar={card.data.avatar} className="portrait" />
       <h1>{card.data.name}</h1>
       <p>{card.data.headline}</p>
       {card.data.currentWork && <p>Working on: {card.data.currentWork}</p>}

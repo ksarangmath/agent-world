@@ -28,7 +28,10 @@ void main() {
 }`,
 }
 
-export function PixelPass({ pixel, outline }: { pixel: number; outline: number }) {
+const pixel = 2
+const outline = 0.5
+
+export function PixelPass() {
   const { gl, scene, camera, size } = useThree()
   const composer = useMemo(() => {
     const effects = new EffectComposer(gl)
@@ -41,7 +44,7 @@ export function PixelPass({ pixel, outline }: { pixel: number; outline: number }
     effects.addPass(new ShaderPass(grade))
     effects.addPass(new OutputPass())
     return effects
-  }, [gl, scene, camera, pixel, outline])
+  }, [gl, scene, camera])
   useEffect(() => composer.setSize(size.width, size.height), [composer, size])
   useEffect(
     () => () => {
