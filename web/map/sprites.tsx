@@ -129,6 +129,8 @@ uniform vec3 base[6];
 uniform vec3 eyeBase[3];
 uniform int baseCount;
 uniform float daylight;
+uniform bool face;
+uniform bool lens;
 varying vec2 vUv;
 varying vec2 vRamps;
 bool same(vec3 a, vec3 b) { return all(lessThan(abs(a - b), vec3(0.006))); }
@@ -139,11 +141,15 @@ vec3 linear(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)),
 void main() {
   vec4 texel = texture2D(map, vUv);
   if (texel.a < 0.5) discard;
+  if (lens && all(greaterThan(texel.rgb, vec3(0.78)))) discard;
   vec3 color = texel.rgb;
+  bool eyeWhite = face && (same(texel.rgb, vec3(0.949, 0.969, 0.973)) || same(texel.rgb, eyeBase[2]));
   if (vRamps.x >= 0.0) {
     for (int i = 0; i < 6; i++) if (i < baseCount && same(texel.rgb, base[i])) color = ramp(vRamps.x, i);
   }
-  if (vRamps.y >= 0.0) {
+  if (eyeWhite) {
+    color = ramp(vRamps.x, 4);
+  } else if (vRamps.y >= 0.0) {
     for (int i = 0; i < 3; i++) if (same(texel.rgb, eyeBase[i])) color = ramp(vRamps.y, i);
   }
   color = linear(color) * mix(vec3(0.42, 0.46, 0.72), vec3(1.0), daylight);
@@ -165,6 +171,8 @@ function material(sheet: string, map: Texture, z: number) {
       eyeBase: { value: flat(eyeBaseOf(sheet)) },
       baseCount: { value: kind ? 6 : 0 },
       bias: { value: z * 0.0005 },
+      face: { value: sheet.includes('/heads/') },
+      lens: { value: sheet.includes('glasses') },
       daylight: sky.daylight,
     },
   })
