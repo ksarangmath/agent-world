@@ -1,28 +1,29 @@
-import { useThree } from '@react-three/fiber'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { Euler, Matrix4, Quaternion, Vector3 } from 'three'
+import { useFrame, useThree } from '@react-three/fiber'
+import { useEffect, useMemo, useRef } from 'react'
+import { Vector3 } from 'three'
 import type { WorldPerson } from '../../shared/api'
-import { placesById } from '../../shared/map/places'
+import { placesById, type Activity } from '../../shared/map/places'
 import { positionOnRoute, type Route } from '../../shared/map/route'
-import { Figures } from '../humanoid/Figures'
-import {
-  activityPose,
-  figure,
-  riding,
-  talkingPose,
-  walkingPose,
-  type Pose,
-} from '../humanoid/model'
-import { onScreen } from './clock'
+import { onScreen, viewFrom } from './clock'
 import { hash, surfaceAt } from './elevation'
 import { hovered } from './hover'
 import type { RouteReply, RouteRequest } from './routing.worker'
+import { Sprites, type Facing, type Placement } from './sprites'
 
 const capacity = 2000
-const scale = 0.9
 const hoverZoom = 14
-const nearZoom = 10
 const hitPixels = 16
+const seated = new Set<Activity>(['coding', 'coffee', 'eating', 'reading', 'chess', 'picnic'])
+const across = Math.hypot(viewFrom.x, viewFrom.z)
+const ahead = { x: -viewFrom.x / across, y: -viewFrom.z / across }
+
+function facingOf(heading: number): Facing {
+  const [hx, hy] = [Math.sin(heading), Math.cos(heading)]
+  const sideways = -hx * ahead.y + hy * ahead.x
+  const away = hx * ahead.x + hy * ahead.y
+  if (Math.abs(sideways) > Math.abs(away)) return sideways > 0 ? 3 : 1
+  return away > 0 ? 0 : 2
+}
 
 export const crowd = {
   count: 0,
@@ -108,13 +109,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
   useEffect(() => {
     crowd.count = shown.length
   }, [shown])
-  const figures = useMemo(
-    () =>
-      shown.map((person) =>
-        figure(person.avatar, { talking: person.conversationId !== null, vehicle: '#eef1f4' }),
-      ),
-    [shown],
-  )
+  const avatars = useMemo(() => shown.map((person) => person.avatar), [shown])
 
   const screen = useRef(new Float32Array(capacity * 2).fill(Number.NaN))
   const press = useRef<{ pointer: number; x: number; y: number; moved: boolean } | null>(null)
@@ -184,24 +179,21 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
   }, [gl, shown, onSelect])
   useEffect(() => () => hovered.set(null), [])
 
-  const position = useMemo(() => new Vector3(), [])
-  const turn = useMemo(() => new Quaternion(), [])
-  const heading = useMemo(() => new Euler(), [])
-  const size3 = useMemo(() => new Vector3(scale, scale, scale), [])
   const projected = useMemo(() => new Vector3(), [])
+  const placements = useRef<(Placement | null)[]>([])
 
-  const place = useCallback(
-    (i: number, body: Matrix4): Pose | null => {
-      const person = shown[i]!
-      const now = Date.now() + serverOffsetMs
+  useFrame(() => {
+    const now = Date.now() + serverOffsetMs
+    const hoverable = camera.zoom >= hoverZoom
+    placements.current.length = shown.length
+    shown.forEach((person, i) => {
       let [x, y] = [person.tile.x + 0.5, person.tile.y + 0.5]
       const t = now / 1000 + hash(person.tile.x, person.tile.y) * 50
       const spot = placesById.get(person.placeId)
-      let facing = spot
+      let heading = spot
         ? Math.atan2(spot.center.x - person.tile.x, spot.center.y - person.tile.y)
         : 0
-      let pose: Pose
-      let vehicle = false
+      let motion: Placement['motion'] = 'idle'
       const trip = trips[i]
       const partner = partners[i] === undefined ? undefined : shown[partners[i]!]
       let hide = false
@@ -209,58 +201,53 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         const path = routes.current.get(trip.key)
         if (path) {
           const step = positionOnRoute(path, (now - trip.departed) / 1000)
-          ;[x, y, facing] = [step.x + 0.5, step.y + 0.5, step.heading]
-          vehicle = step.mode === 'ride'
+          ;[x, y, heading] = [step.x + 0.5, step.y + 0.5, step.heading]
+          if (step.mode !== 'ride') motion = 'walk'
         } else {
           hide = true
         }
-        pose = vehicle ? riding : walkingPose(t)
       } else if (partner) {
-        facing = Math.atan2(partner.tile.x - person.tile.x, partner.tile.y - person.tile.y)
-        pose = talkingPose(t)
+        heading = Math.atan2(partner.tile.x - person.tile.x, partner.tile.y - person.tile.y)
       } else {
         const activity = spot?.activity ?? 'chatting'
-        pose = activityPose(activity, t)
+        if (seated.has(activity)) motion = 'sit'
         if (activity === 'running') {
           const lap = t * 1.3
           x += 0.3 * Math.cos(lap)
           y += 0.3 * Math.sin(lap)
-          facing = Math.atan2(-Math.sin(lap), Math.cos(lap))
+          heading = Math.atan2(-Math.sin(lap), Math.cos(lap))
+          motion = 'walk'
         } else if (activity === 'hiking') {
           x += 0.3 * Math.sin(t * 0.5)
-          facing = Math.cos(t * 0.5) > 0 ? Math.PI / 2 : -Math.PI / 2
+          heading = Math.cos(t * 0.5) > 0 ? Math.PI / 2 : -Math.PI / 2
+          motion = 'walk'
         }
       }
       crowd.x[i] = x
       crowd.y[i] = y
       crowd.shown[i] = hide ? 0 : 1
       screen.current[i * 2] = Number.NaN
-      if (hide || !onScreen(x, y)) return null
+      if (hide || !onScreen(x, y)) {
+        placements.current[i] = null
+        return
+      }
       const ground = surfaceAt(x, y)
-      position.set(x, ground + (vehicle ? 0.12 : 0) + pose.lift * scale, y)
-      body.compose(position, turn.setFromEuler(heading.set(0, facing, pose.roll)), size3)
-      if (camera.zoom >= hoverZoom) {
-        projected.set(x, ground + 0.5, y).project(camera)
+      placements.current[i] = {
+        x,
+        y,
+        ground,
+        facing: facingOf(heading),
+        motion,
+        seconds: t,
+        talking: partner !== undefined,
+      }
+      if (hoverable) {
+        projected.set(x, ground + 0.6, y).project(camera)
         screen.current[i * 2] = ((projected.x + 1) / 2) * size.width
         screen.current[i * 2 + 1] = ((1 - projected.y) / 2) * size.height
       }
-      return pose
-    },
-    [
-      shown,
-      serverOffsetMs,
-      trips,
-      partners,
-      camera,
-      size,
-      position,
-      turn,
-      heading,
-      size3,
-      projected,
-    ],
-  )
-  const near = useCallback(() => camera.zoom >= nearZoom, [camera])
+    })
+  })
 
-  return <Figures figures={figures} place={place} near={near} />
+  return <Sprites avatars={avatars} placements={placements} />
 }

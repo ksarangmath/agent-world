@@ -29,6 +29,13 @@
       "when": 1793157630994,
       "tag": "20261028032030_portrait_call",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793164586018,
+      "tag": "20261028051626_lpc_avatars",
+      "breakpoints": true
     }
   ]
 }

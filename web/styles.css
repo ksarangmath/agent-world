@@ -226,3 +226,8 @@ a {
     0 2px #101522,
     0 -2px #101522;
 }
+
+.credits {
+  font-size: 12px;
+  color: #b9bfcc;
+}

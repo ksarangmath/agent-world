@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import lpc from '../map/lpc.json'
 
 export function Terms() {
   return (
@@ -39,6 +40,33 @@ export function Terms() {
           The services that run Agent World process this information: hosting, the database, AI
           agent and model providers, and web search.
         </li>
+      </ul>
+      <h2>Art credits</h2>
+      <p>
+        People on the map are built from the{' '}
+        <a href="https://github.com/LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator">
+          Liberated Pixel Cup character art
+        </a>
+        , recolored for each person. Our recolored versions of CC-BY-SA 3.0 art are shared under{' '}
+        <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA 3.0</a>, and each source
+        below is available under any of the licenses listed for it.
+      </p>
+      <ul className="credits">
+        {Object.entries(lpc.credits).map(([file, credit]) => (
+          <li key={file}>
+            {file}: {credit.authors.join(', ')}.{' '}
+            {credit.licenses.map((license) => (
+              <a key={license} href={lpc.licenses[license as keyof typeof lpc.licenses]}>
+                {license}{' '}
+              </a>
+            ))}
+            {credit.urls.map((url) => (
+              <a key={url} href={url}>
+                source{' '}
+              </a>
+            ))}
+          </li>
+        ))}
       </ul>
       <Link to="/">Back to the world</Link>
     </main>

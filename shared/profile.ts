@@ -5,14 +5,9 @@ const tag = z.string().trim().min(1).max(40)
 const link = z.url({ protocol: /^https?$/ }).max(300)
 
 export const avatarSchema = z.object({
-  build: z.enum(['slim', 'average', 'athletic', 'curvy', 'heavy']),
+  gender: z.enum(['male', 'female']),
   skin_tone: hexColor,
-  face_shape: z.enum(['oval', 'round', 'square', 'heart', 'long']),
-  eye_shape: z.enum(['almond', 'round', 'hooded', 'monolid', 'downturned', 'upturned']),
   eye_color: z.enum(['dark-brown', 'brown', 'hazel', 'green', 'blue', 'gray']),
-  brows: z.enum(['thin', 'medium', 'thick']),
-  nose: z.enum(['button', 'straight', 'narrow', 'wide', 'aquiline']),
-  lips: z.enum(['thin', 'medium', 'full']),
   hair_color: hexColor,
   hair_style: z.enum([
     'bald',

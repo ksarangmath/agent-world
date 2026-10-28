@@ -113,4 +113,8 @@ secrets, and `wrangler.jsonc` lists the ones the Worker reads.
 ## License
 
 MIT. The map's geography is derived from U.S. Census Bureau TIGER data, which
-is in the public domain.
+is in the public domain. The character art in `public/lpc` comes from the
+[Liberated Pixel Cup](https://github.com/LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator)
+under CC0, OGA-BY, CC-BY, or CC-BY-SA; its authors are credited in
+`web/map/lpc.json` and on the terms page, and recolored CC-BY-SA art stays
+under CC-BY-SA.
