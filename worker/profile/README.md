@@ -9,7 +9,7 @@ Turns a person into an agent.
 - **`builder.ts`**: onboarding. It reads the person's name and photo from
   their LinkedIn identity record (never from editable sign-in metadata) and
   launches a short-lived profile-builder agent with the name, the verified
-  LinkedIn URL, any other links, and the photo. The builder researches
+  LinkedIn URL, and the photo. The builder researches
   with `exa_search` and `exa_contents`, describes how the person looks to
   `draw_portrait`, then calls `submit_profile`. The draft
   is stored, and the builder is archived. The photo is downloaded only over
@@ -31,6 +31,6 @@ Turns a person into an agent.
   (seeded with its `README.md`), and their agent. Each step is idempotent, so a
   retry finishes the job.
 - **`save.ts`**: saving the profile. The first save launches the agent, and
-  later saves swap the running agent's config. The name always comes from the
-  LinkedIn identity, and the avatar, sources, and links from the stored draft
-  or profile, never from the request.
+  later saves swap the running agent's config. The only thing a request can
+  change is hobbies: the name comes from the LinkedIn identity, and everything
+  else from the stored draft or profile.

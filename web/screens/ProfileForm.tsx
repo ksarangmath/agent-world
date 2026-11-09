@@ -4,21 +4,9 @@ import { useState, type FormEvent } from 'react'
 import { hobbies, type Profile } from '../../shared/profile'
 import { saveProfile, useMyPortrait } from '../api'
 
-const lines = (items: string[]) => items.join('\n')
-const parseLines = (text: string) =>
-  text
-    .split(/[\n,]/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-
 export function ProfileForm({ draft, userId }: { draft: Profile; userId: string }) {
-  const [profile, setProfile] = useState(draft)
+  const [picked, setPicked] = useState(draft.hobbies)
   const portrait = useMyPortrait()
-  const [lists, setLists] = useState({
-    expertise: lines(draft.expertise),
-    interests: lines(draft.interests),
-    fun_facts: lines(draft.fun_facts),
-  })
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const save = useMutation({
@@ -28,105 +16,56 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
       await navigate({ to: '/' })
     },
   })
-  const set = <K extends keyof Profile>(key: K, value: Profile[K]) =>
-    setProfile({ ...profile, [key]: value })
-  const text = (
-    key: 'headline' | 'bio' | 'current_work' | 'looking_for' | 'avoid' | 'conversation_style',
-    label: string,
-    long = false,
-  ) => (
-    <label>
-      {label}
-      {long ? (
-        <textarea value={profile[key]} onChange={(event) => set(key, event.target.value)} />
-      ) : (
-        <input value={profile[key]} onChange={(event) => set(key, event.target.value)} />
-      )}
-    </label>
-  )
-  const list = (key: 'expertise' | 'interests' | 'fun_facts', label: string) => (
-    <label>
-      {label}
-      <textarea
-        value={lists[key]}
-        onChange={(event) => setLists({ ...lists, [key]: event.target.value })}
-      />
-    </label>
-  )
+  const toggle = (hobby: Profile['hobbies'][number]) =>
+    setPicked(picked.includes(hobby) ? picked.filter((item) => item !== hobby) : [...picked, hobby])
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    save.mutate({
-      ...profile,
-      expertise: parseLines(lists.expertise),
-      interests: parseLines(lists.interests),
-      fun_facts: parseLines(lists.fun_facts),
-    })
+    save.mutate(picked)
   }
+  const list = (label: string, items: string[]) =>
+    items.length > 0 && (
+      <p>
+        <strong>{label}:</strong> {items.join(', ')}
+      </p>
+    )
   return (
     <form className="form profile" onSubmit={submit}>
       {portrait.data && <img className="portrait" src={portrait.data} alt="" />}
-      <h2>{profile.name}</h2>
-      <p>{profile.headline}</p>
-      <p className="muted">{profile.bio}</p>
+      <h2>{draft.name}</h2>
+      <p>{draft.headline}</p>
+      {draft.city && <p className="muted">{draft.city}</p>}
+      <p>{draft.bio}</p>
+      {draft.current_work && (
+        <p>
+          <strong>Working on:</strong> {draft.current_work}
+        </p>
+      )}
+      {list('Expertise', draft.expertise)}
+      {list('Interests', draft.interests)}
+      {list('Fun facts', draft.fun_facts)}
       <fieldset className="hobbies">
-        <legend>Pick 3 to 10 hobbies ({profile.hobbies.length} picked)</legend>
+        <legend>Pick 3 to 10 hobbies ({picked.length} picked)</legend>
         {hobbies.map((hobby) => {
-          const picked = profile.hobbies.includes(hobby)
+          const chosen = picked.includes(hobby)
           return (
             <button
               key={hobby}
               type="button"
-              className={picked ? 'picked' : undefined}
-              aria-pressed={picked}
-              disabled={!picked && profile.hobbies.length >= 10}
-              onClick={() =>
-                set(
-                  'hobbies',
-                  picked
-                    ? profile.hobbies.filter((item) => item !== hobby)
-                    : [...profile.hobbies, hobby],
-                )
-              }
+              className={chosen ? 'picked' : undefined}
+              aria-pressed={chosen}
+              disabled={!chosen && picked.length >= 10}
+              onClick={() => toggle(hobby)}
             >
               {hobby}
             </button>
           )
         })}
       </fieldset>
-      {text('looking_for', 'Who you want to meet, and why (optional)', true)}
-      <details>
-        <summary>Edit details (optional)</summary>
-        {text('headline', 'Headline')}
-        <label>
-          Age
-          <input
-            type="number"
-            min={1}
-            max={120}
-            value={profile.age ?? ''}
-            onChange={(event) => set('age', event.target.value ? Number(event.target.value) : null)}
-          />
-        </label>
-        <label>
-          City
-          <input
-            value={profile.city ?? ''}
-            onChange={(event) => set('city', event.target.value || null)}
-          />
-        </label>
-        {text('bio', 'Bio', true)}
-        {text('current_work', 'What you’re working on')}
-        {list('expertise', 'Expertise (one per line)')}
-        {list('interests', 'Interests (one per line; these help decide where your agent goes)')}
-        {text('avoid', 'Topics to avoid')}
-        {text('conversation_style', 'How your agent should talk')}
-        {list('fun_facts', 'Fun facts (one per line)')}
-      </details>
-      {profile.sources.length > 0 && (
+      {draft.sources.length > 0 && (
         <details>
           <summary>Where this came from</summary>
           <ul>
-            {profile.sources.map((source) => (
+            {draft.sources.map((source) => (
               <li key={`${source.field}-${source.url}`}>
                 {source.field}: {source.url}
               </li>
@@ -134,7 +73,7 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
           </ul>
         </details>
       )}
-      <button type="submit" disabled={save.isPending || profile.hobbies.length < 3}>
+      <button type="submit" disabled={save.isPending || picked.length < 3}>
         Send my agent into the world
       </button>
       {save.error && <p className="error">{save.error.message}</p>}

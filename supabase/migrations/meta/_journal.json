@@ -71,6 +71,13 @@
       "when": 1794254879179,
       "tag": "20261109200759_verification_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794257645535,
+      "tag": "20261109205405_drop_draft_links",
+      "breakpoints": true
     }
   ]
 }

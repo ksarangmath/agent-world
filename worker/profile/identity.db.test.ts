@@ -94,7 +94,6 @@ describe('LinkedIn identity', () => {
         userId: owner.user,
         runId: `00000000-0000-4000-8000-00000000010${i}`,
         builderAgentId: owner.agent,
-        links: [],
         linkedinUrl: `https://www.linkedin.com/in/${owner.agent}`,
         portrait: new Uint8Array([1]),
       })
@@ -121,26 +120,29 @@ describe('LinkedIn identity', () => {
     expect(await linkedInIdentity(db, userId)).toBeNull()
   })
 
-  test('names the profile even when a stored draft or an edit says otherwise', async () => {
+  test('saving takes the name from LinkedIn and only hobbies from the person', async () => {
     await signInWithLinkedIn(userId, { name: 'Real Person', picture })
     const drafted = { name: 'Someone Famous', headline: 'Builder' } as Profile
     await db.insert(profileDrafts).values({
       userId,
       runId: '00000000-0000-4000-8000-0000000000dd',
       builderAgentId: agentId,
-      links: [],
       linkedinUrl: 'https://www.linkedin.com/in/test-person',
       profile: drafted,
       portrait: new Uint8Array([1]),
     })
     await expect(
-      saveProfile(services, {} as Env, userId, { ...drafted, name: 'Another Name' }),
+      saveProfile(services, {} as Env, userId, ['chess', 'coffee', 'hiking']),
     ).rejects.toThrow()
     const [person] = await db
       .select({ profile: people.profile })
       .from(people)
       .where(eq(people.userId, userId))
-    expect(person!.profile.name).toBe('Real Person')
+    expect(person!.profile).toMatchObject({
+      name: 'Real Person',
+      headline: 'Builder',
+      hobbies: ['chess', 'coffee', 'hiking'],
+    })
   })
 
   test('allows ten verification attempts a day, even when they race', async () => {

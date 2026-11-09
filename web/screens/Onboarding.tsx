@@ -5,10 +5,9 @@ import { startOnboarding, useMe, useOnboarding } from '../api'
 import { signIn, useSession } from '../auth'
 import { ProfileForm } from './ProfileForm'
 
-const asUrl = (value: string, base: string) => {
-  const trimmed = value.trim().replace(/^@/, '')
-  if (!trimmed) return null
-  return /^https?:\/\//.test(trimmed) ? trimmed : `${base}${trimmed}`
+const linkedInAddress = (value: string) => {
+  const trimmed = value.trim()
+  return /^https?:\/\//.test(trimmed) ? trimmed : `https://www.linkedin.com/in/${trimmed}`
 }
 
 function Page({ children }: { children: ReactNode }) {
@@ -20,36 +19,17 @@ function Page({ children }: { children: ReactNode }) {
   )
 }
 
-function LinksForm({ userId }: { userId: string }) {
+function LinkedInForm({ userId }: { userId: string }) {
   const queryClient = useQueryClient()
-  const [fields, setFields] = useState({ linkedin: '', x: '', github: '', site: '', other: '' })
+  const [linkedin, setLinkedin] = useState('')
   const [consent, setConsent] = useState(false)
   const start = useMutation({
     mutationFn: startOnboarding,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['onboarding', userId] }),
   })
-  const field = (name: keyof typeof fields, label: string, placeholder: string) => (
-    <label>
-      {label}
-      <input
-        value={fields[name]}
-        placeholder={placeholder}
-        onChange={(event) => setFields({ ...fields, [name]: event.target.value })}
-      />
-    </label>
-  )
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    const links = [
-      asUrl(fields.x, 'https://x.com/'),
-      asUrl(fields.github, 'https://github.com/'),
-      asUrl(fields.site, 'https://'),
-      ...fields.other.split(/\s+/).map((url) => asUrl(url, 'https://')),
-    ].filter((url): url is string => url !== null)
-    start.mutate({
-      linkedin: asUrl(fields.linkedin, 'https://www.linkedin.com/in/') ?? '',
-      links: links.slice(0, 6),
-    })
+    start.mutate(linkedInAddress(linkedin))
   }
   return (
     <form className="form" onSubmit={submit}>
@@ -64,14 +44,14 @@ function LinksForm({ userId }: { userId: string }) {
         </a>{' '}
         and copy the address from your browser, or on LinkedIn go to Me → View profile.
       </p>
-      {field('linkedin', 'Your LinkedIn profile address', 'https://www.linkedin.com/in/you')}
-      <details>
-        <summary>Other links (optional)</summary>
-        {field('x', 'X handle', '@you')}
-        {field('github', 'GitHub', 'you')}
-        {field('site', 'Personal site', 'you.com')}
-        {field('other', 'Other links', 'separated by spaces')}
-      </details>
+      <label>
+        Your LinkedIn profile address
+        <input
+          value={linkedin}
+          placeholder="https://www.linkedin.com/in/you"
+          onChange={(event) => setLinkedin(event.target.value)}
+        />
+      </label>
       <label className="check">
         <input
           type="checkbox"
@@ -81,7 +61,7 @@ function LinksForm({ userId }: { userId: string }) {
         I agree to a profile built from public information about me, and I understand my agent's
         conversations are public in the world. <Link to="/terms">Terms and privacy</Link>
       </label>
-      <button type="submit" disabled={!consent || !fields.linkedin.trim() || start.isPending}>
+      <button type="submit" disabled={!consent || !linkedin.trim() || start.isPending}>
         {start.isPending ? 'Checking your LinkedIn…' : 'Verify and build my profile'}
       </button>
       {start.error && <p className="error">{start.error.message}</p>}
@@ -126,7 +106,7 @@ export function Onboarding() {
   return (
     <Page>
       {status.data.status === 'failed' && <p className="error">That took too long. Try again.</p>}
-      <LinksForm userId={userId} />
+      <LinkedInForm userId={userId} />
     </Page>
   )
 }

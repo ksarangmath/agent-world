@@ -9,7 +9,12 @@ import { worldAgentConfig } from './agent-config'
 import { linkedInIdentity } from './builder'
 import { launchPerson } from './launch'
 
-export async function saveProfile(services: Services, env: Env, userId: string, edited: Profile) {
+export async function saveProfile(
+  services: Services,
+  env: Env,
+  userId: string,
+  hobbies: Profile['hobbies'],
+) {
   const { db } = services
   const [person] = await db
     .select({ id: people.id, agentId: people.agentId, profile: people.profile })
@@ -22,13 +27,7 @@ export async function saveProfile(services: Services, env: Env, userId: string, 
   const fixed = person?.profile ?? draft?.profile
   const identity = await linkedInIdentity(db, userId)
   if (!fixed || !identity) return null
-  const profile = {
-    ...edited,
-    name: identity.name,
-    avatar: fixed.avatar,
-    sources: fixed.sources,
-    links: fixed.links,
-  }
+  const profile = { ...fixed, name: identity.name, hobbies }
   const portrait = !person && draft?.profile ? draft.portrait : null
   if (!person?.agentId) return launchPerson(services, env, userId, profile, portrait)
   await db.transaction((tx) =>

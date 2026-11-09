@@ -274,7 +274,6 @@ export const profileDrafts = pgTable(
       .references(() => authUsers.id, { onDelete: 'cascade' }),
     runId: uuid().notNull(),
     builderAgentId: text().unique(),
-    links: jsonb().$type<string[]>().notNull(),
     profile: jsonb().$type<Profile>(),
     photoUrl: text(),
     linkedinUrl: text().notNull(),

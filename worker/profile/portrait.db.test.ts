@@ -39,7 +39,6 @@ beforeEach(async () => {
     userId,
     runId: '00000000-0000-4000-8000-0000000000bb',
     builderAgentId: agentId,
-    links: [],
     linkedinUrl: 'https://www.linkedin.com/in/test-person',
   })
 })
@@ -117,7 +116,9 @@ describe('portrait lifecycle', () => {
       .update(profileDrafts)
       .set({ profile, portrait: new Uint8Array([7]) })
       .where(eq(profileDrafts.userId, userId))
-    await expect(saveProfile(services, env, userId, profile)).rejects.toThrow()
+    await expect(
+      saveProfile(services, env, userId, ['chess', 'coffee', 'hiking']),
+    ).rejects.toThrow()
     const portraitOf = async () =>
       (
         await db.select({ portrait: people.portrait }).from(people).where(eq(people.userId, userId))
@@ -128,7 +129,7 @@ describe('portrait lifecycle', () => {
       .update(profileDrafts)
       .set({ profile: null, portrait: new Uint8Array([9]) })
       .where(eq(profileDrafts.userId, userId))
-    await saveProfile(services, env, userId, profile)
+    await saveProfile(services, env, userId, ['chess', 'coffee', 'hiking'])
     expect([...(await portraitOf())!]).toEqual([7])
   })
 })
