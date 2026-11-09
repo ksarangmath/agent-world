@@ -2,11 +2,10 @@
 
 Turns a person into an agent.
 
-- **`linkedin.ts`**: finds and verifies the person's LinkedIn profile. A
-  profile counts only if its photo has the same LinkedIn image ID as the photo
-  from sign-in. Candidates come from an Exa people search and the usual vanity
-  URLs, or from a pasted URL fetched fresh. Anything else is blocked with a
-  reason the person can fix.
+- **`linkedin.ts`**: verifies the LinkedIn profile URL the person pastes. It
+  fetches the profile fresh and accepts it only if its photo has the same
+  LinkedIn image ID as the photo from sign-in. Anything else is blocked with a
+  reason the person can fix, before any research starts.
 - **`builder.ts`**: onboarding. It reads the person's name and photo from
   their LinkedIn identity record (never from editable sign-in metadata) and
   launches a short-lived profile-builder agent with the name, the verified

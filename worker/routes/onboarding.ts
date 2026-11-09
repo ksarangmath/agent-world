@@ -11,12 +11,12 @@ import {
   onboardingStatus,
   startBuilder,
 } from '../profile/builder'
-import { problemMessages, verifyLinkedIn } from '../profile/linkedin'
+import { problemMessages, profileUrl, verifyLinkedIn } from '../profile/linkedin'
 
 const link = z.url({ protocol: /^https$/ }).max(300)
 
 const startSchema = z.object({
-  linkedin: link.optional(),
+  linkedin: z.string().trim().min(1).max(300),
   links: z.array(link).max(6),
   consent: z.literal(true),
 })
@@ -30,6 +30,8 @@ export const onboarding = new Hono<SignedIn>()
   .post('/', async (c) => {
     const body = startSchema.safeParse(await c.req.json().catch(() => null))
     if (!body.success) return c.json({ error: 'Check your links and agree to the terms.' }, 400)
+    const linkedinUrl = profileUrl(body.data.linkedin)
+    if (!linkedinUrl) return c.json({ error: problemMessages['not-a-profile'] }, 422)
     const services = { db: database(c.env), omnara: omnara(c.env) }
     const [person] = await services.db
       .select({ id: people.id })
@@ -44,7 +46,7 @@ export const onboarding = new Hono<SignedIn>()
     if (!(await claimVerificationAttempt(services.db, c.var.userId, new Date()))) {
       return c.json({ error: 'Too many tries today. Try again tomorrow.' }, 429)
     }
-    const linkedIn = await verifyLinkedIn(c.env.EXA_API_KEY, identity, body.data.linkedin)
+    const linkedIn = await verifyLinkedIn(c.env.EXA_API_KEY, identity, linkedinUrl)
     if (typeof linkedIn === 'string') return c.json({ error: problemMessages[linkedIn] }, 422)
     await startBuilder(services, c.env, c.var.userId, identity, linkedIn.url, body.data.links)
     return c.json({ status: 'building' })

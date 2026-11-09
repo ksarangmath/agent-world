@@ -40,13 +40,5 @@ export const exaSearch = (apiKey: string, query: string, results: number) =>
 export const exaContents = (apiKey: string, urls: string[]) =>
   exa(apiKey, 'contents', { urls, text: { maxCharacters } })
 
-export const exaPeople = (apiKey: string, query: string, results: number) =>
-  exa(apiKey, 'search', {
-    query,
-    category: 'people',
-    numResults: results,
-    contents: { text: { maxCharacters } },
-  })
-
 export const exaFreshContents = (apiKey: string, urls: string[]) =>
   exa(apiKey, 'contents', { urls, text: { maxCharacters }, maxAgeHours: 0 })

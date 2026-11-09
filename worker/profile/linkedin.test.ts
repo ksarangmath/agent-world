@@ -1,20 +1,19 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { photoId, profileUrl, slugGuesses, verifyLinkedIn } from './linkedin'
+import { photoId, profileUrl, verifyLinkedIn } from './linkedin'
 
 type Result = { url: string; image?: string }
 
 const photo = (id: string) =>
   `https://media.licdn.com/dms/image/v2/${id}/profile-displayphoto-shrink_200_200/0/1`
 const identity = { name: 'Ada Lovelace', picture: photo('D5603AQsignedin') }
-const mine = (url: string): Result => ({ url, image: photo('D5603AQsignedin') })
+const url = 'https://www.linkedin.com/in/ada'
 
-function exa(results: { search?: Result[]; cached?: Result[]; fresh?: Result[] }) {
-  const calls: { kind: string; body: Record<string, unknown> }[] = []
-  vi.stubGlobal('fetch', async (input: string, init: RequestInit) => {
-    const body = JSON.parse(String(init.body)) as Record<string, unknown>
-    const kind = input.endsWith('/search') ? 'search' : body.maxAgeHours === 0 ? 'fresh' : 'cached'
-    calls.push({ kind, body })
-    return Response.json({ results: results[kind as keyof typeof results] ?? [] })
+function exa(fresh: Result[] | Error) {
+  const calls: Record<string, unknown>[] = []
+  vi.stubGlobal('fetch', async (_input: string, init: RequestInit) => {
+    calls.push(JSON.parse(String(init.body)) as Record<string, unknown>)
+    if (fresh instanceof Error) throw fresh
+    return Response.json({ results: fresh })
   })
   return calls
 }
@@ -35,92 +34,42 @@ describe('LinkedIn URLs', () => {
     expect(profileUrl('https://linkedin.com.evil.example/in/ada')).toBeNull()
     expect(profileUrl('https://www.linkedin.com/company/ada')).toBeNull()
     expect(profileUrl('http://www.linkedin.com/in/ada')).toBeNull()
-  })
-
-  test('guesses the usual vanity slugs from a name', () => {
-    expect(slugGuesses('Ada Lovelace')).toEqual([
-      'https://www.linkedin.com/in/adalovelace',
-      'https://www.linkedin.com/in/ada-lovelace',
-    ])
-    expect(slugGuesses('Madonna')).toEqual([])
+    expect(profileUrl('ada')).toBeNull()
   })
 })
 
-describe('verifying a LinkedIn profile', () => {
-  test('accepts a pasted profile whose fresh photo matches the sign-in photo', async () => {
-    const calls = exa({ fresh: [mine('https://www.linkedin.com/in/ada')] })
-    expect(await verifyLinkedIn('key', identity, 'https://www.linkedin.com/in/ada')).toEqual({
-      url: 'https://www.linkedin.com/in/ada',
-    })
-    expect(calls.map((call) => call.kind)).toEqual(['fresh'])
+describe('verifying a pasted LinkedIn profile', () => {
+  test('accepts it when a fresh fetch shows the sign-in photo', async () => {
+    const calls = exa([{ url, image: photo('D5603AQsignedin') }])
+    expect(await verifyLinkedIn('key', identity, url)).toEqual({ url })
+    expect(calls).toEqual([expect.objectContaining({ urls: [url], maxAgeHours: 0 })])
   })
 
-  test("rejects a pasted profile with someone else's photo", async () => {
-    exa({
-      fresh: [{ url: 'https://www.linkedin.com/in/famous', image: photo('D5603AQsomeoneelse') }],
-    })
-    expect(await verifyLinkedIn('key', identity, 'https://www.linkedin.com/in/famous')).toBe(
-      'not-yours',
-    )
+  test("rejects a profile with someone else's photo", async () => {
+    exa([{ url, image: photo('D5603AQsomeoneelse') }])
+    expect(await verifyLinkedIn('key', identity, url)).toBe('not-yours')
   })
 
   test('asks for a public photo when the public profile shows none', async () => {
-    exa({ fresh: [{ url: 'https://www.linkedin.com/in/ada' }] })
-    expect(await verifyLinkedIn('key', identity, 'https://www.linkedin.com/in/ada')).toBe(
-      'no-public-photo',
-    )
+    exa([{ url }])
+    expect(await verifyLinkedIn('key', identity, url)).toBe('no-public-photo')
   })
 
-  test('blocks a sign-in without a LinkedIn photo before looking anything up', async () => {
-    const calls = exa({})
-    expect(await verifyLinkedIn('key', { name: 'Ada Lovelace', picture: null }, undefined)).toBe(
+  test('blocks a sign-in without a LinkedIn photo before fetching anything', async () => {
+    const calls = exa([])
+    expect(await verifyLinkedIn('key', { name: 'Ada Lovelace', picture: null }, url)).toBe(
       'no-sign-in-photo',
     )
     expect(calls).toHaveLength(0)
   })
 
-  test('finds the profile by name, then confirms it with a fresh fetch', async () => {
-    const calls = exa({
-      search: [
-        { url: 'https://www.linkedin.com/in/ada-l-123', image: photo('D5603AQother') },
-        mine('https://linkedin.com/in/AdaReal'),
-      ],
-      fresh: [mine('https://www.linkedin.com/in/adareal')],
-    })
-    expect(await verifyLinkedIn('key', identity, undefined)).toEqual({
-      url: 'https://www.linkedin.com/in/adareal',
-    })
-    expect(calls.at(-1)).toMatchObject({ kind: 'fresh', body: { urls: [expect.any(String)] } })
+  test('does not trust a fetch that landed on a different profile', async () => {
+    exa([{ url: 'https://www.linkedin.com/in/someone-else', image: photo('D5603AQsignedin') }])
+    expect(await verifyLinkedIn('key', identity, url)).toBe('unreachable')
   })
 
-  test('finds the profile at a guessed vanity URL', async () => {
-    exa({
-      cached: [mine('https://www.linkedin.com/in/ada-lovelace')],
-      fresh: [mine('https://www.linkedin.com/in/ada-lovelace')],
-    })
-    expect(await verifyLinkedIn('key', identity, undefined)).toEqual({
-      url: 'https://www.linkedin.com/in/ada-lovelace',
-    })
-  })
-
-  test('rejects a cached match when the live profile shows another photo', async () => {
-    exa({
-      cached: [mine('https://www.linkedin.com/in/adalovelace')],
-      fresh: [{ url: 'https://www.linkedin.com/in/adalovelace', image: photo('D5603AQnewowner') }],
-    })
-    expect(await verifyLinkedIn('key', identity, undefined)).toBe('not-yours')
-  })
-
-  test('asks for the URL when no candidate has the same photo', async () => {
-    exa({
-      search: [{ url: 'https://www.linkedin.com/in/namesake', image: photo('D5603AQnamesake') }],
-    })
-    expect(await verifyLinkedIn('key', identity, undefined)).toBe('not-found')
-  })
-
-  test('rejects a pasted URL that is not a LinkedIn profile without fetching it', async () => {
-    const calls = exa({})
-    expect(await verifyLinkedIn('key', identity, 'https://example.com/in/ada')).toBe('not-found')
-    expect(calls).toHaveLength(0)
+  test('reports LinkedIn as unreachable when the fetch fails', async () => {
+    exa(new Error('network down'))
+    expect(await verifyLinkedIn('key', identity, url)).toBe('unreachable')
   })
 })

@@ -47,7 +47,7 @@ function LinksForm({ userId }: { userId: string }) {
       ...fields.other.split(/\s+/).map((url) => asUrl(url, 'https://')),
     ].filter((url): url is string => url !== null)
     start.mutate({
-      linkedin: asUrl(fields.linkedin, 'https://www.linkedin.com/in/') ?? undefined,
+      linkedin: asUrl(fields.linkedin, 'https://www.linkedin.com/in/') ?? '',
       links: links.slice(0, 6),
     })
   }
@@ -55,14 +55,16 @@ function LinksForm({ userId }: { userId: string }) {
     <form className="form" onSubmit={submit}>
       <p>
         Your agent's profile is drafted from your public LinkedIn profile and what's verifiably
-        about you online. We find your LinkedIn profile and check that its photo matches the account
-        you joined with.
+        about you online. Paste your LinkedIn profile address. We check that its photo matches the
+        account you joined with before anything else happens.
       </p>
-      {field(
-        'linkedin',
-        'LinkedIn profile URL (only if we ask)',
-        'https://www.linkedin.com/in/you',
-      )}
+      <p>
+        <a href="https://www.linkedin.com/in/me" target="_blank" rel="noopener noreferrer">
+          Open my LinkedIn profile
+        </a>{' '}
+        and copy the address from your browser, or on LinkedIn go to Me → View profile.
+      </p>
+      {field('linkedin', 'Your LinkedIn profile address', 'https://www.linkedin.com/in/you')}
       <details>
         <summary>Other links (optional)</summary>
         {field('x', 'X handle', '@you')}
@@ -79,8 +81,8 @@ function LinksForm({ userId }: { userId: string }) {
         I agree to a profile built from public information about me, and I understand my agent's
         conversations are public in the world. <Link to="/terms">Terms and privacy</Link>
       </label>
-      <button type="submit" disabled={!consent || start.isPending}>
-        Build my profile
+      <button type="submit" disabled={!consent || !fields.linkedin.trim() || start.isPending}>
+        {start.isPending ? 'Checking your LinkedIn…' : 'Verify and build my profile'}
       </button>
       {start.error && <p className="error">{start.error.message}</p>}
     </form>
