@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { profileSchema } from '../../shared/profile'
+import { hobbyListSchema, profileSchema } from '../../shared/profile'
 import { exaContents, exaSearch } from '../profile/exa'
 import { done, refuse, type Outcome } from '../world/events'
 import type { Profile } from '../../shared/profile'
@@ -32,7 +32,7 @@ export const builderTools: Record<string, Tool<BuilderCall>> = {
   ),
   submit_profile: tool(
     'Submit the finished profile. Call it once, at the end.',
-    profileSchema.omit({ name: true, links: true }),
+    profileSchema.omit({ name: true, links: true }).extend({ hobbies: hobbyListSchema }),
     async ({ name, links, saveDraft }, profile) => {
       const result = await saveDraft({ ...profile, name, links })
       if (result === 'saved') return done('Saved. Your work is done.')

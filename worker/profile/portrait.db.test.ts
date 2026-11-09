@@ -40,6 +40,7 @@ beforeEach(async () => {
     runId: '00000000-0000-4000-8000-0000000000bb',
     builderAgentId: agentId,
     links: [],
+    linkedinUrl: 'https://www.linkedin.com/in/test-person',
   })
 })
 

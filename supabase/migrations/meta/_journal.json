@@ -50,6 +50,27 @@
       "when": 1794250193909,
       "tag": "20261109184953_revoke_public_table_privileges",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794254350535,
+      "tag": "20261109195910_verified_linkedin",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794254362813,
+      "tag": "20261109195922_profile_hobbies",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794254879179,
+      "tag": "20261109200759_verification_attempts",
+      "breakpoints": true
     }
   ]
 }

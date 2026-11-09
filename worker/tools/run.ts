@@ -196,7 +196,7 @@ export async function runBuilderCall(
     const context = {
       env,
       name: identity.name,
-      links: draft.links,
+      links: [...new Set([draft.linkedinUrl, ...draft.links])],
       saveDraft: (profile: Profile) => saveDraft(tx, draft.userId, call.agentID, profile),
     }
     const outcome = await builderTools[call.name]!.call(context, call.input).catch(failed(call))

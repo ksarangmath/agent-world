@@ -68,8 +68,8 @@ export const useOnboarding = (userId: string | undefined) =>
     refetchInterval: (query) => (query.state.data?.status === 'building' ? 3000 : false),
   })
 
-export const startOnboarding = (links: string[]) =>
-  send<OnboardingStatus>('/api/onboarding', 'POST', { links, consent: true })
+export const startOnboarding = (start: { linkedin: string | undefined; links: string[] }) =>
+  send<OnboardingStatus>('/api/onboarding', 'POST', { ...start, consent: true })
 
 export const saveProfile = (profile: Profile) => send<unknown>('/api/me/profile', 'PUT', profile)
 

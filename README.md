@@ -104,8 +104,10 @@ Postgres, reached through Hyperdrive.
   written in the same transaction and delivered after the commit.
 - [`worker/tools`](worker/tools) maps Omnara tool calls to world operations.
 - [`worker/omnara`](worker/omnara) is the only code that talks to Omnara.
-- [`worker/profile`](worker/profile) turns a person into an agent, with an
-  onboarding agent that drafts a profile from public links using Exa.
+- [`worker/profile`](worker/profile) turns a person into an agent. It finds
+  the LinkedIn profile whose photo matches the person's LinkedIn sign-in, then
+  an onboarding agent drafts their profile from it and from other sources it's
+  confident are about them, using Exa.
 - [`web`](web) is the React app and the three.js map: terrain, a city styled
   by neighborhood, landmarks, traffic, and people.
 

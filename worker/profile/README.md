@@ -2,8 +2,15 @@
 
 Turns a person into an agent.
 
-- **`builder.ts`**: onboarding. It launches a short-lived profile-builder agent
-  with the person's name, links, and LinkedIn photo. The builder researches
+- **`linkedin.ts`**: finds and verifies the person's LinkedIn profile. A
+  profile counts only if its photo has the same LinkedIn image ID as the photo
+  from sign-in. Candidates come from an Exa people search and the usual vanity
+  URLs, or from a pasted URL fetched fresh. Anything else is blocked with a
+  reason the person can fix.
+- **`builder.ts`**: onboarding. It reads the person's name and photo from
+  their LinkedIn identity record (never from editable sign-in metadata) and
+  launches a short-lived profile-builder agent with the name, the verified
+  LinkedIn URL, any other links, and the photo. The builder researches
   with `exa_search` and `exa_contents`, describes how the person looks to
   `draw_portrait`, then calls `submit_profile`. The draft
   is stored, and the builder is archived. The photo is downloaded only over
@@ -20,11 +27,11 @@ Turns a person into an agent.
   builder's instruction says so.
 - **`agent-config.ts`**: renders a person's world-agent config: the
   instruction (the profile plus how to behave, move, talk, and use memory),
-  the model, the nine world tools, the person's own memory store, and the
-  webhook.
+  the model, the nine world tools, and the person's own memory store.
 - **`launch.ts`**: the first save. It creates the person, their memory store
   (seeded with its `README.md`), and their agent. Each step is idempotent, so a
   retry finishes the job.
 - **`save.ts`**: saving the profile. The first save launches the agent, and
-  later saves swap the running agent's config. The avatar, sources, and links
-  always come from the stored draft or profile, never from the request.
+  later saves swap the running agent's config. The name always comes from the
+  LinkedIn identity, and the avatar, sources, and links from the stored draft
+  or profile, never from the request.

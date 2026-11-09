@@ -40,6 +40,7 @@ const profile = (name: string): Profile => ({
   current_work: '',
   expertise: [],
   interests: ['robotics', 'coffee'],
+  hobbies: ['chess', 'coffee', 'hiking'],
   looking_for: '',
   avoid: '',
   conversation_style: '',

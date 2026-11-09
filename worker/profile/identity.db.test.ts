@@ -6,7 +6,7 @@ import type { Profile } from '../../shared/profile'
 import { signInWithLinkedIn } from '../db/linkedin.fixture'
 import * as schema from '../db/schema'
 import { runBuilderCall } from '../tools/run'
-import { linkedInIdentity } from './builder'
+import { claimVerificationAttempt, linkedInIdentity } from './builder'
 import { saveProfile } from './save'
 
 const client = postgres('postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 4 })
@@ -29,6 +29,7 @@ const submitted: Profile = {
   current_work: '',
   expertise: [],
   interests: ['robotics'],
+  hobbies: ['chess', 'coffee', 'hiking'],
   looking_for: '',
   avoid: '',
   conversation_style: '',
@@ -52,7 +53,9 @@ const submitted: Profile = {
 }
 
 beforeEach(async () => {
-  await db.execute(sql`truncate profile_drafts, people, handled_tool_calls cascade`)
+  await db.execute(
+    sql`truncate profile_drafts, people, handled_tool_calls, verification_attempts cascade`,
+  )
   await db.execute(sql`delete from auth.users where id = ${userId}`)
   await db.execute(sql`
     insert into auth.users (id, raw_user_meta_data)
@@ -92,6 +95,7 @@ describe('LinkedIn identity', () => {
         runId: `00000000-0000-4000-8000-00000000010${i}`,
         builderAgentId: owner.agent,
         links: [],
+        linkedinUrl: `https://www.linkedin.com/in/${owner.agent}`,
         portrait: new Uint8Array([1]),
       })
       const { name: _, links: __, ...input } = submitted
@@ -125,6 +129,7 @@ describe('LinkedIn identity', () => {
       runId: '00000000-0000-4000-8000-0000000000dd',
       builderAgentId: agentId,
       links: [],
+      linkedinUrl: 'https://www.linkedin.com/in/test-person',
       profile: drafted,
       portrait: new Uint8Array([1]),
     })
@@ -136,5 +141,15 @@ describe('LinkedIn identity', () => {
       .from(people)
       .where(eq(people.userId, userId))
     expect(person!.profile.name).toBe('Real Person')
+  })
+
+  test('allows ten verification attempts a day, even when they race', async () => {
+    const now = new Date('2026-11-09T12:00:00Z')
+    const claims = await Promise.all(
+      Array.from({ length: 15 }, () => claimVerificationAttempt(db, userId, now)),
+    )
+    expect(claims.filter(Boolean)).toHaveLength(10)
+    const nextDay = new Date(now.getTime() + 25 * 60 * 60 * 1000)
+    expect(await claimVerificationAttempt(db, userId, nextDay)).toBe(true)
   })
 })

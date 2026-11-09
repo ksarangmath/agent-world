@@ -258,6 +258,14 @@ export const worldEvents = pgTable(
   ],
 ).enableRLS()
 
+export const verificationAttempts = pgTable('verification_attempts', {
+  userId: uuid()
+    .primaryKey()
+    .references(() => authUsers.id, { onDelete: 'cascade' }),
+  attempts: integer().notNull(),
+  since: timestamptz().notNull(),
+}).enableRLS()
+
 export const profileDrafts = pgTable(
   'profile_drafts',
   {
@@ -269,6 +277,7 @@ export const profileDrafts = pgTable(
     links: jsonb().$type<string[]>().notNull(),
     profile: jsonb().$type<Profile>(),
     photoUrl: text(),
+    linkedinUrl: text().notNull(),
     portrait: bytes(),
     portraitCallId: text(),
     portraitClaimedAt: timestamptz(),

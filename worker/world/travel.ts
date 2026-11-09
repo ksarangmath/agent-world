@@ -32,7 +32,9 @@ export async function listPlaces(world: World, meId: string, interest?: string):
         .groupBy(worldEvents.placeId)
     ).map((row) => [row.placeId, row.count]),
   )
-  const wanted = words(interest ?? me?.profile.interests.join(' ') ?? '')
+  const wanted = words(
+    interest ?? [...(me?.profile.interests ?? []), ...(me?.profile.hobbies ?? [])].join(' '),
+  )
   const score = (place: Place) =>
     wanted.filter((word) =>
       [...place.tags, place.name, place.neighborhood].some((text) =>
@@ -159,6 +161,7 @@ export async function lookAround(world: World, meId: string): Promise<Outcome> {
           name: person.profile.name,
           headline: person.profile.headline,
           top_interests: person.profile.interests.slice(0, 3),
+          hobbies: person.profile.hobbies.slice(0, 5),
           status: statusOf(person, now),
         })),
       requests_for_you: pending

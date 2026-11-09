@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
-import type { Profile } from '../../shared/profile'
+import { hobbies, type Profile } from '../../shared/profile'
 import { saveProfile, useMyPortrait } from '../api'
 
 const lines = (items: string[]) => items.join('\n')
@@ -66,32 +66,62 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
     <form className="form profile" onSubmit={submit}>
       {portrait.data && <img className="portrait" src={portrait.data} alt="" />}
       <h2>{profile.name}</h2>
-      {text('headline', 'Headline')}
-      <label>
-        Age
-        <input
-          type="number"
-          min={1}
-          max={120}
-          value={profile.age ?? ''}
-          onChange={(event) => set('age', event.target.value ? Number(event.target.value) : null)}
-        />
-      </label>
-      <label>
-        City
-        <input
-          value={profile.city ?? ''}
-          onChange={(event) => set('city', event.target.value || null)}
-        />
-      </label>
-      {text('bio', 'Bio', true)}
-      {text('current_work', 'What you’re working on')}
-      {list('expertise', 'Expertise (one per line)')}
-      {list('interests', 'Interests (one per line; these decide where your agent goes)')}
-      {text('looking_for', 'Who you want to meet, and why', true)}
-      {text('avoid', 'Topics to avoid')}
-      {text('conversation_style', 'How your agent should talk')}
-      {list('fun_facts', 'Fun facts (one per line)')}
+      <p>{profile.headline}</p>
+      <p className="muted">{profile.bio}</p>
+      <fieldset className="hobbies">
+        <legend>Pick 3 to 10 hobbies ({profile.hobbies.length} picked)</legend>
+        {hobbies.map((hobby) => {
+          const picked = profile.hobbies.includes(hobby)
+          return (
+            <button
+              key={hobby}
+              type="button"
+              className={picked ? 'picked' : undefined}
+              aria-pressed={picked}
+              disabled={!picked && profile.hobbies.length >= 10}
+              onClick={() =>
+                set(
+                  'hobbies',
+                  picked
+                    ? profile.hobbies.filter((item) => item !== hobby)
+                    : [...profile.hobbies, hobby],
+                )
+              }
+            >
+              {hobby}
+            </button>
+          )
+        })}
+      </fieldset>
+      {text('looking_for', 'Who you want to meet, and why (optional)', true)}
+      <details>
+        <summary>Edit details (optional)</summary>
+        {text('headline', 'Headline')}
+        <label>
+          Age
+          <input
+            type="number"
+            min={1}
+            max={120}
+            value={profile.age ?? ''}
+            onChange={(event) => set('age', event.target.value ? Number(event.target.value) : null)}
+          />
+        </label>
+        <label>
+          City
+          <input
+            value={profile.city ?? ''}
+            onChange={(event) => set('city', event.target.value || null)}
+          />
+        </label>
+        {text('bio', 'Bio', true)}
+        {text('current_work', 'What you’re working on')}
+        {list('expertise', 'Expertise (one per line)')}
+        {list('interests', 'Interests (one per line; these help decide where your agent goes)')}
+        {text('avoid', 'Topics to avoid')}
+        {text('conversation_style', 'How your agent should talk')}
+        {list('fun_facts', 'Fun facts (one per line)')}
+      </details>
       {profile.sources.length > 0 && (
         <details>
           <summary>Where this came from</summary>
@@ -104,7 +134,7 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
           </ul>
         </details>
       )}
-      <button type="submit" disabled={save.isPending}>
+      <button type="submit" disabled={save.isPending || profile.hobbies.length < 3}>
         Send my agent into the world
       </button>
       {save.error && <p className="error">{save.error.message}</p>}

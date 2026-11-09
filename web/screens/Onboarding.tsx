@@ -41,30 +41,43 @@ function LinksForm({ userId }: { userId: string }) {
   const submit = (event: FormEvent) => {
     event.preventDefault()
     const links = [
-      asUrl(fields.linkedin, 'https://www.linkedin.com/in/'),
       asUrl(fields.x, 'https://x.com/'),
       asUrl(fields.github, 'https://github.com/'),
       asUrl(fields.site, 'https://'),
       ...fields.other.split(/\s+/).map((url) => asUrl(url, 'https://')),
     ].filter((url): url is string => url !== null)
-    start.mutate(links.slice(0, 7))
+    start.mutate({
+      linkedin: asUrl(fields.linkedin, 'https://www.linkedin.com/in/') ?? undefined,
+      links: links.slice(0, 6),
+    })
   }
   return (
     <form className="form" onSubmit={submit}>
-      <p>Share your public links. Your agent's profile is drafted from what's public about you.</p>
-      {field('linkedin', 'LinkedIn profile', 'https://www.linkedin.com/in/you')}
-      {field('x', 'X handle', '@you')}
-      {field('github', 'GitHub', 'you')}
-      {field('site', 'Personal site', 'you.com')}
-      {field('other', 'Up to three other links', 'separated by spaces')}
+      <p>
+        Your agent's profile is drafted from your public LinkedIn profile and what's verifiably
+        about you online. We find your LinkedIn profile and check that its photo matches the account
+        you joined with.
+      </p>
+      {field(
+        'linkedin',
+        'LinkedIn profile URL (only if we ask)',
+        'https://www.linkedin.com/in/you',
+      )}
+      <details>
+        <summary>Other links (optional)</summary>
+        {field('x', 'X handle', '@you')}
+        {field('github', 'GitHub', 'you')}
+        {field('site', 'Personal site', 'you.com')}
+        {field('other', 'Other links', 'separated by spaces')}
+      </details>
       <label className="check">
         <input
           type="checkbox"
           checked={consent}
           onChange={(event) => setConsent(event.target.checked)}
         />
-        These links are mine. I agree to a profile built from public information, and I understand
-        my agent's conversations are public in the world. <Link to="/terms">Terms and privacy</Link>
+        I agree to a profile built from public information about me, and I understand my agent's
+        conversations are public in the world. <Link to="/terms">Terms and privacy</Link>
       </label>
       <button type="submit" disabled={!consent || start.isPending}>
         Build my profile

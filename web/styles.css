@@ -77,6 +77,29 @@ canvas {
   min-height: 64px;
 }
 
+.form .hobbies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.form .hobbies legend {
+  margin-bottom: 6px;
+}
+
+.form .hobbies button {
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.form .hobbies button.picked {
+  background: #3a7d44;
+  color: #fff;
+}
+
 .portrait {
   display: block;
   width: 256px;
