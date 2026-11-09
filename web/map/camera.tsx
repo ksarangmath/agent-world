@@ -9,14 +9,24 @@ import { revealAt } from './sightlines'
 const distance = 800
 const idleFrameInterval = 1000 / 30
 const movingFor = 100
+const panSpeed = 1000
+const zoomSpeed = 1.5
+const flightSeconds = 0.7
 
 export type Focus = { x: number; y: number; zoom: number }
 
-const flightSeconds = 0.7
 let active: MapControls | null = null
 const flight = { start: -1, from: { x: 0, y: 0, zoom: 1 }, to: { x: 0, y: 0, zoom: 1 } }
+const held = new Set<string>()
 
 const zoomOf = (controls: MapControls) => (controls.object as OrthographicCamera).zoom
+
+function moveBy(controls: MapControls, dx: number, dz: number) {
+  controls.target.x += dx
+  controls.target.z += dz
+  controls.object.position.x += dx
+  controls.object.position.z += dz
+}
 
 export function flyTo(x: number, y: number, zoom: number) {
   if (!active) return
@@ -29,52 +39,44 @@ export function flyTo(x: number, y: number, zoom: number) {
   Object.assign(flight, { start: performance.now() / 1000, from, to })
 }
 
-const forward = { x: -viewFrom.x, y: -viewFrom.z }
-const forwardLength = Math.sqrt(forward.x ** 2 + forward.y ** 2)
-const panPixels = 160
-
-function heading() {
-  if (!active) return null
-  const destination = flight.start < 0 ? null : flight.to
-  return destination ?? { x: active.target.x, y: active.target.z, zoom: zoomOf(active) }
-}
-
-export function nudge(right: number, up: number) {
-  const from = heading()
-  if (!from) return
-  const step = panPixels / from.zoom
-  const [fx, fy] = [forward.x / forwardLength, forward.y / forwardLength]
-  flyTo(from.x + (fx * up - fy * right) * step, from.y + (fy * up + fx * right) * step, from.zoom)
-}
-
 export function zoomBy(factor: number) {
-  const from = heading()
-  if (from) flyTo(from.x, from.y, from.zoom * factor)
+  if (!active) return
+  const from =
+    flight.start < 0 ? { x: active.target.x, y: active.target.z, zoom: zoomOf(active) } : flight.to
+  flyTo(from.x, from.y, from.zoom * factor)
 }
 
-const keys: Record<string, () => void> = {
-  ArrowUp: () => nudge(0, 1),
-  KeyW: () => nudge(0, 1),
-  ArrowDown: () => nudge(0, -1),
-  KeyS: () => nudge(0, -1),
-  ArrowLeft: () => nudge(-1, 0),
-  KeyA: () => nudge(-1, 0),
-  ArrowRight: () => nudge(1, 0),
-  KeyD: () => nudge(1, 0),
-  Equal: () => zoomBy(1.6),
-  NumpadAdd: () => zoomBy(1.6),
-  Minus: () => zoomBy(1 / 1.6),
-  NumpadSubtract: () => zoomBy(1 / 1.6),
-}
+const forwardLength = Math.hypot(viewFrom.x, viewFrom.z)
+const [fx, fy] = [-viewFrom.x / forwardLength, -viewFrom.z / forwardLength]
 
-function onKey(event: KeyboardEvent) {
+const pans: Record<string, [right: number, up: number]> = {
+  ArrowUp: [0, 1],
+  KeyW: [0, 1],
+  ArrowDown: [0, -1],
+  KeyS: [0, -1],
+  ArrowLeft: [-1, 0],
+  KeyA: [-1, 0],
+  ArrowRight: [1, 0],
+  KeyD: [1, 0],
+}
+const zooms: Record<string, number> = { Equal: 1, NumpadAdd: 1, Minus: -1, NumpadSubtract: -1 }
+const keyCodes = new Set([...Object.keys(pans), ...Object.keys(zooms)])
+
+function onKeyDown(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null
   const typing = target?.closest('input, textarea, select, [contenteditable="true"]')
-  const action = keys[event.code]
-  if (!action || typing || event.metaKey || event.ctrlKey || event.altKey) return
+  if (typing || event.metaKey || event.ctrlKey || event.altKey) {
+    held.clear()
+    return
+  }
+  if (!keyCodes.has(event.code)) return
   event.preventDefault()
-  action()
+  held.add(event.code)
+  flight.start = -1
 }
+
+const onKeyUp = (event: KeyboardEvent) => held.delete(event.code)
+const releaseKeys = () => held.clear()
 
 export function Camera({ focus }: { focus: Focus }) {
   const get = useThree((state) => state.get)
@@ -96,15 +98,11 @@ export function Camera({ focus }: { focus: Focus }) {
     controls.zoomToCursor = true
     const keepInside = () => {
       const { target } = controls
-      const [x, z] = [
+      moveBy(
+        controls,
         Math.min(mapWidth, Math.max(0, target.x)) - target.x,
         Math.min(mapHeight, Math.max(0, target.z)) - target.z,
-      ]
-      if (!x && !z) return
-      target.x += x
-      target.z += z
-      camera.position.x += x
-      camera.position.z += z
+      )
     }
     const cancelFlight = () => {
       flight.start = -1
@@ -119,16 +117,22 @@ export function Camera({ focus }: { focus: Focus }) {
     controls.addEventListener('start', cancelFlight)
     controls.update()
     active = controls
-    window.addEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', releaseKeys)
     let frame = requestAnimationFrame(function draw(now) {
       frame = requestAnimationFrame(draw)
-      if (now - movedAt > movingFor && now - drawnAt < idleFrameInterval - 2) return
+      const moving = held.size > 0 || flight.start >= 0 || now - movedAt < movingFor
+      if (!moving && now - drawnAt < idleFrameInterval - 2) return
       drawnAt = now
       advance(now / 1000)
     })
     return () => {
       cancelAnimationFrame(frame)
-      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', releaseKeys)
+      releaseKeys()
       active = null
       cancelFlight()
       controls.removeEventListener('change', keepInside)
@@ -137,17 +141,33 @@ export function Camera({ focus }: { focus: Focus }) {
       controls.dispose()
     }
   }, [get, focus.x, focus.y, focus.zoom])
-  useFrame(({ camera }) => {
-    if (!active || flight.start < 0) return
+  useFrame(({ camera }, delta) => {
+    if (!active) return
+    if (held.size > 0) {
+      let [right, up, zoom] = [0, 0, 0]
+      for (const code of held) {
+        const [r, u] = pans[code] ?? [0, 0]
+        right += r
+        up += u
+        zoom += zooms[code] ?? 0
+      }
+      const seconds = Math.min(delta, 0.1)
+      const step = (panSpeed * seconds) / camera.zoom / (Math.hypot(right, up) || 1)
+      moveBy(active, (fx * up - fy * right) * step, (fy * up + fx * right) * step)
+      camera.zoom = Math.min(
+        active.maxZoom,
+        Math.max(active.minZoom, camera.zoom * 2 ** (zoom * zoomSpeed * seconds)),
+      )
+      camera.updateProjectionMatrix()
+      active.update()
+      return
+    }
+    if (flight.start < 0) return
     const t = Math.min(1, (performance.now() / 1000 - flight.start) / flightSeconds)
     const eased = t * t * (3 - 2 * t)
     const { from, to } = flight
     const [x, y] = [from.x + (to.x - from.x) * eased, from.y + (to.y - from.y) * eased]
-    const [dx, dz] = [x - active.target.x, y - active.target.z]
-    active.target.x += dx
-    active.target.z += dz
-    camera.position.x += dx
-    camera.position.z += dz
+    moveBy(active, x - active.target.x, y - active.target.z)
     camera.zoom = from.zoom * (to.zoom / from.zoom) ** eased
     camera.updateProjectionMatrix()
     active.update()
