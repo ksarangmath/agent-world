@@ -27,9 +27,22 @@ canvas {
   flex-direction: column;
   gap: 8px;
   align-items: flex-start;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   padding: 12px;
   background: rgb(16 21 34 / 85%);
   border: 3px solid #101522;
+}
+
+.panel .create {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, calc(100vw - 64px));
+}
+
+.panel .create[hidden] {
+  display: none;
 }
 
 .regions {
@@ -75,6 +88,47 @@ canvas {
 
 .form textarea {
   min-height: 64px;
+}
+
+.working {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0;
+  text-align: center;
+}
+
+.working .dots {
+  display: flex;
+  gap: 6px;
+}
+
+.working .dots i {
+  width: 10px;
+  height: 10px;
+  background: #3a7d44;
+  animation: hop 1.2s steps(2, jump-none) infinite;
+}
+
+.working .dots i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.working .dots i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes hop {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .working .dots i {
+    animation: none;
+  }
 }
 
 .form .hobbies {

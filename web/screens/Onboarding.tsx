@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { useState, type FormEvent, type ReactNode } from 'react'
-import { startOnboarding, useMe, useOnboarding } from '../api'
-import { signIn, useSession } from '../auth'
+import { useEffect, useState, type FormEvent } from 'react'
+import type { BuildStage } from '../../shared/api'
+import { startOnboarding, useOnboarding } from '../api'
 import { ProfileForm } from './ProfileForm'
 
 const linkedInAddress = (value: string) => {
@@ -10,12 +10,74 @@ const linkedInAddress = (value: string) => {
   return /^https?:\/\//.test(trimmed) ? trimmed : `https://www.linkedin.com/in/${trimmed}`
 }
 
-function Page({ children }: { children: ReactNode }) {
+const checkingLines = [
+  'Opening your public LinkedIn profile…',
+  'Checking that its photo matches your LinkedIn sign-in…',
+]
+
+const stageCopy: Record<BuildStage, { title: string; lines: string[] }> = {
+  researching: {
+    title: 'Researching you',
+    lines: [
+      'Reading your LinkedIn profile…',
+      'Searching the web for your work, talks, and projects…',
+      'Double-checking that every source is really you…',
+      'Leaving out anything we aren’t sure about…',
+      'Writing your profile from what we found…',
+    ],
+  },
+  drawing: {
+    title: 'Drawing your portrait',
+    lines: ['Sketching your pixel portrait…', 'Getting your hair, glasses, and style right…'],
+  },
+  finishing: {
+    title: 'Finishing up',
+    lines: ['Dressing your character to match your portrait…', 'Putting your profile together…'],
+  },
+}
+
+function Lines({ lines, every }: { lines: string[]; every: number }) {
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => setTick((value) => value + 1), every)
+    return () => clearInterval(timer)
+  }, [every])
+  return <span>{lines[Math.min(tick, lines.length - 1)]}</span>
+}
+
+function Working({
+  title,
+  lines,
+  note,
+  every = 3500,
+}: {
+  title?: string
+  lines: string[]
+  note?: string
+  every?: number
+}) {
   return (
-    <main className="page">
-      <img className="lockup" src="/lockup.png" alt="Agent World" />
-      {children}
-    </main>
+    <output className="working" aria-live="polite">
+      <span className="dots" aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
+      {title && <strong>{title}</strong>}
+      <Lines key={title} lines={lines} every={every} />
+      {note && <span className="muted">{note}</span>}
+    </output>
+  )
+}
+
+function Building({ stage }: { stage: BuildStage }) {
+  const copy = stageCopy[stage]
+  return (
+    <Working
+      title={copy.title}
+      lines={copy.lines}
+      note="This usually takes a minute or two. You can leave this page; we’ll keep working."
+    />
   )
 }
 
@@ -29,7 +91,7 @@ function LinkedInForm({ userId }: { userId: string }) {
   })
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    start.mutate(linkedInAddress(linkedin))
+    if (!start.isPending) start.mutate(linkedInAddress(linkedin))
   }
   return (
     <form className="form" onSubmit={submit}>
@@ -61,52 +123,42 @@ function LinkedInForm({ userId }: { userId: string }) {
         I agree to a profile built from public information about me, and I understand my agent's
         conversations are public in the world. <Link to="/terms">Terms and privacy</Link>
       </label>
+      {start.isPending && <Working lines={checkingLines} every={1500} />}
       <button type="submit" disabled={!consent || !linkedin.trim() || start.isPending}>
-        {start.isPending ? 'Checking your LinkedIn…' : 'Verify and build my profile'}
+        Verify and build my profile
       </button>
       {start.error && <p className="error">{start.error.message}</p>}
     </form>
   )
 }
 
-export function Onboarding() {
-  const session = useSession()
-  const userId = session?.user.id
-  const me = useMe(userId)
+export function CreateAgent({ userId }: { userId: string }) {
   const status = useOnboarding(userId)
-  if (session === null) {
-    return (
-      <Page>
-        <button type="button" onClick={() => void signIn()}>
-          Join with LinkedIn
-        </button>
-      </Page>
-    )
-  }
-  if (!userId || !me.data || !status.data) return <Page>Loading…</Page>
-  if (me.data.person) {
-    return (
-      <Page>
-        <p>
-          Your agent is in the world. <Link to="/">See the map</Link>
-        </p>
-      </Page>
-    )
-  }
-  if (status.data.status === 'building') {
-    return <Page>Your agent is reading about you. This takes about a minute…</Page>
-  }
-  if (status.data.status === 'ready') {
-    return (
-      <Page>
-        <ProfileForm draft={status.data.draft} userId={userId} />
-      </Page>
-    )
-  }
+  const [open, setOpen] = useState(true)
+  if (!status.data) return null
+  const state = status.data
   return (
-    <Page>
-      {status.data.status === 'failed' && <p className="error">That took too long. Try again.</p>}
-      <LinkedInForm userId={userId} />
-    </Page>
+    <>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls="create-agent"
+        onClick={() => setOpen(!open)}
+      >
+        {open
+          ? 'Hide'
+          : state.status === 'building'
+            ? 'Building your agent…'
+            : state.status === 'ready'
+              ? 'Your profile is ready'
+              : 'Create your agent'}
+      </button>
+      <section id="create-agent" className="create" hidden={!open}>
+        {state.status === 'building' && <Building stage={state.stage} />}
+        {state.status === 'ready' && <ProfileForm draft={state.draft} userId={userId} />}
+        {state.status === 'failed' && <p className="error">That took too long. Try again.</p>}
+        {(state.status === 'none' || state.status === 'failed') && <LinkedInForm userId={userId} />}
+      </section>
+    </>
   )
 }

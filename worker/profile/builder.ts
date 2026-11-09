@@ -224,11 +224,17 @@ export async function onboardingStatus(
   userId: string,
 ): Promise<OnboardingStatus> {
   const [draft] = await services.db
-    .select({ profile: profileDrafts.profile, createdAt: profileDrafts.createdAt })
+    .select({
+      profile: profileDrafts.profile,
+      createdAt: profileDrafts.createdAt,
+      drawing: isNotNull(profileDrafts.portraitClaimedAt),
+      drawn: isNotNull(profileDrafts.portrait),
+    })
     .from(profileDrafts)
     .where(eq(profileDrafts.userId, userId))
   if (!draft) return { status: 'none' }
   if (draft.profile) return { status: 'ready', draft: draft.profile }
   if (Date.now() - draft.createdAt.getTime() > buildTimeoutMs) return { status: 'failed' }
-  return { status: 'building' }
+  const stage = draft.drawn ? 'finishing' : draft.drawing ? 'drawing' : 'researching'
+  return { status: 'building', stage }
 }

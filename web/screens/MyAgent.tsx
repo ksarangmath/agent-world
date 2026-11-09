@@ -57,7 +57,7 @@ export function MyAgent() {
   if (!me.data.person) {
     return (
       <main className="page">
-        <Link to="/onboarding">Create your agent</Link>
+        <Link to="/">Create your agent</Link>
       </main>
     )
   }

@@ -16,8 +16,12 @@ export type WorldPerson = {
 
 export type WorldSnapshot = { now: string; people: WorldPerson[] }
 
+export type BuildStage = 'researching' | 'drawing' | 'finishing'
+
 export type OnboardingStatus =
-  { status: 'none' | 'building' | 'failed' } | { status: 'ready'; draft: Profile }
+  | { status: 'none' | 'failed' }
+  | { status: 'building'; stage: BuildStage }
+  | { status: 'ready'; draft: Profile }
 
 export type Transcript = {
   id: string

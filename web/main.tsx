@@ -12,7 +12,7 @@ import { z } from 'zod'
 import { regionNames } from '../shared/map/places'
 import { queryClient, useMe } from './api'
 import { signIn, signOut, useSession } from './auth'
-import { Onboarding } from './screens/Onboarding'
+import { CreateAgent } from './screens/Onboarding'
 import { MyAgent } from './screens/MyAgent'
 import { PersonCardPage } from './screens/PersonCard'
 import { Terms } from './screens/Terms'
@@ -32,12 +32,6 @@ const homeRoute = createRoute({
   path: '/',
   validateSearch: (search) => focusSearch.parse(search),
   component: Home,
-})
-
-const onboardingRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/onboarding',
-  component: Onboarding,
 })
 
 const termsRoute = createRoute({
@@ -61,14 +55,7 @@ const personRoute = createRoute({
 })
 
 const router = createRouter({
-  routeTree: rootRoute.addChildren([
-    homeRoute,
-    onboardingRoute,
-    termsRoute,
-    meRoute,
-    transcriptRoute,
-    personRoute,
-  ]),
+  routeTree: rootRoute.addChildren([homeRoute, termsRoute, meRoute, transcriptRoute, personRoute]),
 })
 
 declare module '@tanstack/react-router' {
@@ -114,12 +101,12 @@ function Home() {
             Signed in as {String(session.user.user_metadata.name ?? session.user.email)}
             {me.data && (me.data.person ? ', and your agent is in the world.' : '.')}{' '}
             {me.data?.person && <Link to="/me">Your agent</Link>}{' '}
-            {me.data && !me.data.person && <Link to="/onboarding">Create your agent</Link>}{' '}
             <button type="button" onClick={() => void signOut()}>
               Sign out
             </button>
           </p>
         )}
+        {session && me.data && !me.data.person && <CreateAgent userId={session.user.id} />}
       </header>
     </main>
   )
