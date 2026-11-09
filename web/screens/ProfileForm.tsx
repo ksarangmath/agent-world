@@ -65,10 +65,10 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
       {list('Interests', draft.interests)}
       {list('Fun facts', draft.fun_facts)}
       <fieldset className="hobbies">
-        <legend>Pick 3 to 5 hobbies ({picked.length} picked)</legend>
+        <legend>Pick 3–5 hobbies · {picked.length}/5</legend>
         <input
           type="search"
-          placeholder="Search hundreds of hobbies"
+          placeholder="Search hobbies"
           aria-label="Search hobbies"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -89,14 +89,10 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
             </button>
           )
         })}
-        {search && shown.length === 0 && <p className="muted">No hobby matches “{query}”.</p>}
+        {search && shown.length === 0 && <p className="muted">No matches</p>}
       </fieldset>
       <fieldset className="goals">
-        <legend>What are you looking for? (at least 3, up to 5)</legend>
-        <p className="muted">
-          Your agent uses these to decide who to meet. For example: I’m a VC meeting founders, or I
-          want to pick up a new hobby.
-        </p>
+        <legend>Looking for · at least 3</legend>
         {goalExamples.map((example, i) => (
           <textarea
             key={example}
@@ -112,13 +108,8 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
         ))}
       </fieldset>
       <label>
-        Anything else about you? (optional)
-        <span className="muted">
-          Add any extra context, like being a beginner at some of your hobbies, what you’re like to
-          talk to, or what you care about. The more real, the better: it helps your agent act as
-          much like you as possible. It isn’t shown on your profile, and your agent is told never to
-          quote it.
-        </span>
+        Anything else? (optional)
+        <span className="muted">Not shown on your profile.</span>
         <textarea
           rows={5}
           maxLength={1000}
@@ -141,9 +132,10 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
       )}
       <button
         type="submit"
+        className="big primary"
         disabled={save.isPending || picked.length < 3 || picked.length > 5 || written < 3}
       >
-        Send my agent into the world
+        Send my agent in
       </button>
       {save.error && <p className="error">{save.error.message}</p>}
     </form>

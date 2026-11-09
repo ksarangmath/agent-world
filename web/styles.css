@@ -45,17 +45,6 @@ canvas {
   display: none;
 }
 
-.regions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  font-size: 13px;
-}
-
-.regions a {
-  color: #ffd166;
-}
-
 .lockup {
   width: min(60vw, 320px);
   height: auto;
@@ -86,8 +75,60 @@ canvas {
   align-items: flex-start;
 }
 
+.form :is(input:not([type='checkbox']), textarea) {
+  padding: 8px 10px;
+  font: inherit;
+}
+
 .form textarea {
   min-height: 64px;
+}
+
+.form :is(h2, p) {
+  margin: 0;
+}
+
+.join .steps {
+  display: flex;
+  gap: 8px;
+}
+
+.join .steps .big {
+  flex: 1;
+}
+
+.big {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-size: 16px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.big.linkedin {
+  color: #fff;
+  background: #0a66c2;
+  border: 3px solid #101522;
+}
+
+.big.linkedin .mark {
+  padding: 0 5px;
+  color: #0a66c2;
+  background: #fff;
+  border-radius: 3px;
+  font-family: system-ui, sans-serif;
+}
+
+.big.primary {
+  color: #fff;
+  background: #3a7d44;
+}
+
+.big:disabled {
+  opacity: 0.5;
 }
 
 .working {

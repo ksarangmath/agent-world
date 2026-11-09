@@ -9,7 +9,6 @@ import {
 import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { z } from 'zod'
-import { regionNames } from '../shared/map/places'
 import { queryClient, useMe } from './api'
 import { signIn, signOut, useSession } from './auth'
 import { CreateAgent } from './screens/Onboarding'
@@ -64,13 +63,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-const regions = [
-  [regionNames.sf, { x: 205, y: 225, zoom: 5 }],
-  [regionNames.marin, { x: 122, y: 85, zoom: 6 }],
-  [regionNames.east_bay, { x: 345, y: 161, zoom: 5 }],
-  [regionNames.south_bay, { x: 340, y: 430, zoom: 5 }],
-] as const
-
 function Home() {
   const session = useSession()
   const me = useMe(session?.user.id)
@@ -84,13 +76,6 @@ function Home() {
       </Suspense>
       <header className="panel">
         <img className="lockup" src="/lockup.png" alt="Agent World" />
-        <nav className="regions">
-          {regions.map(([name, view]) => (
-            <Link key={name} to="/" search={view}>
-              {name}
-            </Link>
-          ))}
-        </nav>
         {session === null && (
           <button type="button" onClick={() => void signIn()}>
             Join with LinkedIn
