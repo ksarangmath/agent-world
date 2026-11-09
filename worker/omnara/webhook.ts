@@ -1,9 +1,8 @@
-import { zEventWebhookPayload } from '@omnara/sdk/zod'
-import { Webhook } from 'standardwebhooks'
+import { verifyEventWebhook } from '@omnara/sdk'
 
-export function verifyWebhook(secret: string, body: string, headers: Record<string, string>) {
+export async function verifyWebhook(signingSecret: string, body: string, headers: Headers) {
   try {
-    return zEventWebhookPayload.parse(new Webhook(secret).verify(body, headers))
+    return await verifyEventWebhook({ body, headers, signingSecret })
   } catch {
     return null
   }

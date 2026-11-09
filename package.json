@@ -21,7 +21,8 @@
     "db:generate": "drizzle-kit generate",
     "db:up": "docker compose up -d --wait && supabase db push --db-url postgresql://postgres:postgres@127.0.0.1:54322/postgres --yes",
     "map": "out=$(mktemp) && node scripts/geography.ts > \"$out\" && mv \"$out\" shared/map/geography.json",
-    "lpc": "node scripts/lpc.ts"
+    "lpc": "node scripts/lpc.ts",
+    "webhooks": "node --env-file=.env --env-file-if-exists=.env.local scripts/webhooks.ts"
   },
   "prettier": {
     "semi": false,
@@ -30,7 +31,7 @@
     "printWidth": 100
   },
   "dependencies": {
-    "@omnara/sdk": "0.1.34",
+    "@omnara/sdk": "0.1.44",
     "@react-three/fiber": "9.8.2",
     "@supabase/supabase-js": "2.118.0",
     "@tanstack/react-query": "5.104.5",
@@ -40,7 +41,6 @@
     "postgres": "3.4.9",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "standardwebhooks": "1.1.1",
     "suncalc": "2.1.1",
     "three": "0.186.1",
     "zod": "4.6.7"

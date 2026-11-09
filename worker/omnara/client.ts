@@ -5,15 +5,14 @@ export type Omnara = {
   path: { orgID: string; projectID: string }
 }
 
-const requestTimeoutMs = 4000
+const requestTimeoutMs = 10_000
 
 export function omnara(env: Env): Omnara {
   return {
     client: createOmnaraClient({
       baseUrl: 'https://api.omnara.com/v1',
       auth: bearerToken(env.OMNARA_TOKEN),
-      fetch: (input, init) =>
-        fetch(input, { ...init, signal: AbortSignal.timeout(requestTimeoutMs) }),
+      timeoutMs: requestTimeoutMs,
     }),
     path: { orgID: env.OMNARA_ORG_ID, projectID: env.OMNARA_PROJECT_ID },
   }

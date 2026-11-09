@@ -210,22 +210,13 @@ export const ownerMessages = pgTable(
   ],
 )
 
-export const handledToolCalls = pgTable(
-  'handled_tool_calls',
-  {
-    toolCallId: text().primaryKey(),
-    agentId: text().notNull(),
-    result: jsonb().notNull(),
-    dueAt: createdAt(),
-    postedAt: timestamptz(),
-    createdAt: createdAt(),
-  },
-  (t) => [
-    index('handled_tool_calls_unposted')
-      .on(t.dueAt)
-      .where(sql`${t.postedAt} is null`),
-  ],
-).enableRLS()
+export const handledToolCalls = pgTable('handled_tool_calls', {
+  toolCallId: text().primaryKey(),
+  agentId: text().notNull(),
+  result: jsonb().notNull(),
+  dueAt: createdAt(),
+  createdAt: createdAt(),
+}).enableRLS()
 
 export const deliveries = pgTable(
   'deliveries',

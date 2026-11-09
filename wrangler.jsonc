@@ -16,14 +16,12 @@
   ],
   "secrets": {
     "required": [
-      "APP_URL",
       "VITE_SUPABASE_URL",
       "VITE_SUPABASE_PUBLISHABLE_KEY",
       "OMNARA_TOKEN",
       "OMNARA_ORG_ID",
       "OMNARA_PROJECT_ID",
       "OMNARA_WEBHOOK_SECRET",
-      "OMNARA_WEBHOOK_SECRET_ID",
       "OMNARA_WORLD_PROFILE_ID",
       "OMNARA_BUILDER_PROFILE_ID",
       "EXA_API_KEY",

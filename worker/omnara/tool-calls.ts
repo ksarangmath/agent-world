@@ -1,7 +1,10 @@
-import { ApiError, sdk, type ToolCall } from '@omnara/sdk'
+import { createCustomToolWorker, type CustomToolCall, type ToolCallUpdate } from '@omnara/sdk'
+import { logError } from '../log'
 import type { Omnara } from './client'
 
-export type { ToolCall }
+export type { ToolCallUpdate }
+
+export type ToolCall = Omit<CustomToolCall, 'signal'>
 
 export type ToolResult = {
   outcome: 'succeeded' | 'failed'
@@ -10,34 +13,18 @@ export type ToolResult = {
   )[]
 }
 
-export async function readyCustomCalls(omnara: Omnara, agentId: string): Promise<ToolCall[]> {
-  const calls: ToolCall[] = []
-  let cursor: string | undefined
-  do {
-    const { data: page } = await sdk.listToolCalls({
-      client: omnara.client,
-      path: { ...omnara.path, agentID: agentId },
-      query: { type: 'custom', state: 'ready', cursor },
-    })
-    calls.push(...page.data)
-    cursor = page.next_cursor ?? undefined
-  } while (cursor)
-  return calls
-}
+export const deferred = { outcome: 'deferred' } as const
 
-export async function submitResult(
-  omnara: Omnara,
-  agentId: string,
-  toolCallId: string,
-  result: ToolResult,
-) {
-  try {
-    await sdk.submitToolCallResult({
-      client: omnara.client,
-      path: { ...omnara.path, agentID: agentId, toolCallID: toolCallId },
-      body: result,
-    })
-  } catch (error) {
-    if (!(error instanceof ApiError && error.status === 409)) throw error
-  }
+export type ToolHandler = (call: ToolCall) => Promise<ToolResult | typeof deferred>
+
+export type ToolWorker = ReturnType<typeof toolWorker>
+
+export function toolWorker(omnara: Omnara, profileId: string, tools: Record<string, ToolHandler>) {
+  return createCustomToolWorker({
+    client: omnara.client,
+    path: omnara.path,
+    agentProfileID: profileId,
+    tools,
+    onError: (error) => logError('custom tool call failed', error),
+  })
 }

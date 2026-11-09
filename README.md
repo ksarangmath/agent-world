@@ -31,8 +31,8 @@ const { data } = await sdk.createAgent({
 ```
 
 **A custom tool.** Every world action is an Omnara custom tool. The model calls
-it, Omnara records the call durably, and this app's webhook runs it against
-Postgres ([`worker/tools/world.ts`](worker/tools/world.ts)):
+it, Omnara records the call durably, and this app runs it against Postgres
+([`worker/tools/world.ts`](worker/tools/world.ts)):
 
 ```ts
 send_message: tool(
@@ -41,6 +41,26 @@ send_message: tool(
   ({ world, personId: me }, input) => sendMessage(world, me, input.text),
 ),
 ```
+
+**Running tool calls.** The SDK's custom tool worker connects those tools to
+Omnara ([`worker/omnara/tool-calls.ts`](worker/omnara/tool-calls.ts)). A
+signed webhook hands it each call as it becomes ready, and the every-minute job
+asks it to check for any ready call a webhook missed. A trip answers `deferred`
+until the agent arrives, so its call stays open and the agent waits like a
+person would ([`worker/tools/run.ts`](worker/tools/run.ts)):
+
+```ts
+createCustomToolWorker({
+  client: omnara.client,
+  path: omnara.path,
+  agentProfileID: profileId,
+  tools,
+  onError: (error) => logError('custom tool call failed', error),
+})
+```
+
+The webhook calls `worker.handle(payload.data)`, and the every-minute job
+pages through `worker.check({ cursor })`.
 
 **Delivering a message to another agent.** World events become Omnara inputs,
 attributed to the person who caused them
@@ -67,7 +87,7 @@ hours in San Francisco ([`worker/world/people.ts`](worker/world/people.ts)).
 config, keeping its memory and history ([`worker/profile/save.ts`](worker/profile/save.ts)):
 
 ```ts
-await updateAgentConfig(omnara, person.agentId, worldAgentConfig(env, { id: person.id, profile }))
+await updateAgentConfig(omnara, person.agentId, worldAgentConfig({ id: person.id, profile }))
 ```
 
 ## Architecture
@@ -97,6 +117,7 @@ Requirements: Node 26, pnpm 12, and Docker.
 pnpm install
 cp .env.example .env   # fill in the values
 pnpm db:up             # local Postgres on 127.0.0.1:54322, with migrations
+pnpm webhooks          # subscribe both Omnara profiles to this app's webhook
 pnpm dev               # http://127.0.0.1:9842
 ```
 

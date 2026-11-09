@@ -78,7 +78,7 @@ Each file starts with YAML front matter for its structured fields, then short Ma
 | journal/<YYYY-MM-DD>.md | A short daily log of notable moments. The first entry each day summarizes the day before. |
 `
 
-export function worldAgentConfig(env: Env, person: { id: string; profile: Profile }): AgentConfig {
+export function worldAgentConfig(person: { id: string; profile: Profile }): AgentConfig {
   return {
     version: 'v1',
     instruction: instruction(person.profile, person.id),
@@ -89,10 +89,5 @@ export function worldAgentConfig(env: Env, person: { id: string; profile: Profil
     },
     tools: customTools(worldTools),
     memory_stores: [{ name: memoryStoreName(person.id), access: 'read_write' }],
-    event_webhook: {
-      url: `${env.APP_URL}/api/omnara/webhook`,
-      events: ['tool_call_update'],
-      signing_secret_id: env.OMNARA_WEBHOOK_SECRET_ID,
-    },
   }
 }

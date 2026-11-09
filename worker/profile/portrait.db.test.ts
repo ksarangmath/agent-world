@@ -18,7 +18,12 @@ const { people, profileDrafts } = schema
 const userId = '00000000-0000-4000-8000-0000000000aa'
 const agentId = 'builder-agent'
 const t0 = new Date('2026-10-27T18:00:00Z')
-const call = (id: string) => ({ id, agent_id: agentId, name: 'draw_portrait', input: {} })
+const call = (id: string) => ({
+  toolCallID: id,
+  agentID: agentId,
+  name: 'draw_portrait',
+  input: {},
+})
 const image = new Uint8Array([1, 2, 3])
 const profile = { name: 'Test Person' } as Profile
 

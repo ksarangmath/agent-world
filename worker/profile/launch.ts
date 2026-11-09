@@ -28,7 +28,7 @@ export async function launchPerson(
     const agentId = await launchAgent(omnara, {
       profileId: env.OMNARA_WORLD_PROFILE_ID,
       name: profile.name.slice(0, 64),
-      config: worldAgentConfig(env, person),
+      config: worldAgentConfig(person),
       message: arrivalMessage,
       key: `launch-${person.id}`,
     })

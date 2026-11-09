@@ -26,13 +26,13 @@ export async function saveProfile(services: Services, env: Env, userId: string, 
   await db.transaction((tx) =>
     updateProfile({ tx, now: new Date(), deliveries: [] }, person.id, profile, portrait),
   )
-  await syncAgentConfig(services, env, person.id).catch((error: unknown) =>
+  await syncAgentConfig(services, person.id).catch((error: unknown) =>
     logError('agent config sync will be retried', error),
   )
   return person.id
 }
 
-export async function syncAgentConfig(services: Services, env: Env, personId: string) {
+export async function syncAgentConfig(services: Services, personId: string) {
   await services.db.transaction(async (tx) => {
     const world = { tx, now: new Date(), deliveries: [] }
     const person = (await lockPeople(world, [personId])).get(personId)
@@ -40,13 +40,13 @@ export async function syncAgentConfig(services: Services, env: Env, personId: st
     await updateAgentConfig(
       services.omnara,
       person.agentId,
-      worldAgentConfig(env, { id: person.id, profile: person.profile }),
+      worldAgentConfig({ id: person.id, profile: person.profile }),
     )
     await markConfigSynced(world, person.id, person.profileVersion)
   })
 }
 
-export async function syncAllAgentConfigs(services: Services, env: Env) {
+export async function syncAllAgentConfigs(services: Services) {
   let after: string | undefined
   for (;;) {
     const page = await services.db
@@ -63,7 +63,7 @@ export async function syncAllAgentConfigs(services: Services, env: Env) {
       .limit(200)
     if (page.length === 0) return
     for (const { id } of page) {
-      await syncAgentConfig(services, env, id).catch((error: unknown) =>
+      await syncAgentConfig(services, id).catch((error: unknown) =>
         logError('agent config sync will be retried', error),
       )
     }

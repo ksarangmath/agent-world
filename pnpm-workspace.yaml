@@ -1,5 +1,7 @@
 minimumReleaseAge: 10080
 minimumReleaseAgeIgnoreMissingTime: false
+minimumReleaseAgeExclude:
+  - '@omnara/sdk'
 trustPolicy: no-downgrade
 saveExact: true
 allowBuilds:

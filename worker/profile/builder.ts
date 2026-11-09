@@ -28,18 +28,11 @@ const instruction = `You build a short public profile of one person for Agent Wo
 - Then set the avatar presets from the portrait draw_portrait returns, so their character on the map matches it: the closest preset for each feature, and clothes that fit the rest of their look.
 - Finish by calling submit_profile once.`
 
-export function builderConfig(env: Env): AgentConfig {
-  return {
-    version: 'v1',
-    instruction,
-    model: { provider_config: 'omnara-openrouter', name: 'anthropic/claude-opus-5.5' },
-    tools: { ...customTools(builderTools), ...customTools(portraitTools) },
-    event_webhook: {
-      url: `${env.APP_URL}/api/omnara/webhook`,
-      events: ['tool_call_update'],
-      signing_secret_id: env.OMNARA_WEBHOOK_SECRET_ID,
-    },
-  }
+export const builderConfig: AgentConfig = {
+  version: 'v1',
+  instruction,
+  model: { provider_config: 'omnara-openrouter', name: 'anthropic/claude-opus-5.5' },
+  tools: { ...customTools(builderTools), ...customTools(portraitTools) },
 }
 
 export function base64(bytes: Uint8Array) {
@@ -123,7 +116,7 @@ export async function startBuilder(
     agentId = await launchAgent(omnara, {
       profileId: env.OMNARA_BUILDER_PROFILE_ID,
       name: 'Profile builder',
-      config: builderConfig(env),
+      config: builderConfig,
       key: `builder-${runId}`,
     })
     await db
