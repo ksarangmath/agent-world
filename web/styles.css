@@ -158,6 +158,10 @@ canvas {
   margin-bottom: 6px;
 }
 
+.form .hobbies input[type='search'] {
+  width: 100%;
+}
+
 .form .hobbies button {
   padding: 4px 10px;
   border-radius: 999px;

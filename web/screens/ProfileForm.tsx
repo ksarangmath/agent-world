@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
-import { hobbies, type Profile } from '../../shared/profile'
+import { hobbies, popularHobbies } from '../../shared/hobbies'
+import type { Profile } from '../../shared/profile'
 import { saveProfile, useMyPortrait } from '../api'
 
 const goalExamples = [
@@ -16,6 +17,7 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
   const [picked, setPicked] = useState(draft.hobbies)
   const [goals, setGoals] = useState(() => goalExamples.map((_, i) => draft.looking_for[i] ?? ''))
   const [aboutMe, setAboutMe] = useState(draft.about_me)
+  const [query, setQuery] = useState('')
   const portrait = useMyPortrait()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -28,6 +30,10 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
   })
   const toggle = (hobby: Profile['hobbies'][number]) =>
     setPicked(picked.includes(hobby) ? picked.filter((item) => item !== hobby) : [...picked, hobby])
+  const search = query.trim().toLowerCase()
+  const shown = search
+    ? hobbies.filter((hobby) => hobby.includes(search)).slice(0, 40)
+    : popularHobbies
   const written = goals.filter((goal) => goal.trim()).length
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -59,8 +65,16 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
       {list('Interests', draft.interests)}
       {list('Fun facts', draft.fun_facts)}
       <fieldset className="hobbies">
-        <legend>Pick 3 to 10 hobbies ({picked.length} picked)</legend>
-        {hobbies.map((hobby) => {
+        <legend>Pick 3 to 5 hobbies ({picked.length} picked)</legend>
+        <input
+          type="search"
+          placeholder="Search hundreds of hobbies"
+          aria-label="Search hobbies"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => event.key === 'Enter' && event.preventDefault()}
+        />
+        {[...picked, ...shown.filter((hobby) => !picked.includes(hobby))].map((hobby) => {
           const chosen = picked.includes(hobby)
           return (
             <button
@@ -68,13 +82,14 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
               type="button"
               className={chosen ? 'picked' : undefined}
               aria-pressed={chosen}
-              disabled={!chosen && picked.length >= 10}
+              disabled={!chosen && picked.length >= 5}
               onClick={() => toggle(hobby)}
             >
               {hobby}
             </button>
           )
         })}
+        {search && shown.length === 0 && <p className="muted">No hobby matches “{query}”.</p>}
       </fieldset>
       <fieldset className="goals">
         <legend>What are you looking for? (at least 3, up to 5)</legend>
@@ -99,13 +114,15 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
       <label>
         Anything else about you? (optional)
         <span className="muted">
-          Be as honest as you can about your personality, what you’re like to talk to, and what you
-          care about. Your agent uses it to find people you’ll actually click with.
+          Add any extra context, like being a beginner at some of your hobbies, what you’re like to
+          talk to, or what you care about. The more real, the better: it helps your agent act as
+          much like you as possible. It isn’t shown on your profile, and your agent is told never to
+          quote it.
         </span>
         <textarea
           rows={5}
           maxLength={1000}
-          placeholder="I’m an introvert who lights up talking about climbing and compilers…"
+          placeholder="I just picked up climbing and still mostly do easy boulders. I’m quiet in big groups but love long one-on-one talks about books and startups. Dry sense of humor. Night owl."
           value={aboutMe}
           onChange={(event) => setAboutMe(event.target.value)}
         />
@@ -122,7 +139,10 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
           </ul>
         </details>
       )}
-      <button type="submit" disabled={save.isPending || picked.length < 3 || written < 3}>
+      <button
+        type="submit"
+        disabled={save.isPending || picked.length < 3 || picked.length > 5 || written < 3}
+      >
         Send my agent into the world
       </button>
       {save.error && <p className="error">{save.error.message}</p>}

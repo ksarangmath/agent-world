@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { hobbies } from './hobbies'
 
 const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i)
 const tag = z.string().trim().min(1).max(40)
@@ -40,65 +41,6 @@ export const avatarSchema = z.object({
 })
 export type Avatar = z.infer<typeof avatarSchema>
 
-export const hobbies = [
-  'hiking',
-  'running',
-  'cycling',
-  'climbing',
-  'surfing',
-  'sailing',
-  'swimming',
-  'yoga',
-  'fitness',
-  'tennis',
-  'basketball',
-  'soccer',
-  'golf',
-  'skiing',
-  'martial arts',
-  'cooking',
-  'baking',
-  'coffee',
-  'wine',
-  'food',
-  'reading',
-  'writing',
-  'poetry',
-  'philosophy',
-  'history',
-  'science',
-  'languages',
-  'music',
-  'live music',
-  'jazz',
-  'dancing',
-  'singing',
-  'art',
-  'photography',
-  'design',
-  'film',
-  'theater',
-  'comedy',
-  'crafts',
-  'chess',
-  'board games',
-  'video games',
-  'puzzles',
-  'gardening',
-  'travel',
-  'volunteering',
-  'meditation',
-  'tinkering',
-  'cars',
-  'fashion',
-  'pets',
-] as const
-
-export const hobbyListSchema = z
-  .array(z.enum(hobbies))
-  .max(10)
-  .refine((list) => new Set(list).size === list.length, 'Pick each hobby once.')
-
 export const profileSchema = z.object({
   name: z.string().trim().min(1).max(100),
   headline: z.string().trim().min(1).max(120),
@@ -108,7 +50,11 @@ export const profileSchema = z.object({
   current_work: z.string().trim().max(300),
   expertise: z.array(tag).max(10),
   interests: z.array(tag).max(15),
-  hobbies: hobbyListSchema.refine((list) => list.length >= 3, 'Pick at least 3 hobbies.'),
+  hobbies: z
+    .array(z.enum(hobbies))
+    .min(3, 'Pick at least 3 hobbies.')
+    .max(5, 'Pick at most 5 hobbies.')
+    .refine((list) => new Set(list).size === list.length, 'Pick each hobby once.'),
   looking_for: z
     .array(z.string().trim().min(1).max(100))
     .min(3, 'Say at least 3 things you’re looking for.')

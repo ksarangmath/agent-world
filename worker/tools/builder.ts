@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { hobbyListSchema, profileSchema } from '../../shared/profile'
+import { profileSchema } from '../../shared/profile'
 import { exaContents, exaSearch } from '../profile/exa'
 import { done, refuse, type Outcome } from '../world/events'
 import type { Profile } from '../../shared/profile'
@@ -32,11 +32,22 @@ export const builderTools: Record<string, Tool<BuilderCall>> = {
   ),
   submit_profile: tool(
     'Submit the finished profile. Call it once, at the end.',
-    profileSchema
-      .omit({ name: true, links: true, looking_for: true, about_me: true })
-      .extend({ hobbies: hobbyListSchema }),
+    profileSchema.omit({
+      name: true,
+      links: true,
+      hobbies: true,
+      looking_for: true,
+      about_me: true,
+    }),
     async ({ name, links, saveDraft }, profile) => {
-      const result = await saveDraft({ ...profile, name, links, looking_for: [], about_me: '' })
+      const result = await saveDraft({
+        ...profile,
+        name,
+        links,
+        hobbies: [],
+        looking_for: [],
+        about_me: '',
+      })
       if (result === 'saved') return done('Saved. Your work is done.')
       if (result === 'needs portrait') {
         return refuse('Call draw_portrait and wait for its result before submitting.')
