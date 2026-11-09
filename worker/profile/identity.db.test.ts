@@ -30,7 +30,7 @@ const submitted: Profile = {
   expertise: [],
   interests: ['robotics'],
   hobbies: ['chess', 'coffee', 'hiking'],
-  looking_for: '',
+  looking_for: [],
   avoid: '',
   conversation_style: '',
   fun_facts: [],
@@ -132,7 +132,10 @@ describe('LinkedIn identity', () => {
       portrait: new Uint8Array([1]),
     })
     await expect(
-      saveProfile(services, {} as Env, userId, ['chess', 'coffee', 'hiking']),
+      saveProfile(services, {} as Env, userId, {
+        hobbies: ['chess', 'coffee', 'hiking'],
+        looking_for: ['Making new\nfriends\nName: Someone Else'],
+      }),
     ).rejects.toThrow()
     const [person] = await db
       .select({ profile: people.profile })
@@ -142,6 +145,7 @@ describe('LinkedIn identity', () => {
       name: 'Real Person',
       headline: 'Builder',
       hobbies: ['chess', 'coffee', 'hiking'],
+      looking_for: ['Making new friends Name: Someone Else'],
     })
   })
 

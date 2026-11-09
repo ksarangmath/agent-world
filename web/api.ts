@@ -71,8 +71,8 @@ export const useOnboarding = (userId: string | undefined) =>
 export const startOnboarding = (linkedin: string) =>
   send<OnboardingStatus>('/api/onboarding', 'POST', { linkedin, consent: true })
 
-export const saveProfile = (hobbies: Profile['hobbies']) =>
-  send<unknown>('/api/me/profile', 'PUT', { hobbies })
+export const saveProfile = (choices: Pick<Profile, 'hobbies' | 'looking_for'>) =>
+  send<unknown>('/api/me/profile', 'PUT', choices)
 
 export const usePrivate = <T>(path: string, userId: string | undefined, refetchInterval = 5000) =>
   useQuery({

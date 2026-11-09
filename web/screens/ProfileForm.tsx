@@ -4,8 +4,17 @@ import { useState, type FormEvent } from 'react'
 import { hobbies, type Profile } from '../../shared/profile'
 import { saveProfile, useMyPortrait } from '../api'
 
+const goalExamples = [
+  'Raising seed money for my startup',
+  'Making new friends',
+  'Looking for a job in product design',
+  'Hiring my first engineers',
+  'Looking for love',
+]
+
 export function ProfileForm({ draft, userId }: { draft: Profile; userId: string }) {
   const [picked, setPicked] = useState(draft.hobbies)
+  const [goals, setGoals] = useState(() => goalExamples.map((_, i) => draft.looking_for[i] ?? ''))
   const portrait = useMyPortrait()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -20,7 +29,10 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
     setPicked(picked.includes(hobby) ? picked.filter((item) => item !== hobby) : [...picked, hobby])
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    save.mutate(picked)
+    save.mutate({
+      hobbies: picked,
+      looking_for: goals.map((goal) => goal.replace(/\s+/g, ' ').trim()).filter(Boolean),
+    })
   }
   const list = (label: string, items: string[]) =>
     items.length > 0 && (
@@ -60,6 +72,26 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
             </button>
           )
         })}
+      </fieldset>
+      <fieldset className="goals">
+        <legend>What are you looking for? (optional, up to 5)</legend>
+        <p className="muted">
+          Your agent uses these to decide who to meet. For example: I’m a VC meeting founders, or I
+          want to pick up a new hobby.
+        </p>
+        {goalExamples.map((example, i) => (
+          <textarea
+            key={example}
+            rows={2}
+            maxLength={100}
+            placeholder={example}
+            aria-label={`Looking for, ${i + 1} of 5`}
+            value={goals[i]}
+            onChange={(event) =>
+              setGoals(goals.map((goal, j) => (j === i ? event.target.value : goal)))
+            }
+          />
+        ))}
       </fieldset>
       {draft.sources.length > 0 && (
         <details>

@@ -13,7 +13,7 @@ export async function saveProfile(
   services: Services,
   env: Env,
   userId: string,
-  hobbies: Profile['hobbies'],
+  choices: Pick<Profile, 'hobbies' | 'looking_for'>,
 ) {
   const { db } = services
   const [person] = await db
@@ -27,7 +27,8 @@ export async function saveProfile(
   const fixed = person?.profile ?? draft?.profile
   const identity = await linkedInIdentity(db, userId)
   if (!fixed || !identity) return null
-  const profile = { ...fixed, name: identity.name, hobbies }
+  const looking_for = choices.looking_for.map((goal) => goal.replace(/\s+/g, ' ').trim())
+  const profile = { ...fixed, hobbies: choices.hobbies, looking_for, name: identity.name }
   const portrait = !person && draft?.profile ? draft.portrait : null
   if (!person?.agentId) return launchPerson(services, env, userId, profile, portrait)
   await db.transaction((tx) =>

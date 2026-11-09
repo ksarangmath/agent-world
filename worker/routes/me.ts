@@ -14,7 +14,7 @@ import { sendDeliveries } from '../tools/run'
 import { messageAgent } from '../world/owner-thread'
 import { myConversations, myMatches, thread } from '../world/reads'
 
-const hobbiesSchema = z.object({ hobbies: profileSchema.shape.hobbies })
+const choicesSchema = profileSchema.pick({ hobbies: true, looking_for: true })
 
 const personOf = async (db: Database, userId: string) =>
   (await db.select({ id: people.id }).from(people).where(eq(people.userId, userId)))[0]
@@ -51,10 +51,10 @@ export const me = new Hono<SignedIn>()
     })
   })
   .put('/profile', async (c) => {
-    const parsed = hobbiesSchema.safeParse(await c.req.json().catch(() => null))
+    const parsed = choicesSchema.safeParse(await c.req.json().catch(() => null))
     if (!parsed.success) return c.json({ error: z.prettifyError(parsed.error) }, 400)
     const services = { db: database(c.env), omnara: omnara(c.env) }
-    const id = await saveProfile(services, c.env, c.var.userId, parsed.data.hobbies)
+    const id = await saveProfile(services, c.env, c.var.userId, parsed.data)
     if (!id) return c.json({ error: 'Build your profile first.' }, 409)
     return c.json({ person: { id } })
   })

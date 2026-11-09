@@ -15,7 +15,7 @@ const profile = (name: string): Profile => ({
   expertise: [],
   interests: [],
   hobbies: ['chess', 'coffee', 'hiking'],
-  looking_for: '',
+  looking_for: [],
   avoid: '',
   conversation_style: '',
   fun_facts: [],

@@ -31,6 +31,6 @@ Turns a person into an agent.
   (seeded with its `README.md`), and their agent. Each step is idempotent, so a
   retry finishes the job.
 - **`save.ts`**: saving the profile. The first save launches the agent, and
-  later saves swap the running agent's config. The only thing a request can
-  change is hobbies: the name comes from the LinkedIn identity, and everything
+  later saves swap the running agent's config. The only things a request can
+  change are hobbies and what they're looking for: the name comes from the LinkedIn identity, and everything
   else from the stored draft or profile.

@@ -18,7 +18,7 @@ function describeProfile(profile: Profile) {
     `Expertise: ${list(profile.expertise)}`,
     `Interests: ${list(profile.interests)}`,
     `Hobbies: ${list(profile.hobbies)}`,
-    `Looking for: ${profile.looking_for || 'not given'}`,
+    `Looking for, in their own words: ${JSON.stringify(profile.looking_for)}`,
     `Avoid: ${profile.avoid || 'nothing listed'}`,
     `Conversation style: ${profile.conversation_style || 'natural and friendly'}`,
     `Fun facts: ${list(profile.fun_facts)}`,

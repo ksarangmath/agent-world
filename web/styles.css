@@ -131,6 +131,20 @@ canvas {
   }
 }
 
+.form .goals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.form .goals textarea {
+  min-height: 0;
+  resize: none;
+}
+
 .form .hobbies {
   display: flex;
   flex-wrap: wrap;

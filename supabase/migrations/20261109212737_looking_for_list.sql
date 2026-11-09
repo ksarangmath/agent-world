@@ -1,0 +1,3 @@
+DELETE FROM "profile_drafts" WHERE "profile" IS NULL;--> statement-breakpoint
+UPDATE "people" SET "profile" = jsonb_set("profile", '{looking_for}', CASE WHEN btrim(coalesce("profile"->>'looking_for', '')) = '' THEN '[]'::jsonb ELSE jsonb_build_array(left(btrim("profile"->>'looking_for'), 100)) END) WHERE jsonb_typeof("profile"->'looking_for') IS DISTINCT FROM 'array';--> statement-breakpoint
+UPDATE "profile_drafts" SET "profile" = jsonb_set("profile", '{looking_for}', CASE WHEN btrim(coalesce("profile"->>'looking_for', '')) = '' THEN '[]'::jsonb ELSE jsonb_build_array(left(btrim("profile"->>'looking_for'), 100)) END) WHERE "profile" IS NOT NULL AND jsonb_typeof("profile"->'looking_for') IS DISTINCT FROM 'array';

@@ -117,7 +117,10 @@ describe('portrait lifecycle', () => {
       .set({ profile, portrait: new Uint8Array([7]) })
       .where(eq(profileDrafts.userId, userId))
     await expect(
-      saveProfile(services, env, userId, ['chess', 'coffee', 'hiking']),
+      saveProfile(services, env, userId, {
+        hobbies: ['chess', 'coffee', 'hiking'],
+        looking_for: [],
+      }),
     ).rejects.toThrow()
     const portraitOf = async () =>
       (
@@ -129,7 +132,10 @@ describe('portrait lifecycle', () => {
       .update(profileDrafts)
       .set({ profile: null, portrait: new Uint8Array([9]) })
       .where(eq(profileDrafts.userId, userId))
-    await saveProfile(services, env, userId, ['chess', 'coffee', 'hiking'])
+    await saveProfile(services, env, userId, {
+      hobbies: ['chess', 'coffee', 'hiking'],
+      looking_for: [],
+    })
     expect([...(await portraitOf())!]).toEqual([7])
   })
 })
