@@ -90,7 +90,8 @@ export type LinkedInIdentity = z.infer<typeof identitySchema>
 export async function linkedInIdentity(db: Database, userId: string) {
   const [row] = await db.execute(
     sql`select identity_data->>'name' as name, identity_data->>'picture' as picture
-        from auth.identities where user_id = ${userId} and provider = 'linkedin_oidc'`,
+        from auth.identities where user_id = ${userId} and provider = 'linkedin_oidc'
+        order by last_sign_in_at desc nulls last limit 1`,
   )
   const identity = identitySchema.safeParse(row)
   return identity.success ? identity.data : null
@@ -167,8 +168,6 @@ export async function draftOfAgent(services: Services, agentId: string) {
   const [draft] = await services.db
     .select({
       userId: profileDrafts.userId,
-      name: sql<string>`(select coalesce(identity_data->>'name', '') from auth.identities
-        where user_id = ${profileDrafts.userId} and provider = 'linkedin_oidc')`,
       links: profileDrafts.links,
       done: isNotNull(profileDrafts.profile),
       createdAt: profileDrafts.createdAt,

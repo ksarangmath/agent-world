@@ -13,7 +13,13 @@ import {
 } from '../omnara/tool-calls'
 import { logError } from '../log'
 import { done, refuse, type Outcome } from '../world/events'
-import { base64, downloadPhoto, draftOfAgent, saveDraft } from '../profile/builder'
+import {
+  base64,
+  downloadPhoto,
+  draftOfAgent,
+  linkedInIdentity,
+  saveDraft,
+} from '../profile/builder'
 import { drawPortrait } from '../profile/portrait'
 import { touch } from '../world/people'
 import type { Profile } from '../../shared/profile'
@@ -172,19 +178,24 @@ export async function sendPendingDeliveries(services: Services) {
   }
 }
 
-async function runBuilderCall(services: Services, env: Env, call: ToolCall): Promise<Answer> {
+export async function runBuilderCall(
+  services: Services,
+  env: Env,
+  call: ToolCall,
+): Promise<Answer> {
   const { db } = services
   const existing = await stored(db, call)
   if (existing) return answer(existing)
   const draft = await draftOfAgent(services, call.agentID)
-  if (!draft) return deferred
+  const identity = draft && (await linkedInIdentity(db, draft.userId))
+  if (!draft || !identity) return deferred
   const row = await db.transaction(async (tx) => {
     await lock(tx, call)
     const locked = await stored(tx, call)
     if (locked) return locked
     const context = {
       env,
-      name: draft.name,
+      name: identity.name,
       links: draft.links,
       saveDraft: (profile: Profile) => saveDraft(tx, draft.userId, call.agentID, profile),
     }

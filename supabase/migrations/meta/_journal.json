@@ -43,6 +43,13 @@
       "when": 1794234392648,
       "tag": "20261109142632_drop_posted_at",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794250193909,
+      "tag": "20261109184953_revoke_public_table_privileges",
+      "breakpoints": true
     }
   ]
 }

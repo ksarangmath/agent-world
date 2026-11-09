@@ -13,11 +13,13 @@ export async function signInWithLinkedIn(
       user_id uuid not null references auth.users (id) on delete cascade,
       identity_data jsonb not null,
       provider text not null,
+      last_sign_in_at timestamptz,
       id uuid primary key default gen_random_uuid()
     )`
+  await sql`alter table auth.identities add column if not exists last_sign_in_at timestamptz`
   await sql`grant select on auth.identities to postgres`
   await sql`
-    insert into auth.identities (provider_id, user_id, identity_data, provider)
-    values (${`li-${userId}`}, ${userId}, ${sql.json(identity)}, 'linkedin_oidc')`
+    insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at)
+    values (${`li-${userId}`}, ${userId}, ${sql.json(identity)}, 'linkedin_oidc', now())`
   await sql.end()
 }

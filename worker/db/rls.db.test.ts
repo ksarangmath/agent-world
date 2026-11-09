@@ -38,7 +38,14 @@ const profile = (name: string): Profile => ({
 
 class Rollback extends Error {}
 
-test('a signed-in person reads only their own rows', async () => {
+test('the public and signed-in roles have no privileges on any table', async () => {
+  const grants = await sql`
+    select table_name, privilege_type from information_schema.role_table_grants
+    where table_schema = 'public' and grantee in ('anon', 'authenticated')`
+  expect(grants).toHaveLength(0)
+})
+
+test('if reads were ever granted, a signed-in person would see only their own rows', async () => {
   await sql
     .begin(async (tx) => {
       const [userA, userB] = [crypto.randomUUID(), crypto.randomUUID()]
@@ -57,6 +64,7 @@ test('a signed-in person reads only their own rows', async () => {
       await tx`insert into owner_messages (person_id, direction, text) values (${a!.id}, 'to_owner', 'Hi')`
       await tx`insert into messages (conversation_id, sender_id, text) values (${conversation!.id}, ${a!.id}, 'Hello')`
 
+      await tx`grant select on people, impressions, owner_messages, messages to authenticated`
       await tx`set local role authenticated`
       await tx`select set_config('request.jwt.claim.sub', ${userB}, true)`
       const visible = await tx`
