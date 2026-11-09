@@ -184,6 +184,7 @@ async function runBuilderCall(services: Services, env: Env, call: ToolCall): Pro
     if (locked) return locked
     const context = {
       env,
+      name: draft.name,
       links: draft.links,
       saveDraft: (profile: Profile) => saveDraft(tx, draft.userId, call.agentID, profile),
     }

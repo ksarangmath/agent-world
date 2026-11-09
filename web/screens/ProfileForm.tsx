@@ -31,8 +31,7 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
   const set = <K extends keyof Profile>(key: K, value: Profile[K]) =>
     setProfile({ ...profile, [key]: value })
   const text = (
-    key:
-      'name' | 'headline' | 'bio' | 'current_work' | 'looking_for' | 'avoid' | 'conversation_style',
+    key: 'headline' | 'bio' | 'current_work' | 'looking_for' | 'avoid' | 'conversation_style',
     label: string,
     long = false,
   ) => (
@@ -66,7 +65,7 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
   return (
     <form className="form profile" onSubmit={submit}>
       {portrait.data && <img className="portrait" src={portrait.data} alt="" />}
-      {text('name', 'Name')}
+      <h2>{profile.name}</h2>
       {text('headline', 'Headline')}
       <label>
         Age

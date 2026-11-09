@@ -1,7 +1,8 @@
-import { and, eq, isNotNull, isNull, lt, or } from 'drizzle-orm'
+import { and, eq, isNotNull, isNull, lt, or, sql } from 'drizzle-orm'
+import { z } from 'zod'
 import type { OnboardingStatus } from '../../shared/api'
-import type { Profile } from '../../shared/profile'
-import type { Transaction } from '../db/client'
+import { profileSchema, type Profile } from '../../shared/profile'
+import type { Database, Transaction } from '../db/client'
 import { profileDrafts } from '../db/schema'
 import type { AgentConfig } from '../omnara/agents'
 import { archiveAgent, launchAgent } from '../omnara/agents'
@@ -79,19 +80,36 @@ export async function downloadPhoto(url: unknown): Promise<Image | null> {
   }
 }
 
+const identitySchema = z.object({
+  name: profileSchema.shape.name,
+  picture: z.string().max(2000).nullable(),
+})
+
+export type LinkedInIdentity = z.infer<typeof identitySchema>
+
+export async function linkedInIdentity(db: Database, userId: string) {
+  const [row] = await db.execute(
+    sql`select identity_data->>'name' as name, identity_data->>'picture' as picture
+        from auth.identities where user_id = ${userId} and provider = 'linkedin_oidc'`,
+  )
+  const identity = identitySchema.safeParse(row)
+  return identity.success ? identity.data : null
+}
+
 export async function startBuilder(
   services: Services,
   env: Env,
-  user: { id: string; name: string; photoUrl: unknown },
+  userId: string,
+  identity: LinkedInIdentity,
   links: string[],
 ): Promise<'started' | 'busy'> {
   const { db, omnara } = services
   const now = new Date()
   const runId = crypto.randomUUID()
-  const photoUrl = typeof user.photoUrl === 'string' ? user.photoUrl.slice(0, 2000) : null
+  const photoUrl = identity.picture
   const [claimed] = await db
     .insert(profileDrafts)
-    .values({ userId: user.id, runId, links, photoUrl, createdAt: now })
+    .values({ userId, runId, links, photoUrl, createdAt: now })
     .onConflictDoUpdate({
       target: profileDrafts.userId,
       set: {
@@ -122,11 +140,11 @@ export async function startBuilder(
     await db
       .update(profileDrafts)
       .set({ builderAgentId: agentId })
-      .where(and(eq(profileDrafts.userId, user.id), eq(profileDrafts.runId, runId)))
-    const photo = await downloadPhoto(user.photoUrl)
+      .where(and(eq(profileDrafts.userId, userId), eq(profileDrafts.runId, runId)))
+    const photo = await downloadPhoto(photoUrl)
     await sendInput(omnara, agentId, {
       text: JSON.stringify({
-        name: user.name,
+        name: identity.name,
         links,
         photo: photo ? 'attached' : 'none available',
       }),
@@ -140,7 +158,7 @@ export async function startBuilder(
     if (agentId) await archiveAgent(omnara, agentId).catch(() => undefined)
     await db
       .delete(profileDrafts)
-      .where(and(eq(profileDrafts.userId, user.id), eq(profileDrafts.runId, runId)))
+      .where(and(eq(profileDrafts.userId, userId), eq(profileDrafts.runId, runId)))
     throw error
   }
 }
@@ -149,6 +167,8 @@ export async function draftOfAgent(services: Services, agentId: string) {
   const [draft] = await services.db
     .select({
       userId: profileDrafts.userId,
+      name: sql<string>`(select coalesce(identity_data->>'name', '') from auth.identities
+        where user_id = ${profileDrafts.userId} and provider = 'linkedin_oidc')`,
       links: profileDrafts.links,
       done: isNotNull(profileDrafts.profile),
       createdAt: profileDrafts.createdAt,

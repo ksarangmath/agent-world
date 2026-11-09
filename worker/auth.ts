@@ -3,18 +3,9 @@ import { createMiddleware } from 'hono/factory'
 import { HTTPException } from 'hono/http-exception'
 import { z } from 'zod'
 
-const claimsSchema = z.object({
-  sub: z.uuid(),
-  role: z.literal('authenticated'),
-  user_metadata: z
-    .object({ name: z.string().max(200).optional(), picture: z.string().max(2000).optional() })
-    .optional(),
-})
+const claimsSchema = z.object({ sub: z.uuid(), role: z.literal('authenticated') })
 
-export type SignedIn = {
-  Bindings: Env
-  Variables: { userId: string; userName: string; photoUrl: string | undefined }
-}
+export type SignedIn = { Bindings: Env; Variables: { userId: string } }
 
 export const requireUser = createMiddleware<SignedIn>(async (c, next) => {
   const token = c.req.header('Authorization')?.match(/^Bearer (\S+)$/)?.[1]
@@ -26,8 +17,6 @@ export const requireUser = createMiddleware<SignedIn>(async (c, next) => {
   const claims = claimsSchema.safeParse(data?.claims)
   if (error || !claims.success) throw new HTTPException(401)
   c.set('userId', claims.data.sub)
-  c.set('userName', claims.data.user_metadata?.name ?? '')
-  c.set('photoUrl', claims.data.user_metadata?.picture)
   await next()
   c.header('Cache-Control', 'private, no-store')
 })

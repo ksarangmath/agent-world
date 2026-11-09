@@ -6,6 +6,7 @@ import type { Services } from '../tools/run'
 import { logError } from '../log'
 import { lockPeople, markConfigSynced, updateProfile } from '../world/people'
 import { worldAgentConfig } from './agent-config'
+import { linkedInIdentity } from './builder'
 import { launchPerson } from './launch'
 
 export async function saveProfile(services: Services, env: Env, userId: string, edited: Profile) {
@@ -19,8 +20,15 @@ export async function saveProfile(services: Services, env: Env, userId: string, 
     .from(profileDrafts)
     .where(eq(profileDrafts.userId, userId))
   const fixed = person?.profile ?? draft?.profile
-  if (!fixed) return null
-  const profile = { ...edited, avatar: fixed.avatar, sources: fixed.sources, links: fixed.links }
+  const identity = await linkedInIdentity(db, userId)
+  if (!fixed || !identity) return null
+  const profile = {
+    ...edited,
+    name: identity.name,
+    avatar: fixed.avatar,
+    sources: fixed.sources,
+    links: fixed.links,
+  }
   const portrait = !person && draft?.profile ? draft.portrait : null
   if (!person?.agentId) return launchPerson(services, env, userId, profile, portrait)
   await db.transaction((tx) =>

@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import { afterAll, beforeEach, describe, expect, test } from 'vitest'
 import type { Profile } from '../../shared/profile'
+import { signInWithLinkedIn } from '../db/linkedin.fixture'
 import * as schema from '../db/schema'
 import { claimPortrait, finishPortrait } from '../tools/run'
 import { done } from '../world/events'
@@ -33,6 +34,7 @@ beforeEach(async () => {
   await db.execute(
     sql`insert into auth.users (id, email) values (${userId}, 'portrait@test.invalid')`,
   )
+  await signInWithLinkedIn(userId, { name: 'Test Person', picture: null })
   await db.insert(profileDrafts).values({
     userId,
     runId: '00000000-0000-4000-8000-0000000000bb',

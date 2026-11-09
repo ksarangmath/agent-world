@@ -7,6 +7,7 @@ import { tool, type Tool } from './tool'
 
 type BuilderCall = {
   env: Env
+  name: string
   links: string[]
   saveDraft: (profile: Profile) => Promise<'saved' | 'needs portrait' | 'replaced'>
 }
@@ -31,9 +32,9 @@ export const builderTools: Record<string, Tool<BuilderCall>> = {
   ),
   submit_profile: tool(
     'Submit the finished profile. Call it once, at the end.',
-    profileSchema.omit({ links: true }),
-    async ({ links, saveDraft }, profile) => {
-      const result = await saveDraft({ ...profile, links })
+    profileSchema.omit({ name: true, links: true }),
+    async ({ name, links, saveDraft }, profile) => {
+      const result = await saveDraft({ ...profile, name, links })
       if (result === 'saved') return done('Saved. Your work is done.')
       if (result === 'needs portrait') {
         return refuse('Call draw_portrait and wait for its result before submitting.')

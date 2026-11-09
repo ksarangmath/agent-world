@@ -5,7 +5,7 @@ import { requireUser, type SignedIn } from '../auth'
 import { database } from '../db/client'
 import { people } from '../db/schema'
 import { omnara } from '../omnara/client'
-import { onboardingStatus, startBuilder } from '../profile/builder'
+import { linkedInIdentity, onboardingStatus, startBuilder } from '../profile/builder'
 
 const startSchema = z.object({
   links: z.array(z.url({ protocol: /^https$/ }).max(300)).max(7),
@@ -27,11 +27,8 @@ export const onboarding = new Hono<SignedIn>()
       .from(people)
       .where(eq(people.userId, c.var.userId))
     if (person) return c.json({ error: 'You already have an agent.' }, 409)
-    await startBuilder(
-      services,
-      c.env,
-      { id: c.var.userId, name: c.var.userName, photoUrl: c.var.photoUrl },
-      body.data.links,
-    )
+    const identity = await linkedInIdentity(services.db, c.var.userId)
+    if (!identity) return c.json({ error: 'Sign in with LinkedIn to build a profile.' }, 403)
+    await startBuilder(services, c.env, c.var.userId, identity, body.data.links)
     return c.json({ status: 'building' })
   })
