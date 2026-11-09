@@ -119,7 +119,8 @@ describe('portrait lifecycle', () => {
     await expect(
       saveProfile(services, env, userId, {
         hobbies: ['chess', 'coffee', 'hiking'],
-        looking_for: [],
+        looking_for: ['Making new friends', 'Finding a climbing partner', 'Learning to cook'],
+        about_me: '',
       }),
     ).rejects.toThrow()
     const portraitOf = async () =>
@@ -135,6 +136,7 @@ describe('portrait lifecycle', () => {
     await saveProfile(services, env, userId, {
       hobbies: ['chess', 'coffee', 'hiking'],
       looking_for: [],
+      about_me: '',
     })
     expect([...(await portraitOf())!]).toEqual([7])
   })

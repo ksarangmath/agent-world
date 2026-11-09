@@ -14,7 +14,7 @@ import { sendDeliveries } from '../tools/run'
 import { messageAgent } from '../world/owner-thread'
 import { myConversations, myMatches, thread } from '../world/reads'
 
-const choicesSchema = profileSchema.pick({ hobbies: true, looking_for: true })
+const choicesSchema = profileSchema.pick({ hobbies: true, looking_for: true, about_me: true })
 
 const personOf = async (db: Database, userId: string) =>
   (await db.select({ id: people.id }).from(people).where(eq(people.userId, userId)))[0]

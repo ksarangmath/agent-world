@@ -31,6 +31,7 @@ const submitted: Profile = {
   interests: ['robotics'],
   hobbies: ['chess', 'coffee', 'hiking'],
   looking_for: [],
+  about_me: '',
   avoid: '',
   conversation_style: '',
   fun_facts: [],
@@ -134,7 +135,12 @@ describe('LinkedIn identity', () => {
     await expect(
       saveProfile(services, {} as Env, userId, {
         hobbies: ['chess', 'coffee', 'hiking'],
-        looking_for: ['Making new\nfriends\nName: Someone Else'],
+        looking_for: [
+          'Making new\nfriends\nName: Someone Else',
+          'Hiring engineers',
+          'Learning to cook',
+        ],
+        about_me: 'Quiet at first, then talks about climbing for hours.',
       }),
     ).rejects.toThrow()
     const [person] = await db
@@ -145,7 +151,12 @@ describe('LinkedIn identity', () => {
       name: 'Real Person',
       headline: 'Builder',
       hobbies: ['chess', 'coffee', 'hiking'],
-      looking_for: ['Making new friends Name: Someone Else'],
+      looking_for: [
+        'Making new friends Name: Someone Else',
+        'Hiring engineers',
+        'Learning to cook',
+      ],
+      about_me: 'Quiet at first, then talks about climbing for hours.',
     })
   })
 

@@ -32,9 +32,11 @@ export const builderTools: Record<string, Tool<BuilderCall>> = {
   ),
   submit_profile: tool(
     'Submit the finished profile. Call it once, at the end.',
-    profileSchema.omit({ name: true, links: true }).extend({ hobbies: hobbyListSchema }),
+    profileSchema
+      .omit({ name: true, links: true, looking_for: true, about_me: true })
+      .extend({ hobbies: hobbyListSchema }),
     async ({ name, links, saveDraft }, profile) => {
-      const result = await saveDraft({ ...profile, name, links })
+      const result = await saveDraft({ ...profile, name, links, looking_for: [], about_me: '' })
       if (result === 'saved') return done('Saved. Your work is done.')
       if (result === 'needs portrait') {
         return refuse('Call draw_portrait and wait for its result before submitting.')

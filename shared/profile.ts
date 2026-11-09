@@ -109,7 +109,11 @@ export const profileSchema = z.object({
   expertise: z.array(tag).max(10),
   interests: z.array(tag).max(15),
   hobbies: hobbyListSchema.refine((list) => list.length >= 3, 'Pick at least 3 hobbies.'),
-  looking_for: z.array(z.string().trim().min(1).max(100)).max(5),
+  looking_for: z
+    .array(z.string().trim().min(1).max(100))
+    .min(3, 'Say at least 3 things you’re looking for.')
+    .max(5),
+  about_me: z.string().trim().max(1000),
   avoid: z.string().trim().max(300),
   conversation_style: z.string().trim().max(300),
   fun_facts: z.array(z.string().trim().min(1).max(200)).max(5),
