@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from 'react'
+
 export const sky = {
   time: { value: 0 },
   daylight: { value: 1 },
@@ -11,6 +13,23 @@ export const onScreen = (x: number, y: number) =>
   x >= view.left && x <= view.right && y >= view.top && y <= view.bottom
 
 export const chunkSize = 64
+
+export const detailZoom = 10
+
+let detailed = true
+const detailListeners = new Set<() => void>()
+
+export function showDetail(value: boolean) {
+  if (value === detailed) return
+  detailed = value
+  detailListeners.forEach((listener) => listener())
+}
+
+export const useDetail = () =>
+  useSyncExternalStore(
+    (listener) => (detailListeners.add(listener), () => void detailListeners.delete(listener)),
+    () => detailed,
+  )
 
 export function chunked<T extends { x: number; y: number }>(items: T[]): T[][] {
   const chunks = new Map<number, T[]>()

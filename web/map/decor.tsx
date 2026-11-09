@@ -2,7 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import { Color, Object3D, type BufferGeometry, type InstancedMesh, type Material } from 'three'
 import type { City } from './city'
-import { sky } from './clock'
+import { sky, useDetail } from './clock'
 import { Creatures } from './decor/creatures'
 import { glowKits, litKits } from './decor/kits'
 import { glowMaterial, litMaterial } from './decor/materials'
@@ -47,7 +47,9 @@ function Props<K extends string>({
     instances.instanceColor!.needsUpdate = true
     instances.computeBoundingSphere()
   }, [items])
-  return <instancedMesh ref={mesh} args={[geometry, material, items.length]} castShadow />
+  return (
+    <instancedMesh ref={mesh} args={[geometry, material, items.length]} castShadow={useDetail()} />
+  )
 }
 
 export function Decor({ city }: { city: City }) {

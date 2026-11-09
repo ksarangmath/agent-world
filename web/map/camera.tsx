@@ -3,10 +3,12 @@ import { useEffect } from 'react'
 import { Vector3, type OrthographicCamera } from 'three'
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js'
 import { mapHeight, mapWidth } from '../../shared/map/grid'
-import { view, viewFrom } from './clock'
+import { detailZoom, showDetail, view, viewFrom } from './clock'
 import { revealAt } from './sightlines'
 
 const distance = 800
+const idleFrameInterval = 1000 / 30
+const movingFor = 100
 
 export type Focus = { x: number; y: number; zoom: number }
 
@@ -77,7 +79,7 @@ function onKey(event: KeyboardEvent) {
 export function Camera({ focus }: { focus: Focus }) {
   const get = useThree((state) => state.get)
   useEffect(() => {
-    const { camera, gl } = get()
+    const { camera, gl, advance } = get()
     camera.position.set(
       focus.x + viewFrom.x * distance,
       viewFrom.y * distance,
@@ -107,16 +109,30 @@ export function Camera({ focus }: { focus: Focus }) {
     const cancelFlight = () => {
       flight.start = -1
     }
+    let movedAt = -Infinity
+    let drawnAt = -Infinity
+    const moved = () => {
+      movedAt = performance.now()
+    }
     controls.addEventListener('change', keepInside)
+    controls.addEventListener('change', moved)
     controls.addEventListener('start', cancelFlight)
     controls.update()
     active = controls
     window.addEventListener('keydown', onKey)
+    let frame = requestAnimationFrame(function draw(now) {
+      frame = requestAnimationFrame(draw)
+      if (now - movedAt > movingFor && now - drawnAt < idleFrameInterval - 2) return
+      drawnAt = now
+      advance(now / 1000)
+    })
     return () => {
+      cancelAnimationFrame(frame)
       window.removeEventListener('keydown', onKey)
       active = null
       cancelFlight()
       controls.removeEventListener('change', keepInside)
+      controls.removeEventListener('change', moved)
       controls.removeEventListener('start', cancelFlight)
       controls.dispose()
     }
@@ -186,6 +202,7 @@ export function VisibleArea() {
       camera.updateProjectionMatrix()
     }
     revealAt(camera.zoom)
+    showDetail(camera.zoom >= detailZoom)
   }, 0.5)
   return null
 }

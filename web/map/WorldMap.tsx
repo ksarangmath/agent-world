@@ -43,7 +43,8 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
     <div className="map">
       <Canvas
         orthographic
-        dpr={[1, 2]}
+        frameloop="never"
+        dpr={1}
         shadows="percentage"
         gl={{ antialias: false }}
         camera={{ near: 1, far: 4000 }}

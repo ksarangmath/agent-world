@@ -1,10 +1,19 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
-import { Vector2, Vector3, type OrthographicCamera } from 'three'
+import {
+  Vector2,
+  Vector3,
+  type OrthographicCamera,
+  type ShaderMaterial,
+  type WebGLRenderer,
+  type WebGLRenderTarget,
+} from 'three'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
+import type { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
 import { RenderPixelatedPass } from 'three/examples/jsm/postprocessing/RenderPixelatedPass.js'
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
+import { detailZoom } from './clock'
 
 const pixel = 2
 const dither = 0.3
@@ -37,30 +46,58 @@ void main() {
 }`,
 }
 
+type PassTargets = {
+  _fsQuad: FullScreenQuad
+  _beautyRenderTarget: WebGLRenderTarget
+  _normalRenderTarget: WebGLRenderTarget
+}
+
+class OutlinedPixelPass extends RenderPixelatedPass {
+  override render(
+    renderer: WebGLRenderer,
+    writeBuffer: WebGLRenderTarget,
+    readBuffer: WebGLRenderTarget,
+    deltaTime: number,
+    maskActive: boolean,
+  ) {
+    if ((this.camera as OrthographicCamera).zoom >= detailZoom) {
+      super.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive)
+      return
+    }
+    const { _fsQuad, _beautyRenderTarget, _normalRenderTarget } = this as unknown as PassTargets
+    const { uniforms } = _fsQuad.material as ShaderMaterial
+    uniforms.normalEdgeStrength!.value = 0
+    uniforms.depthEdgeStrength!.value = this.depthEdgeStrength
+    renderer.setRenderTarget(_beautyRenderTarget)
+    renderer.render(this.scene, this.camera)
+    uniforms.tDiffuse!.value = _beautyRenderTarget.texture
+    uniforms.tDepth!.value = _beautyRenderTarget.depthTexture
+    uniforms.tNormal!.value = _normalRenderTarget.texture
+    renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer)
+    if (this.clear && !this.renderToScreen) renderer.clear()
+    _fsQuad.render(renderer)
+  }
+}
+
 export function PixelPass() {
   const { gl, scene, camera, size } = useThree()
-  const dpr = useThree((state) => state.viewport.dpr)
   const composer = useMemo(() => {
     const effects = new EffectComposer(gl)
-    const pixelSize = Math.max(2, Math.round(pixel * dpr))
     const shading = new ShaderPass(grade)
     effects.addPass(
-      new RenderPixelatedPass(pixelSize, scene, camera, {
+      new OutlinedPixelPass(pixel, scene, camera, {
         normalEdgeStrength: 0.45,
         depthEdgeStrength: 0.6,
       }),
     )
     effects.addPass(shading)
     effects.addPass(new OutputPass())
-    return { effects, pixelSize, grid: shading.uniforms.grid!.value as Vector2 }
-  }, [gl, scene, camera, dpr])
+    return { effects, grid: shading.uniforms.grid!.value as Vector2 }
+  }, [gl, scene, camera])
   useEffect(() => {
     composer.effects.setSize(size.width, size.height)
-    composer.grid.set(
-      Math.floor((size.width * dpr) / composer.pixelSize),
-      Math.floor((size.height * dpr) / composer.pixelSize),
-    )
-  }, [composer, size, dpr])
+    composer.grid.set(Math.floor(size.width / pixel), Math.floor(size.height / pixel))
+  }, [composer, size])
   useEffect(
     () => () => {
       composer.effects.passes.forEach((pass) => pass.dispose())

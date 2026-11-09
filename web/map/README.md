@@ -41,5 +41,10 @@ the world snapshot that `People` and `Labels` draw.
 - **`sky.tsx`**: lighting from the real sun height over San Francisco, with
   the sun at a fixed bearing so shadows fall toward the camera, and moonlight
   at night. **`paint.ts`** holds the shared toon material.
-  **`clock.ts`** shares the time, daylight, and the visible area (set once a
-  frame by `camera.tsx`), so moving things skip work off screen.
+  **`clock.ts`** shares the time, daylight, the visible area (set once a
+  frame by `camera.tsx`), so moving things skip work off screen, and whether
+  the view is zoomed in past `detailZoom`. Zoomed out, only buildings and
+  landmarks cast shadows and outlines come from depth alone, which drops about
+  half the draw calls.
+- **`camera.tsx`** also runs the frame loop: 30 frames a second, and the
+  display's full rate while the camera moves.

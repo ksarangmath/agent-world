@@ -10,7 +10,7 @@ import {
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { treeKinds, type Tree, type TreeKind } from './city'
-import { chunked } from './clock'
+import { chunked, useDetail } from './clock'
 import { hash } from './elevation'
 import { colored, toon } from './paint'
 import { seeThrough } from './sightlines'
@@ -75,7 +75,13 @@ function Chunk({ trees, kind }: { trees: Tree[]; kind: TreeKind }) {
     if (mesh.current!.instanceColor) mesh.current!.instanceColor.needsUpdate = true
     mesh.current!.computeBoundingSphere()
   }, [trees])
-  return <instancedMesh ref={mesh} args={[shapes[kind], material, trees.length]} castShadow />
+  return (
+    <instancedMesh
+      ref={mesh}
+      args={[shapes[kind], material, trees.length]}
+      castShadow={useDetail()}
+    />
+  )
 }
 
 export function Trees({ trees }: { trees: Tree[] }) {

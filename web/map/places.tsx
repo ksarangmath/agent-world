@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useRef } from 'react'
 import { BoxGeometry, Color, Object3D, type InstancedMesh } from 'three'
 import { places, type Place } from '../../shared/map/places'
 import { spots } from '../../shared/map/spots'
+import { useDetail } from './clock'
 import { hash, surfaceAt } from './elevation'
 import { toonBands } from './paint'
 
@@ -151,7 +152,12 @@ export function Places() {
     mesh.current!.computeBoundingSphere()
   }, [props])
   return (
-    <instancedMesh ref={mesh} args={[box, undefined, props.length]} castShadow receiveShadow>
+    <instancedMesh
+      ref={mesh}
+      args={[box, undefined, props.length]}
+      castShadow={useDetail()}
+      receiveShadow
+    >
       <meshToonMaterial gradientMap={toonBands} />
     </instancedMesh>
   )

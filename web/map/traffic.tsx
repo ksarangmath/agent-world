@@ -15,7 +15,7 @@ import geography from '../../shared/map/geography.json'
 import { warp } from '../../shared/map/grid'
 import { roadClasses } from '../../shared/map/route'
 import { groundAt, isDry } from '../../shared/map/terrain'
-import { onScreen, sky } from './clock'
+import { onScreen, sky, useDetail } from './clock'
 import { hash, surfaceAt } from './elevation'
 import { Fog } from './fog'
 import { colored, toon } from './paint'
@@ -611,7 +611,7 @@ function Vehicles({ fleet }: { fleet: Fleet }) {
         ref={body}
         args={[fleet.model, paint, fleet.count]}
         frustumCulled={false}
-        castShadow
+        castShadow={useDetail()}
       />
       {fleet.glow && (
         <instancedMesh ref={glow} args={[fleet.glow, lamp, fleet.count]} frustumCulled={false} />
