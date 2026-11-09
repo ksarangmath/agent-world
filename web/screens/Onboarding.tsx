@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import type { BuildStage } from '../../shared/api'
 import { startOnboarding, useOnboarding } from '../api'
 import { ProfileForm } from './ProfileForm'
@@ -83,42 +83,29 @@ function LinkedInForm({ userId }: { userId: string }) {
   const queryClient = useQueryClient()
   const [linkedin, setLinkedin] = useState('')
   const [consent, setConsent] = useState(false)
-  const field = useRef<HTMLInputElement>(null)
   const start = useMutation({
     mutationFn: startOnboarding,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['onboarding', userId] }),
   })
-  const paste = async () => {
-    try {
-      setLinkedin((await navigator.clipboard.readText()).trim())
-    } catch {
-      field.current?.focus()
-    }
-  }
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (!start.isPending) start.mutate(linkedInAddress(linkedin))
   }
   return (
-    <form className="form join" onSubmit={submit}>
-      <div className="steps">
-        <a
-          className="big linkedin"
-          href="https://www.linkedin.com/in/me"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <span className="mark" aria-hidden="true">
-            in
-          </span>
-          Open LinkedIn
-        </a>
-        <button type="button" className="big" onClick={() => void paste()}>
-          Paste link
-        </button>
-      </div>
+    <form className="form" onSubmit={submit}>
+      <p>Open your LinkedIn profile, copy its address, and paste it below.</p>
+      <a
+        className="big linkedin"
+        href="https://www.linkedin.com/in/me"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <span className="mark" aria-hidden="true">
+          in
+        </span>
+        Open LinkedIn
+      </a>
       <input
-        ref={field}
         aria-label="Your LinkedIn profile link"
         placeholder="linkedin.com/in/you"
         value={linkedin}

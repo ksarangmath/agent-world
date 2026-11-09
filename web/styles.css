@@ -88,15 +88,6 @@ canvas {
   margin: 0;
 }
 
-.join .steps {
-  display: flex;
-  gap: 8px;
-}
-
-.join .steps .big {
-  flex: 1;
-}
-
 .big {
   display: inline-flex;
   align-items: center;
