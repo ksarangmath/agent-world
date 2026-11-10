@@ -7,7 +7,7 @@ import { spots } from '../../shared/map/spots'
 import type { Profile } from '../../shared/profile'
 import * as schema from '../db/schema'
 import { deferred } from '../omnara/tool-calls'
-import { runWorldCall } from './run'
+import { runWorldCall, sendDeliveries } from './run'
 
 const client = postgres('postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 8 })
 const db = drizzle(client, { schema, casing: 'snake_case' })
@@ -45,6 +45,28 @@ const trips = async () =>
   (await db.select({ kind: worldEvents.kind }).from(worldEvents)).filter(
     (event) => event.kind === 'arrived',
   ).length
+
+describe('delayed deliveries', () => {
+  test('a delivery that is already due but still pending gets a background drain', async () => {
+    const [person] = await db
+      .select({ id: people.id })
+      .from(people)
+      .where(eq(people.agentId, agentID))
+    const [row] = await db
+      .insert(schema.deliveries)
+      .values({
+        personId: person!.id,
+        text: '[world] {"event":"nudge"}',
+        mode: 'queued',
+        dueAt: new Date(Date.now() - 1000),
+      })
+      .returning({ id: schema.deliveries.id })
+    const tasks: Promise<unknown>[] = []
+    await sendDeliveries(services, [row!.id], (task) => void tasks.push(task))
+    expect(tasks).toHaveLength(1)
+    await Promise.allSettled(tasks)
+  })
+})
 
 describe('running world tool calls', () => {
   test('a repeated call returns the stored result without acting twice', async () => {

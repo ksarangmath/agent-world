@@ -9,7 +9,11 @@ import type {
 import type { Database, Transaction } from '../db/client'
 import { conversations, impressions, messages, ownerMessages, people } from '../db/schema'
 
-export async function transcript(db: Database, conversationId: string): Promise<Transcript | null> {
+export async function transcript(
+  db: Database,
+  conversationId: string,
+  now = new Date(),
+): Promise<Transcript | null> {
   const [conversation] = await db
     .select()
     .from(conversations)
@@ -24,7 +28,12 @@ export async function transcript(db: Database, conversationId: string): Promise<
     .from(people)
     .where(inArray(people.id, [conversation.personA, conversation.personB]))
   const lines = await db
-    .select({ senderId: messages.senderId, text: messages.text, at: messages.createdAt })
+    .select({
+      senderId: messages.senderId,
+      text: messages.text,
+      at: messages.createdAt,
+      visibleAt: messages.visibleAt,
+    })
     .from(messages)
     .where(eq(messages.conversationId, conversationId))
     .orderBy(asc(messages.id))
@@ -38,7 +47,10 @@ export async function transcript(db: Database, conversationId: string): Promise<
       portrait: p.portrait,
     })),
     endedAt: conversation.endedAt?.toISOString() ?? null,
-    messages: lines.map((line) => ({ ...line, at: line.at.toISOString() })),
+    messages: lines
+      .filter((line) => line.visibleAt <= now)
+      .map((line) => ({ senderId: line.senderId, text: line.text, at: line.at.toISOString() })),
+    typing: lines.find((line) => line.visibleAt > now)?.senderId ?? null,
   }
 }
 

@@ -9,9 +9,10 @@ export function ConversationOverlay() {
   const transcript = useTranscript(conversationId ?? '')
   const list = useRef<HTMLOListElement>(null)
   const count = transcript.data?.messages.length ?? 0
+  const typing = transcript.data?.typing ?? null
   useEffect(() => {
     list.current?.lastElementChild?.scrollIntoView({ block: 'nearest' })
-  }, [count])
+  }, [count, typing])
   if (!transcript.data) {
     return (
       <Overlay label="Conversation">
@@ -64,6 +65,16 @@ export function ConversationOverlay() {
             </li>
           )
         })}
+        {transcript.data.typing && (
+          <li className={transcript.data.typing === left.id ? 'left typing' : 'right typing'}>
+            <Portrait person={transcript.data.typing === left.id ? left : right} size="small" />
+            <p aria-label="typing">
+              <i />
+              <i />
+              <i />
+            </p>
+          </li>
+        )}
         {live && count === 0 && <li className="muted">Waiting for the first word…</li>}
       </ol>
     </Overlay>

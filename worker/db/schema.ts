@@ -153,6 +153,7 @@ export const messages = pgTable(
       .references(() => people.id),
     text: text().notNull(),
     createdAt: createdAt(),
+    visibleAt: createdAt(),
   },
   (t) => [
     index('messages_conversation').on(t.conversationId, t.id),
@@ -230,6 +231,7 @@ export const deliveries = pgTable(
     actorId: uuid().references(() => people.id),
     mode: deliveryMode().notNull(),
     text: text().notNull(),
+    dueAt: createdAt(),
     deliveredAt: timestamptz(),
     createdAt: createdAt(),
   },

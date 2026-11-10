@@ -15,7 +15,9 @@ import {
   respondToRequest,
   restAfterConversationMs,
   sendMessage,
+  speakingMs,
 } from './conversations'
+import { transcript } from './reads'
 import type { World } from './events'
 import { recordImpression } from './impressions'
 import { messageAgent, messageOwner } from './owner-thread'
@@ -205,7 +207,6 @@ describe('conversations', () => {
     expect(stored).toEqual([{ text: 'What are you building?' }])
     const message = (await inboxOf(b)).find((text) => text.startsWith('[conversation] '))
     expect(JSON.parse(message!.slice('[conversation] '.length))).toEqual({
-      from: 'A',
       person_id: a,
       text: 'What are you building?',
     })
@@ -243,8 +244,8 @@ describe('conversations', () => {
       run((w) => sendMessage(w, a, 'from A'), later(1000)),
       run((w) => sendMessage(w, b, 'from B'), later(1001)),
     ])
-    expect(sent.every((outcome) => outcome.ok)).toBe(true)
-    expect(await db.select().from(messages)).toHaveLength(2)
+    expect(sent.filter((outcome) => outcome.ok)).toHaveLength(1)
+    expect(await db.select().from(messages)).toHaveLength(1)
   })
 
   test('expiry racing an accept leaves the request either accepted or expired, never both', async () => {
@@ -288,22 +289,65 @@ describe('pace', () => {
     expect(started!.time).toMatch(/PT$/)
   })
 
-  test('a message lands at once, and the sender waits before the next', async () => {
+  test('a message takes as long to land as it takes to say', async () => {
     const [a, b] = [await person('Ada'), await person('Bob')]
-    await talking(a, b)
-    const outcome = await run((w) => sendMessage(w, a, 'Hey!'))
+    const id = await talking(a, b)
+    const text = "hey, I'm Ada. robots by day, chess by night. what about you?"
+    const outcome = await run((w) => sendMessage(w, a, text))
     expect(outcome.ok).toBe(true)
-    expect(outcome.dueAt).toEqual(later(20_000))
-    expect(await inboxOf(b)).toContainEqual(expect.stringContaining('"text":"Hey!"'))
+    expect(outcome.dueAt).toBeUndefined()
+    const spoken = later(speakingMs(text))
+    const [delivery] = await db
+      .select({ dueAt: deliveries.dueAt })
+      .from(deliveries)
+      .where(sql`${deliveries.personId} = ${b} and ${deliveries.text} like '[conversation]%'`)
+    expect(delivery!.dueAt).toEqual(spoken)
+    const before = await transcript(db, id, later(speakingMs(text) - 1000))
+    expect(before!.messages).toHaveLength(0)
+    expect(before!.typing).toBe(a)
+    const after = await transcript(db, id, spoken)
+    expect(after!.messages.map((m) => m.text)).toEqual([text])
+    expect(after!.typing).toBeNull()
   })
 
-  test('messages alternate: nobody sends twice in a row', async () => {
+  test('agents meet blind: look_around and requests carry ids, not names', async () => {
+    const [a, b, c] = [await person('Ada'), await person('Bob'), await person('Cy')]
+    await talking(a, b)
+    await run((w) => endConversation(w, a, 'done'), later(minutes(1)))
+    const free = later(minutes(1) + restAfterConversationMs + 1000)
+    const look = JSON.parse((await run((w) => lookAround(w, a), free)).text)
+    expect(look.people_here).toEqual(
+      expect.arrayContaining([
+        { person_id: b, status: 'available', met_before: true },
+        { person_id: c, status: 'available', met_before: false },
+      ]),
+    )
+    expect(JSON.stringify(look)).not.toContain('Bob')
+    await run((w) => requestConversation(w, a, c, "hey, I'm Ada. what brings you here?"), free)
+    const [request] = (await eventsOf(c)).filter((e) => e.event === 'conversation_request')
+    expect(request).toMatchObject({ from_person_id: a, met_before: false })
+    expect(JSON.stringify(request)).not.toContain("Ada's headline")
+    expect(request!.from).toBeUndefined()
+    await run(expireRequests, later(minutes(1) + restAfterConversationMs + minutes(6)))
+    const [expired] = (await eventsOf(a)).filter((e) => e.event === 'request_expired')
+    expect(expired).toMatchObject({ to_person_id: c })
+    expect(JSON.stringify(expired)).not.toContain('Cy')
+  })
+
+  test('messages alternate, and nobody sends while one is still landing', async () => {
     const [a, b] = [await person('Ada'), await person('Bob')]
     await talking(a, b)
     expect((await run((w) => sendMessage(w, a, 'Hey!'))).ok).toBe(true)
-    expect((await run((w) => sendMessage(w, a, 'Still there?'))).text).toContain('their turn')
-    expect((await run((w) => sendMessage(w, b, 'Hi!'))).ok).toBe(true)
-    expect((await run((w) => sendMessage(w, a, 'There you are.'))).ok).toBe(true)
+    const landed = speakingMs('Hey!')
+    expect((await run((w) => sendMessage(w, b, 'Hi!'), later(landed - 1))).text).toContain(
+      'still landing',
+    )
+    expect((await run((w) => sendMessage(w, a, 'Still there?'), later(landed))).text).toContain(
+      'their turn',
+    )
+    expect((await run((w) => sendMessage(w, b, 'Hi!'), later(landed))).ok).toBe(true)
+    const both = landed + speakingMs('Hi!')
+    expect((await run((w) => sendMessage(w, a, 'There you are.'), later(both))).ok).toBe(true)
     const [count] = await db.select({ n: sql<number>`count(*)::int` }).from(messages)
     expect(count!.n).toBe(3)
   })
@@ -386,7 +430,7 @@ describe('travel', () => {
     await run((w) => goTo(w, b, 'lands-end-lookout', 'coffee'))
     expect(await pendingFrom(a)).toHaveLength(0)
     expect(await eventsOf(a)).toContainEqual(
-      expect.objectContaining({ event: 'request_expired', why: 'B left' }),
+      expect.objectContaining({ event: 'request_expired', why: 'they left for somewhere else' }),
     )
   })
 })

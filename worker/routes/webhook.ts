@@ -13,7 +13,8 @@ export const webhook = new Hono<{ Bindings: Env }>().post('/', async (c) => {
   if (!payload) return c.text('invalid webhook', 400)
   if (payload.event === 'tool_call_update') {
     const services = { db: database(c.env), omnara: omnara(c.env) }
-    const handling = Object.values(toolWorkers(services, c.env, false)).map((worker) =>
+    const background = (task: Promise<unknown>) => c.executionCtx.waitUntil(task)
+    const handling = Object.values(toolWorkers(services, c.env, false, background)).map((worker) =>
       worker.handle(payload.data),
     )
     c.executionCtx.waitUntil(Promise.allSettled(handling))

@@ -99,6 +99,13 @@
       "when": 1794276198794,
       "tag": "20261110020318_resting_until",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794337630131,
+      "tag": "20261110190710_speaking_time",
+      "breakpoints": true
     }
   ]
 }

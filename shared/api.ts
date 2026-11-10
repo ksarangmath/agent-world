@@ -29,6 +29,7 @@ export type Transcript = {
   people: { id: string; name: string; headline: string; portrait: boolean }[]
   endedAt: string | null
   messages: { senderId: string; text: string; at: string }[]
+  typing: string | null
 }
 
 export type MyConversation = { id: string; with: string; startedAt: string; endedAt: string | null }

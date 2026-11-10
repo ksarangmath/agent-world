@@ -84,7 +84,13 @@ async function personOfAgent(db: Database, agentId: string) {
   return person
 }
 
-export async function runWorldCall(services: Services, call: ToolCall): Promise<Answer> {
+export type Background = (task: Promise<unknown>) => void
+
+export async function runWorldCall(
+  services: Services,
+  call: ToolCall,
+  background?: Background,
+): Promise<Answer> {
   const { db } = services
   const existing = await stored(db, call)
   if (existing) return answer(existing)
@@ -100,11 +106,14 @@ export async function runWorldCall(services: Services, call: ToolCall): Promise<
     await touch(world, person.id)
     return { row: (await record(tx, call, outcome, now))!, deliveryIds: world.deliveries }
   })
-  await sendDeliveries(services, deliveryIds).catch((error: unknown) =>
+  await sendDeliveries(services, deliveryIds, background).catch((error: unknown) =>
     logError('deliveries will be retried', error),
   )
   return answer(row)
 }
+
+const lingerMs = 20_000
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const actors = alias(people, 'actors')
 const drainBatch = 50
@@ -115,11 +124,13 @@ async function drainRecipient({ db, omnara }: Services, personId: string) {
       sql`select pg_try_advisory_xact_lock(hashtext(${`deliveries:${personId}`})) as locked`,
     )
     if (!lock?.locked) return
+    const now = new Date()
     const rows = await tx
       .select({
         id: deliveries.id,
         text: deliveries.text,
         mode: deliveries.mode,
+        dueAt: deliveries.dueAt,
         agentId: people.agentId,
         actorId: actors.id,
         actorProfile: actors.profile,
@@ -130,8 +141,14 @@ async function drainRecipient({ db, omnara }: Services, personId: string) {
       .where(and(eq(deliveries.personId, personId), isNull(deliveries.deliveredAt)))
       .orderBy(asc(deliveries.sequence))
       .limit(drainBatch)
+    let waiting = false
     for (const row of rows) {
       if (!row.agentId) return
+      if (row.dueAt > now) {
+        waiting = true
+        continue
+      }
+      if (waiting && row.mode !== 'steering') continue
       try {
         await sendInput(omnara, row.agentId, {
           text: row.text,
@@ -148,13 +165,28 @@ async function drainRecipient({ db, omnara }: Services, personId: string) {
   })
 }
 
-export async function sendDeliveries(services: Services, ids: string[]) {
+export async function sendDeliveries(services: Services, ids: string[], background?: Background) {
   if (ids.length === 0) return
   const recipients = await services.db
     .selectDistinct({ personId: deliveries.personId })
     .from(deliveries)
     .where(inArray(deliveries.id, ids))
-  for (const { personId } of recipients) await drainRecipient(services, personId)
+  const drain = async () => {
+    for (const { personId } of recipients) await drainRecipient(services, personId)
+  }
+  await drain()
+  if (!background) return
+  const [due] = await services.db
+    .select({ at: sql<string | null>`max(${deliveries.dueAt})` })
+    .from(deliveries)
+    .where(and(inArray(deliveries.id, ids), isNull(deliveries.deliveredAt)))
+  if (!due?.at) return
+  const wait = Math.max(0, Math.min(lingerMs, new Date(due.at).getTime() - Date.now()))
+  background(
+    sleep(wait)
+      .then(drain)
+      .catch((error: unknown) => logError('delayed delivery will be retried', error)),
+  )
 }
 
 export async function sendPendingDeliveries(services: Services) {
@@ -325,12 +357,17 @@ const retryLater =
 const each = (tools: Record<string, unknown>, run: ToolHandler) =>
   Object.fromEntries(Object.keys(tools).map((name) => [name, retryLater(run)]))
 
-export function toolWorkers(services: Services, env: Env, scheduled: boolean) {
+export function toolWorkers(
+  services: Services,
+  env: Env,
+  scheduled: boolean,
+  background?: Background,
+) {
   return {
     world: toolWorker(
       services.omnara,
       env.OMNARA_WORLD_PROFILE_ID,
-      each(worldTools, (call) => runWorldCall(services, call)),
+      each(worldTools, (call) => runWorldCall(services, call, background)),
     ),
     builder: toolWorker(services.omnara, env.OMNARA_BUILDER_PROFILE_ID, {
       ...each(builderTools, (call) => runBuilderCall(services, env, call)),

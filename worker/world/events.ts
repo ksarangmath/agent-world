@@ -31,7 +31,7 @@ export async function deliver(
   world: World,
   to: string,
   text: string,
-  options: { actor?: string; mode?: DeliveryMode } = {},
+  options: { actor?: string; mode?: DeliveryMode; dueAt?: Date } = {},
 ) {
   const [delivery] = await world.tx
     .insert(deliveries)
@@ -40,6 +40,7 @@ export async function deliver(
       text,
       actorId: options.actor ?? null,
       mode: options.mode ?? 'queued',
+      dueAt: options.dueAt ?? world.now,
     })
     .returning({ id: deliveries.id })
   world.deliveries.push(delivery!.id)

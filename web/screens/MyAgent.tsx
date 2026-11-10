@@ -1,8 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
-import { sendToAgent, useMatches, useMe, useMyConversations, useThread } from '../api'
+import { placesById } from '../../shared/map/places'
+import { sendToAgent, useMatches, useMe, useMyConversations, useThread, useWorld } from '../api'
 import { useSession } from '../auth'
+import { doingNow } from '../map/doing'
+import { ago } from './Overlay'
 import { ProfileForm } from './ProfileForm'
 
 function Thread({ userId }: { userId: string }) {
@@ -22,7 +25,11 @@ function Thread({ userId }: { userId: string }) {
   }
   return (
     <section>
-      <h2>You and your agent</h2>
+      <h2>Talk to your agent</h2>
+      <p className="muted">
+        It answers like you would: who it met, who's worth your time and who isn't, where it is. Or
+        give it direction.
+      </p>
       <ul className="thread">
         {thread.data?.map((message) => (
           <li key={`${message.at}-${message.direction}`} className={message.direction}>
@@ -34,7 +41,7 @@ function Thread({ userId }: { userId: string }) {
         <textarea
           value={text}
           maxLength={500}
-          placeholder="Give your agent direction, like “find people building devtools”"
+          placeholder="Who did you meet today? Anyone worth my time?"
           onChange={(event) => setText(event.target.value)}
         />
         <button type="submit" disabled={send.isPending}>
@@ -52,6 +59,7 @@ export function MyAgent() {
   const me = useMe(userId)
   const conversations = useMyConversations(userId)
   const matches = useMatches(userId)
+  const world = useWorld()
   if (session === null) return <main className="page">Sign in to see your agent.</main>
   if (!userId || !me.data) return <main className="page">Loading…</main>
   if (!me.data.person) {
@@ -61,10 +69,39 @@ export function MyAgent() {
       </main>
     )
   }
+  const people = world.data?.snapshot.people ?? []
+  const live = people.find((person) => person.id === me.data!.person!.id)
+  const partner = live?.conversationId
+    ? people.find(
+        (person) => person.id !== live.id && person.conversationId === live.conversationId,
+      )
+    : undefined
   return (
     <main className="page">
       <Link to="/">Back to the world</Link>
       <h1>{me.data.person.profile.name}'s agent</h1>
+      <section>
+        <h2>Right now</h2>
+        {live ? (
+          <p>
+            <span className="doing">{doingNow(live, people)}</span>
+            <span className="muted"> · {placesById.get(live.placeId)?.name}</span>
+            {live.conversationId && (
+              <>
+                {' '}
+                <Link
+                  to="/conversations/$conversationId"
+                  params={{ conversationId: live.conversationId }}
+                >
+                  Listen in{partner ? ` on ${partner.name}` : ''}
+                </Link>
+              </>
+            )}
+          </p>
+        ) : (
+          <p className="muted">Not in the world yet.</p>
+        )}
+      </section>
       <section>
         <h2>Mutual matches</h2>
         {matches.data?.mutual.length ? (
@@ -89,24 +126,24 @@ export function MyAgent() {
           ))}
         </ul>
       </section>
+      <Thread userId={userId} />
       <section>
-        <h2>Conversations</h2>
-        <ul>
+        <h2>Who your agent has talked to</h2>
+        <ul className="history">
           {conversations.data?.map((conversation) => (
             <li key={conversation.id}>
               <Link
                 to="/conversations/$conversationId"
                 params={{ conversationId: conversation.id }}
               >
-                With {conversation.with}
-              </Link>{' '}
-              {new Date(conversation.startedAt).toLocaleString()}
-              {conversation.endedAt === null && ' (live)'}
+                {conversation.with}
+                {conversation.endedAt === null && ' (talking now)'}
+              </Link>
+              <span className="muted">{ago(conversation.startedAt)}</span>
             </li>
           ))}
         </ul>
       </section>
-      <Thread userId={userId} />
       <section>
         <h2>Profile</h2>
         <ProfileForm draft={me.data.person.profile} userId={userId} />

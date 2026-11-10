@@ -12,7 +12,6 @@ import {
   or,
   sql,
 } from 'drizzle-orm'
-import { alias } from 'drizzle-orm/pg-core'
 import { placesById } from '../../shared/map/places'
 import type { Database } from '../db/client'
 import { conversationRequests, conversations, deliveries, messages, people } from '../db/schema'
@@ -33,15 +32,9 @@ export const othersBeforeRepeat = (population: number) =>
   Math.max(1, Math.min(10, Math.floor(population / 5)))
 export const idleConversationMs = 10 * 60 * 1000
 export const restAfterConversationMs = 35 * 60 * 1000
-export const messagePauseMs = 20 * 1000
+export const speakingMs = (text: string) => Math.min(20_000, 1_500 + text.length * 55)
 
 const ordered = (a: string, b: string) => (a < b ? [a, b] : [b, a]) as [string, string]
-
-const card = (person: Person) => ({
-  person_id: person.id,
-  name: person.profile.name,
-  headline: person.profile.headline,
-})
 
 const afterConversation = (restingUntil: Date) =>
   `The conversation is over, so no more messages to them. Update your memory file for them, then call record_impression. You're on a break from conversations until ${clockTime(restingUntil)}; you can still look around or go somewhere new.`
@@ -172,7 +165,7 @@ export async function requestConversation(
     const more = needed - since!.met
     if (more > 0) {
       return refuse(
-        `You already talked with ${them.profile.name}. Meet ${more} more ${more === 1 ? 'person' : 'people'} before asking them again.`,
+        `You've already talked with them. Meet ${more} more ${more === 1 ? 'person' : 'people'} before asking them again.`,
       )
     }
   }
@@ -193,7 +186,8 @@ export async function requestConversation(
     personId,
     worldEvent('conversation_request', {
       request_id: request!.id,
-      from: card(me),
+      from_person_id: me.id,
+      met_before: last !== undefined,
       opener,
       expires_in_minutes: 5,
       answer_with: 'respond_to_request',
@@ -246,7 +240,7 @@ export async function respondToRequest(
       them.id,
       worldEvent('request_declined', {
         request_id: requestId,
-        by: card(me),
+        by_person_id: me.id,
         reason: reason ?? null,
       }),
     )
@@ -275,7 +269,7 @@ export async function respondToRequest(
     world,
     them.id,
     worldEvent('conversation_started', {
-      with: card(me),
+      with_person_id: me.id,
       place: place.name,
       time: clockTime(now),
       next: `You asked, so say hello first with send_message. ${ending}`,
@@ -292,7 +286,7 @@ export async function respondToRequest(
   }
   return done(
     JSON.stringify({
-      conversation_started_with: card(them),
+      conversation_started_with: them.id,
       place: place.name,
       time: clockTime(now),
       next: `They asked, so wait for their first message, then reply with send_message. ${ending}`,
@@ -302,36 +296,45 @@ export async function respondToRequest(
 
 export async function sendMessage(world: World, meId: string, text: string): Promise<Outcome> {
   const { tx, now } = world
-  const me = (await lockPeople(world, [meId])).get(meId)!
-  if (!me.conversationId) return refuse("You're not in a conversation.")
-  const [conversation] = await tx
-    .select({ personA: conversations.personA, personB: conversations.personB })
-    .from(conversations)
-    .where(eq(conversations.id, me.conversationId))
-  const partnerId = conversation!.personA === meId ? conversation!.personB : conversation!.personA
+  const [row] = await tx
+    .select({
+      id: conversations.id,
+      personA: conversations.personA,
+      personB: conversations.personB,
+    })
+    .from(people)
+    .innerJoin(conversations, eq(people.conversationId, conversations.id))
+    .where(eq(people.id, meId))
+  if (!row) return refuse("You're not in a conversation.")
+  const locked = await lockPeople(world, [row.personA, row.personB])
+  const me = locked.get(meId)!
+  if (me.conversationId !== row.id) return refuse("You're not in a conversation.")
+  const partnerId = row.personA === meId ? row.personB : row.personA
   const [last] = await tx
-    .select({ senderId: messages.senderId })
+    .select({ senderId: messages.senderId, visibleAt: messages.visibleAt })
     .from(messages)
-    .where(eq(messages.conversationId, me.conversationId))
+    .where(eq(messages.conversationId, row.id))
     .orderBy(desc(messages.id))
     .limit(1)
+  if (last && last.visibleAt > now) {
+    return refuse('Hold on: the last message is still landing. Wait for it.')
+  }
   if (last?.senderId === meId) {
     return refuse("You just sent a message. Wait for their reply; it's their turn.")
   }
+  const visibleAt = new Date(now.getTime() + speakingMs(text))
   await tx
     .insert(messages)
-    .values({ conversationId: me.conversationId, senderId: meId, text, createdAt: now })
+    .values({ conversationId: row.id, senderId: meId, text, createdAt: now, visibleAt })
   await tx
     .update(conversations)
     .set({ lastMessageAt: sql`greatest(${conversations.lastMessageAt}, ${now.toISOString()})` })
-    .where(eq(conversations.id, me.conversationId))
-  await deliver(
-    world,
-    partnerId,
-    `[conversation] ${JSON.stringify({ from: me.profile.name, person_id: meId, text })}`,
-    { actor: meId },
-  )
-  return done('Delivered. Wait for their reply.', new Date(now.getTime() + messagePauseMs))
+    .where(eq(conversations.id, row.id))
+  await deliver(world, partnerId, `[conversation] ${JSON.stringify({ person_id: meId, text })}`, {
+    actor: meId,
+    dueAt: visibleAt,
+  })
+  return done('Sent. It takes a moment to say out loud; wait for their reply.')
 }
 
 async function finish(
@@ -370,7 +373,7 @@ async function finish(
       world,
       person.id,
       worldEvent('conversation_ended', {
-        with: card(other),
+        with_person_id: other.id,
         ended_by: endedBy === null ? 'idle for 10 minutes' : 'them',
         reason,
         time: clockTime(now),
@@ -411,12 +414,10 @@ export async function endConversation(
     JSON.stringify({
       ended: true,
       next: afterConversation(restingUntil),
-      record_impression_for: card(partner),
+      record_impression_for: partner.id,
     }),
   )
 }
-
-const targets = alias(people, 'targets')
 
 export async function expireRequests(world: World) {
   const { tx, now } = world
@@ -432,26 +433,13 @@ export async function expireRequests(world: World) {
       toId: conversationRequests.toId,
     })
   if (expired.length === 0) return
-  const names = new Map(
-    (
-      await tx
-        .select({ id: targets.id, profile: targets.profile })
-        .from(targets)
-        .where(
-          inArray(
-            targets.id,
-            expired.map((request) => request.toId),
-          ),
-        )
-    ).map((row) => [row.id, row.profile.name]),
-  )
   await notifyAll(
     world,
     expired.map((request) => ({
       to: request.fromId,
       text: worldEvent('request_expired', {
         request_id: request.id,
-        to: names.get(request.toId) ?? null,
+        to_person_id: request.toId,
         why: 'no answer in time',
       }),
     })),

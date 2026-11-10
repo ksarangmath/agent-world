@@ -1,6 +1,6 @@
-import { and, count, eq, gt, isNotNull, ne, sql } from 'drizzle-orm'
+import { and, count, eq, gt, isNotNull, ne, or, sql } from 'drizzle-orm'
 import { places, placesById, regionNames, type Place } from '../../shared/map/places'
-import { conversationRequests, people, worldEvents } from '../db/schema'
+import { conversationRequests, conversations, people, worldEvents } from '../db/schema'
 import { expirePendingRequests } from './conversations'
 import { clockTime, done, record, refuse, type Outcome, type World } from './events'
 import { isAt, lockPeople, personColumns, statusOf } from './people'
@@ -96,7 +96,7 @@ export async function goTo(
 
   const from = me.tileX !== null && me.tileY !== null ? { x: me.tileX, y: me.tileY } : ferryTerminal
   const arrivesAt = new Date(now.getTime() + Math.ceil(route(from, spot).seconds * 1000))
-  await expirePendingRequests(world, [me.id], `${me.profile.name} left`)
+  await expirePendingRequests(world, [me.id], 'they left for somewhere else')
   await tx
     .update(people)
     .set({
@@ -144,7 +144,14 @@ export async function lookAround(world: World, meId: string): Promise<Outcome> {
         sql`${meId} in (${conversationRequests.fromId}, ${conversationRequests.toId})`,
       ),
     )
-  const names = new Map(others.map((p) => [p.id, p.profile]))
+  const met = new Set(
+    (
+      await tx
+        .select({ a: conversations.personA, b: conversations.personB })
+        .from(conversations)
+        .where(or(eq(conversations.personA, meId), eq(conversations.personB, meId)))
+    ).map((row) => (row.a === meId ? row.b : row.a)),
+  )
   return done(
     JSON.stringify({
       place: {
@@ -159,18 +166,15 @@ export async function lookAround(world: World, meId: string): Promise<Outcome> {
         .filter((person) => isAt(person, place.id, now))
         .map((person) => ({
           person_id: person.id,
-          name: person.profile.name,
-          headline: person.profile.headline,
-          top_interests: person.profile.interests.slice(0, 3),
-          hobbies: person.profile.hobbies.slice(0, 5),
           status: statusOf(person, now),
+          met_before: met.has(person.id),
         })),
       requests_for_you: pending
         .filter((request) => request.toId === meId)
         .map((request) => ({
           request_id: request.id,
           from_person_id: request.fromId,
-          from: names.get(request.fromId)?.name ?? 'someone who left',
+          met_before: met.has(request.fromId),
           opener: request.opener,
         })),
       your_pending_request:
