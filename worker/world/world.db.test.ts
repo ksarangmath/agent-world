@@ -10,6 +10,7 @@ import {
   endConversation,
   endIfIdle,
   expireRequests,
+  othersBeforeRepeat,
   requestConversation,
   respondToRequest,
   restAfterConversationMs,
@@ -177,20 +178,21 @@ describe('conversation requests', () => {
     expect(late).toMatchObject({ ok: false, text: expect.stringContaining('expired') })
   })
 
-  test('the same pair cannot talk again within 24 hours', async () => {
-    const [a, b] = [await person('A'), await person('B')]
+  test('the same pair can talk again only after meeting enough other people', async () => {
+    expect([3, 10, 15, 51, 500].map(othersBeforeRepeat)).toEqual([1, 2, 3, 10, 10])
+    const [a, b, c] = [await person('A'), await person('B'), await person('C')]
     await talking(a, b)
     await run((w) => endConversation(w, a, 'Nice chat'), later(minutes(5)))
-    const again = await run(
-      (w) => requestConversation(w, b, a, 'Again?'),
-      later(minutes(5) + restAfterConversationMs + 1000),
+    const free = minutes(5) + restAfterConversationMs + 1000
+    const again = await run((w) => requestConversation(w, b, a, 'Again?'), later(free))
+    expect(again).toMatchObject({ ok: false, text: expect.stringContaining('Meet 1 more person') })
+    await talking(a, c, later(free))
+    await run((w) => endConversation(w, a, 'Nice too'), later(free + minutes(5)))
+    const afterOthers = await run(
+      (w) => requestConversation(w, a, b, 'Round two?'),
+      later(free + minutes(5) + restAfterConversationMs + 1000),
     )
-    expect(again).toMatchObject({ ok: false, text: expect.stringContaining('24 hours') })
-    const nextDay = await run(
-      (w) => requestConversation(w, b, a, 'Again?'),
-      later(minutes(25 * 60)),
-    )
-    expect(nextDay.ok).toBe(true)
+    expect(afterOthers.ok).toBe(true)
   })
 })
 

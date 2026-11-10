@@ -1,4 +1,17 @@
-import { and, desc, eq, gt, inArray, isNull, lte, or, sql } from 'drizzle-orm'
+import {
+  and,
+  count,
+  countDistinct,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  or,
+  sql,
+} from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { placesById } from '../../shared/map/places'
 import type { Database } from '../db/client'
@@ -16,7 +29,8 @@ import {
 import { isAt, lockPeople, statusOf, type Person } from './people'
 
 export const requestLifetimeMs = 5 * 60 * 1000
-export const repeatPairingWindowMs = 24 * 60 * 60 * 1000
+export const othersBeforeRepeat = (population: number) =>
+  Math.max(1, Math.min(10, Math.floor(population / 5)))
 export const idleConversationMs = 10 * 60 * 1000
 export const restAfterConversationMs = 35 * 60 * 1000
 export const messagePauseMs = 20 * 1000
@@ -130,18 +144,38 @@ export async function requestConversation(
   }
 
   const [a, b] = ordered(meId, personId)
-  const [recent] = await tx
-    .select({ id: conversations.id })
+  const [last] = await tx
+    .select({ startedAt: conversations.startedAt })
     .from(conversations)
-    .where(
-      and(
-        eq(conversations.personA, a),
-        eq(conversations.personB, b),
-        gt(conversations.startedAt, new Date(now.getTime() - repeatPairingWindowMs)),
-      ),
-    )
+    .where(and(eq(conversations.personA, a), eq(conversations.personB, b)))
+    .orderBy(desc(conversations.startedAt))
     .limit(1)
-  if (recent) return refuse('You talked with that person in the last 24 hours. Meet someone new.')
+  if (last) {
+    const [population] = await tx
+      .select({ n: count() })
+      .from(people)
+      .where(isNotNull(people.agentId))
+    const needed = othersBeforeRepeat(population!.n)
+    const [since] = await tx
+      .select({
+        met: countDistinct(
+          sql`case when ${conversations.personA} = ${meId} then ${conversations.personB} else ${conversations.personA} end`,
+        ),
+      })
+      .from(conversations)
+      .where(
+        and(
+          or(eq(conversations.personA, meId), eq(conversations.personB, meId)),
+          gt(conversations.startedAt, last.startedAt),
+        ),
+      )
+    const more = needed - since!.met
+    if (more > 0) {
+      return refuse(
+        `You already talked with ${them.profile.name}. Meet ${more} more ${more === 1 ? 'person' : 'people'} before asking them again.`,
+      )
+    }
+  }
 
   const [request] = await tx
     .insert(conversationRequests)
