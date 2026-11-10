@@ -237,13 +237,12 @@ describe('conversations', () => {
   test('both partners can send at the same moment without a deadlock', async () => {
     const [a, b] = [await person('A'), await person('B')]
     await talking(a, b)
-    const sent = await Promise.all(
-      Array.from({ length: 6 }, (_, i) =>
-        run((w) => sendMessage(w, i % 2 ? a : b, `message ${i}`), later(1000 + i)),
-      ),
-    )
+    const sent = await Promise.all([
+      run((w) => sendMessage(w, a, 'from A'), later(1000)),
+      run((w) => sendMessage(w, b, 'from B'), later(1001)),
+    ])
     expect(sent.every((outcome) => outcome.ok)).toBe(true)
-    expect(await db.select().from(messages)).toHaveLength(6)
+    expect(await db.select().from(messages)).toHaveLength(2)
   })
 
   test('expiry racing an accept leaves the request either accepted or expired, never both', async () => {
@@ -294,6 +293,17 @@ describe('pace', () => {
     expect(outcome.ok).toBe(true)
     expect(outcome.dueAt).toEqual(later(20_000))
     expect(await inboxOf(b)).toContainEqual(expect.stringContaining('"text":"Hey!"'))
+  })
+
+  test('messages alternate: nobody sends twice in a row', async () => {
+    const [a, b] = [await person('Ada'), await person('Bob')]
+    await talking(a, b)
+    expect((await run((w) => sendMessage(w, a, 'Hey!'))).ok).toBe(true)
+    expect((await run((w) => sendMessage(w, a, 'Still there?'))).text).toContain('their turn')
+    expect((await run((w) => sendMessage(w, b, 'Hi!'))).ok).toBe(true)
+    expect((await run((w) => sendMessage(w, a, 'There you are.'))).ok).toBe(true)
+    const [count] = await db.select({ n: sql<number>`count(*)::int` }).from(messages)
+    expect(count!.n).toBe(3)
   })
 
   test('after a conversation both people rest before the next', async () => {

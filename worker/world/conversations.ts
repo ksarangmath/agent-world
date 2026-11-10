@@ -275,6 +275,15 @@ export async function sendMessage(world: World, meId: string, text: string): Pro
     .from(conversations)
     .where(eq(conversations.id, me.conversationId))
   const partnerId = conversation!.personA === meId ? conversation!.personB : conversation!.personA
+  const [last] = await tx
+    .select({ senderId: messages.senderId })
+    .from(messages)
+    .where(eq(messages.conversationId, me.conversationId))
+    .orderBy(desc(messages.id))
+    .limit(1)
+  if (last?.senderId === meId) {
+    return refuse("You just sent a message. Wait for their reply; it's their turn.")
+  }
   await tx
     .insert(messages)
     .values({ conversationId: me.conversationId, senderId: meId, text, createdAt: now })
