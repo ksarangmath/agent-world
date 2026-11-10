@@ -1,4 +1,4 @@
-import { and, isNotNull } from 'drizzle-orm'
+import { isNotNull } from 'drizzle-orm'
 import type { WorldSnapshot } from '../../shared/api'
 import type { Database } from '../db/client'
 import { people } from '../db/schema'
@@ -18,7 +18,7 @@ export async function worldSnapshot(db: Database, now: Date): Promise<WorldSnaps
       conversationId: people.conversationId,
     })
     .from(people)
-    .where(and(isNotNull(people.agentId), isNotNull(people.placeId)))
+    .where(isNotNull(people.placeId))
   return {
     now: now.toISOString(),
     people: rows.map((row) => ({
