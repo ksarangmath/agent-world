@@ -64,7 +64,7 @@ const keyCodes = new Set([...Object.keys(pans), ...Object.keys(zooms)])
 
 function onKeyDown(event: KeyboardEvent) {
   const target = event.target as HTMLElement | null
-  const typing = target?.closest('input, textarea, select, [contenteditable="true"]')
+  const typing = target?.closest('input, textarea, select, [contenteditable="true"], .overlay')
   if (typing || event.metaKey || event.ctrlKey || event.altKey) {
     held.clear()
     return

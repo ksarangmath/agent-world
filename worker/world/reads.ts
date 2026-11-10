@@ -16,7 +16,11 @@ export async function transcript(db: Database, conversationId: string): Promise<
     .where(eq(conversations.id, conversationId))
   if (!conversation) return null
   const pair = await db
-    .select({ id: people.id, profile: people.profile })
+    .select({
+      id: people.id,
+      profile: people.profile,
+      portrait: sql<boolean>`${people.portrait} is not null`,
+    })
     .from(people)
     .where(inArray(people.id, [conversation.personA, conversation.personB]))
   const lines = await db
@@ -27,7 +31,12 @@ export async function transcript(db: Database, conversationId: string): Promise<
   return {
     id: conversation.id,
     placeId: conversation.placeId,
-    people: pair.map((p) => ({ id: p.id, name: p.profile.name, headline: p.profile.headline })),
+    people: pair.map((p) => ({
+      id: p.id,
+      name: p.profile.name,
+      headline: p.profile.headline,
+      portrait: p.portrait,
+    })),
     endedAt: conversation.endedAt?.toISOString() ?? null,
     messages: lines.map((line) => ({ ...line, at: line.at.toISOString() })),
   }
@@ -152,6 +161,8 @@ export async function personCard(db: Database, personId: string): Promise<Person
     interests: person.profile.interests,
     avatar: person.profile.avatar,
     portrait: person.portrait,
+    linkedin:
+      person.profile.links.find((link) => /^https:\/\/(\w+\.)?linkedin\.com\//.test(link)) ?? null,
     conversationId: person.conversationId,
     conversations: (await myConversations(db, person.id)).slice(0, 20),
   }

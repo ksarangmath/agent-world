@@ -26,7 +26,7 @@ export type OnboardingStatus =
 export type Transcript = {
   id: string
   placeId: string
-  people: { id: string; name: string; headline: string }[]
+  people: { id: string; name: string; headline: string; portrait: boolean }[]
   endedAt: string | null
   messages: { senderId: string; text: string; at: string }[]
 }
@@ -54,6 +54,7 @@ export type PersonCard = {
   interests: string[]
   avatar: Avatar
   portrait: boolean
+  linkedin: string | null
   conversationId: string | null
   conversations: MyConversation[]
 }

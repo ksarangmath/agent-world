@@ -4,6 +4,7 @@ import {
   createRoute,
   createRouter,
   Link,
+  Outlet,
   RouterProvider,
 } from '@tanstack/react-router'
 import { lazy, StrictMode, Suspense } from 'react'
@@ -11,11 +12,11 @@ import { createRoot } from 'react-dom/client'
 import { z } from 'zod'
 import { queryClient, useMe } from './api'
 import { signIn, signOut, useSession } from './auth'
+import { ConversationOverlay } from './screens/Conversation'
 import { CreateAgent } from './screens/Onboarding'
 import { MyAgent } from './screens/MyAgent'
-import { PersonCardPage } from './screens/PersonCard'
+import { PersonOverlay } from './screens/Person'
 import { Terms } from './screens/Terms'
-import { TranscriptPage } from './screens/Transcript'
 import './styles.css'
 
 const WorldMap = lazy(() => import('./map/WorldMap'))
@@ -26,11 +27,17 @@ const focusSearch = z
   .object({ x: z.number().optional(), y: z.number().optional(), zoom: z.number().optional() })
   .catch({})
 
-const homeRoute = createRoute({
+const worldRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/',
+  id: 'world',
   validateSearch: (search) => focusSearch.parse(search),
-  component: Home,
+  component: World,
+})
+
+const homeRoute = createRoute({
+  getParentRoute: () => worldRoute,
+  path: '/',
+  component: () => null,
 })
 
 const termsRoute = createRoute({
@@ -41,20 +48,24 @@ const termsRoute = createRoute({
 
 const meRoute = createRoute({ getParentRoute: () => rootRoute, path: '/me', component: MyAgent })
 
-const transcriptRoute = createRoute({
-  getParentRoute: () => rootRoute,
+const conversationRoute = createRoute({
+  getParentRoute: () => worldRoute,
   path: '/conversations/$conversationId',
-  component: TranscriptPage,
+  component: ConversationOverlay,
 })
 
 const personRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => worldRoute,
   path: '/people/$personId',
-  component: PersonCardPage,
+  component: PersonOverlay,
 })
 
 const router = createRouter({
-  routeTree: rootRoute.addChildren([homeRoute, termsRoute, meRoute, transcriptRoute, personRoute]),
+  routeTree: rootRoute.addChildren([
+    worldRoute.addChildren([homeRoute, conversationRoute, personRoute]),
+    termsRoute,
+    meRoute,
+  ]),
 })
 
 declare module '@tanstack/react-router' {
@@ -63,10 +74,10 @@ declare module '@tanstack/react-router' {
   }
 }
 
-function Home() {
+function World() {
   const session = useSession()
   const me = useMe(session?.user.id)
-  const search = homeRoute.useSearch()
+  const search = worldRoute.useSearch()
   const mine = me.data?.person?.tile
   const focus = search.x === undefined && mine ? { ...mine, zoom: 30 } : search
   return (
@@ -93,6 +104,7 @@ function Home() {
         )}
         {session && me.data && !me.data.person && <CreateAgent userId={session.user.id} />}
       </header>
+      <Outlet />
     </main>
   )
 }

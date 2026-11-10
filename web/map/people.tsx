@@ -5,7 +5,7 @@ import type { WorldPerson } from '../../shared/api'
 import { placesById, type Activity } from '../../shared/map/places'
 import { positionOnRoute, type Route } from '../../shared/map/route'
 import { onScreen, viewFrom } from './clock'
-import { doing } from './doing'
+import { doingNow } from './doing'
 import { hash, surfaceAt } from './elevation'
 import { hovered } from './hover'
 import type { RouteReply, RouteRequest } from './routing.worker'
@@ -156,24 +156,17 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
               id: person.id,
               name: person.name,
               placeId: person.placeId,
-              doing: doingNow(person),
+              doing: doingNow(person, shown),
               x: event.clientX,
               y: event.clientY,
             }
           : null,
       )
     }
-    const doingNow = (person: WorldPerson) => {
-      const place = placesById.get(person.placeId)
-      if (person.trip) return `on the way to ${place?.name ?? 'somewhere'}`
-      const partner = partners[shown.indexOf(person)]
-      if (partner !== undefined) return `deep in it with ${shown[partner]!.name}`
-      return doing[person.placeId] ?? 'taking it all in'
-    }
     const current = hovered.get()
     if (current) {
       const person = shown.find((candidate) => candidate.id === current.id)
-      hovered.set(person ? { ...current, doing: doingNow(person) } : null)
+      hovered.set(person ? { ...current, doing: doingNow(person, shown) } : null)
     }
     const down = (event: PointerEvent) => {
       press.current =
@@ -204,7 +197,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
       canvas.removeEventListener('pointerup', up)
       canvas.removeEventListener('pointerleave', leave)
     }
-  }, [gl, shown, partners, onSelect])
+  }, [gl, shown, onSelect])
   useEffect(() => () => hovered.set(null), [])
 
   const projected = useMemo(() => new Vector3(), [])

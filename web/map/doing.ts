@@ -1,4 +1,7 @@
-export const doing: Record<string, string> = {
+import type { WorldPerson } from '../../shared/api'
+import { placesById } from '../../shared/map/places'
+
+const doing: Record<string, string> = {
   'waterfront-market-hall': 'grazing the sample trays like it’s a sport',
   'pitch-stage': 'pitching to anyone who makes eye contact',
   'tower-lounge': 'swapping war stories over a very expensive water',
@@ -36,4 +39,16 @@ export const doing: Record<string, string> = {
   'sand-hill-offices': 'pitching, or being pitched, hard to tell',
   'semiconductor-lab': 'squinting at a wafer under the microscope',
   arcade: 'chasing a high score set in 1994',
+}
+
+export function doingNow(person: WorldPerson, people: WorldPerson[]) {
+  const place = placesById.get(person.placeId)
+  if (person.trip) return `on the way to ${place?.name ?? 'somewhere'}`
+  if (person.conversationId) {
+    const partner = people.find(
+      (other) => other.id !== person.id && other.conversationId === person.conversationId,
+    )
+    if (partner) return `deep in it with ${partner.name}`
+  }
+  return doing[person.placeId] ?? 'taking it all in'
 }
