@@ -31,6 +31,14 @@ export const crowd = {
   y: new Float32Array(capacity),
   shown: new Uint8Array(capacity),
 }
+export const talks = {
+  count: 0,
+  id: Array.from({ length: capacity }, () => ''),
+  x: new Float32Array(capacity),
+  y: new Float32Array(capacity),
+  height: new Float32Array(capacity),
+}
+const bubbleLift = 1.6
 const tripKey = (person: WorldPerson) =>
   person.trip && `${person.trip.from.x},${person.trip.from.y}>${person.tile.x},${person.tile.y}`
 
@@ -239,13 +247,26 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         facing: facingOf(heading),
         motion,
         seconds: t,
-        talking: partner !== undefined,
       }
       if (hoverable) {
         projected.set(x, ground + 0.6, y).project(camera)
         screen.current[i * 2] = ((projected.x + 1) / 2) * size.width
         screen.current[i * 2 + 1] = ((1 - projected.y) / 2) * size.height
       }
+    })
+    talks.count = 0
+    shown.forEach((person, i) => {
+      const j = partners[i]
+      if (j === undefined || j < i || !crowd.shown[i] || !crowd.shown[j]) return
+      const [x, y] = [(crowd.x[i]! + crowd.x[j]!) / 2, (crowd.y[i]! + crowd.y[j]!) / 2]
+      if (!onScreen(x, y)) return
+      const k = talks.count++
+      talks.id[k] = person.conversationId!
+      talks.x[k] = x
+      talks.y[k] = y
+      talks.height[k] =
+        Math.max(surfaceAt(crowd.x[i]!, crowd.y[i]!), surfaceAt(crowd.x[j]!, crowd.y[j]!)) +
+        bubbleLift
     })
   })
 

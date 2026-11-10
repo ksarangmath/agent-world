@@ -157,12 +157,6 @@ canvas {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .working .dots i {
-    animation: none;
-  }
-}
-
 .form .goals {
   display: flex;
   flex-direction: column;
@@ -273,6 +267,51 @@ a {
     0 -3px #101522;
 }
 
+.talk {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--size) / 9);
+  width: var(--size);
+  height: calc(var(--size) * 0.68);
+  padding: 0;
+  background: #fff;
+  border: 2px solid #101522;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.talk::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: calc(50% - 4px);
+  width: 6px;
+  height: 6px;
+  background: #fff;
+  border-right: 2px solid #101522;
+  border-bottom: 2px solid #101522;
+  transform: rotate(45deg);
+}
+
+.talk i {
+  width: calc(var(--size) / 9);
+  height: calc(var(--size) / 9);
+  background: #101522;
+  animation: hop 1.2s steps(2, jump-none) infinite;
+}
+
+.talk i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.talk i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
 .crowd {
   position: absolute;
   top: 0;
@@ -357,4 +396,11 @@ a {
 .credits {
   font-size: 12px;
   color: #b9bfcc;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .working .dots i,
+  .talk i {
+    animation: none;
+  }
 }

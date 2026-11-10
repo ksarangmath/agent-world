@@ -16,6 +16,7 @@ import { People } from './people'
 import { PersonHover } from './PersonHover'
 import { Places } from './places'
 import { Sky } from './sky'
+import { Talks } from './talks'
 import { Traffic } from './traffic'
 import { Trees } from './trees'
 import { Water } from './water'
@@ -36,6 +37,11 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
   const navigate = useNavigate()
   const select = useCallback(
     (personId: string) => void navigate({ to: '/people/$personId', params: { personId } }),
+    [navigate],
+  )
+  const read = useCallback(
+    (conversationId: string) =>
+      void navigate({ to: '/conversations/$conversationId', params: { conversationId } }),
     [navigate],
   )
   useEffect(() => () => scene.current?.traverse(release), [])
@@ -70,6 +76,7 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
               onSelect={select}
             />
             <Crowds />
+            <Talks onOpen={read} />
             <Labels />
           </>
         )}

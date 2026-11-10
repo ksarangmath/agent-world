@@ -31,7 +31,6 @@ export type Placement = {
   facing: Facing
   motion: Motion
   seconds: number
-  talking: boolean
 }
 
 const size = 1.4
@@ -39,7 +38,6 @@ const columns = 9
 const rows = 8
 const frame = 64
 const walkFrames = 8
-const bubbleSheet = 'bubble'
 const placeholder = new Vector3()
 const retries = 4
 
@@ -59,39 +57,21 @@ function texture(canvas: HTMLCanvasElement) {
   return result
 }
 
-function bubble() {
-  const canvas = document.createElement('canvas')
-  canvas.width = columns * frame
-  canvas.height = rows * frame
-  const context = canvas.getContext('2d')!
-  context.fillStyle = '#2b2233'
-  context.fillRect(34, 44, 24, 14)
-  context.fillRect(36, 58, 4, 4)
-  context.fillStyle = '#ffffff'
-  context.fillRect(35, 45, 22, 12)
-  context.fillStyle = '#2b2233'
-  for (const x of [39, 45, 51]) context.fillRect(x, 50, 2, 2)
-  return Promise.resolve(texture(canvas))
-}
-
 function loadSheet(sheet: string) {
   let loading = sheets.get(sheet)
   if (!loading) {
-    loading =
-      sheet === bubbleSheet
-        ? bubble()
-        : Promise.all(
-            ['walk', 'idle', 'sit'].map((name) => image(`/lpc/${sheet}${name}.png`)),
-          ).then(([walk, idle, sit]) => {
-            const canvas = document.createElement('canvas')
-            canvas.width = columns * frame
-            canvas.height = rows * frame
-            const context = canvas.getContext('2d')!
-            context.drawImage(walk!, 0, 0)
-            context.drawImage(idle!, 0, 4 * frame)
-            context.drawImage(sit!, 2 * frame, 4 * frame)
-            return texture(canvas)
-          })
+    loading = Promise.all(
+      ['walk', 'idle', 'sit'].map((name) => image(`/lpc/${sheet}${name}.png`)),
+    ).then(([walk, idle, sit]) => {
+      const canvas = document.createElement('canvas')
+      canvas.width = columns * frame
+      canvas.height = rows * frame
+      const context = canvas.getContext('2d')!
+      context.drawImage(walk!, 0, 0)
+      context.drawImage(idle!, 0, 4 * frame)
+      context.drawImage(sit!, 2 * frame, 4 * frame)
+      return texture(canvas)
+    })
     sheets.set(
       sheet,
       loading.catch((error: unknown) => {
@@ -158,7 +138,7 @@ void main() {
 `
 
 function material(sheet: string, map: Texture, z: number) {
-  const kind = sheet === bubbleSheet ? null : materialOf(sheet)
+  const kind = materialOf(sheet)
   const flat = (ramp: readonly (readonly number[])[]) =>
     ramp.map(([r, g, b]) => new Vector3(r, g, b))
   return new ShaderMaterial({
@@ -237,10 +217,9 @@ function SheetMesh({
     let count = 0
     for (const entry of group.entries) {
       const place = placements.current[entry.person]
-      if (!place || (group.sheet === bubbleSheet && !place.talking)) continue
-      const lift = group.sheet === bubbleSheet ? size * 0.72 : 0
-      offset.setXYZ(count, place.x, place.ground + lift, place.y)
-      const [column, row] = group.sheet === bubbleSheet ? [0, 0] : cellOf(place)
+      if (!place) continue
+      offset.setXYZ(count, place.x, place.ground, place.y)
+      const [column, row] = cellOf(place)
       cell.setXY(count, column, row)
       ramps.setXY(count, entry.ramp, entry.eyes)
       count++
@@ -277,7 +256,6 @@ export function Sprites({
     }
     avatars.forEach((avatar, person) => {
       for (const layer of layersOf(avatar)) add(layer, person)
-      add({ sheet: bubbleSheet, z: 200, ramp: -1, eyes: -1 }, person)
     })
     return [...bySheet.values()]
   }, [avatars])
