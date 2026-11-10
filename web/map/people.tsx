@@ -14,6 +14,9 @@ const capacity = 2000
 const hoverZoom = 14
 const hitPixels = 16
 const seated = new Set<Activity>(['coding', 'coffee', 'eating', 'reading', 'chess', 'picnic'])
+const performing = new Set<Activity>(['pitching', 'music'])
+const working = new Set<Activity>(['tinkering', 'art'])
+const afloat = new Set<Activity>(['surfing', 'sailing'])
 const across = Math.hypot(viewFrom.x, viewFrom.z)
 const ahead = { x: -viewFrom.x / across, y: -viewFrom.z / across }
 
@@ -202,6 +205,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         ? Math.atan2(spot.center.x - person.tile.x, spot.center.y - person.tile.y)
         : 0
       let motion: Placement['motion'] = 'idle'
+      let lift = 0
       const trip = trips[i]
       const partner = partners[i] === undefined ? undefined : shown[partners[i]!]
       let hide = false
@@ -216,9 +220,14 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         }
       } else if (partner) {
         heading = Math.atan2(partner.tile.x - person.tile.x, partner.tile.y - person.tile.y)
+        const myTurn = Math.floor(now / 3000) % 2 === (i < partners[i]! ? 0 : 1)
+        if (myTurn) motion = 'talk'
       } else {
         const activity = spot?.activity ?? 'chatting'
         if (seated.has(activity)) motion = 'sit'
+        else if (performing.has(activity)) motion = 'perform'
+        else if (working.has(activity)) motion = 'work'
+        else if (activity === 'chatting' && Math.floor(t / 4) % 4 === 0) motion = 'talk'
         if (activity === 'running') {
           const lap = t * 1.3
           x += 0.3 * Math.cos(lap)
@@ -229,6 +238,13 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
           x += 0.3 * Math.sin(t * 0.5)
           heading = Math.cos(t * 0.5) > 0 ? Math.PI / 2 : -Math.PI / 2
           motion = 'walk'
+        } else if (afloat.has(activity)) {
+          x += 0.8 * Math.sin(t * 0.5)
+          heading = Math.cos(t * 0.5) > 0 ? Math.PI / 2 : -Math.PI / 2
+          lift = 0.08 * Math.sin(t * 3)
+        } else if (activity === 'climbing') {
+          heading = Math.atan2(ahead.x, ahead.y)
+          lift = 0.6 + 0.6 * Math.sin(t * 0.7)
         }
       }
       crowd.x[i] = x
@@ -239,7 +255,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         placements.current[i] = null
         return
       }
-      const ground = surfaceAt(x, y)
+      const ground = surfaceAt(x, y) + lift
       placements.current[i] = {
         x,
         y,

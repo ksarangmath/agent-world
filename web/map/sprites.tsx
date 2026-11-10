@@ -23,7 +23,7 @@ import {
 } from './lpc'
 
 export type Facing = 0 | 1 | 2 | 3
-export type Motion = 'walk' | 'idle' | 'sit'
+export type Motion = 'walk' | 'idle' | 'sit' | 'talk' | 'perform' | 'work'
 export type Placement = {
   x: number
   y: number
@@ -35,7 +35,7 @@ export type Placement = {
 
 const size = 1.4
 const columns = 9
-const rows = 8
+const rows = 16
 const frame = 64
 const walkFrames = 8
 const placeholder = new Vector3()
@@ -61,8 +61,10 @@ function loadSheet(sheet: string) {
   let loading = sheets.get(sheet)
   if (!loading) {
     loading = Promise.all(
-      ['walk', 'idle', 'sit'].map((name) => image(`/lpc/${sheet}${name}.png`)),
-    ).then(([walk, idle, sit]) => {
+      ['walk', 'idle', 'sit', 'emote', 'spellcast', 'thrust'].map((name) =>
+        image(`/lpc/${sheet}${name}.png`),
+      ),
+    ).then(([walk, idle, sit, emote, spellcast, thrust]) => {
       const canvas = document.createElement('canvas')
       canvas.width = columns * frame
       canvas.height = rows * frame
@@ -70,6 +72,9 @@ function loadSheet(sheet: string) {
       context.drawImage(walk!, 0, 0)
       context.drawImage(idle!, 0, 4 * frame)
       context.drawImage(sit!, 2 * frame, 4 * frame)
+      context.drawImage(emote!, 3 * frame, 4 * frame)
+      context.drawImage(spellcast!, 0, 8 * frame)
+      context.drawImage(thrust!, 0, 12 * frame)
       return texture(canvas)
     })
     sheets.set(
@@ -235,9 +240,20 @@ function SheetMesh({
 }
 
 function cellOf({ facing, motion, seconds }: Placement): [number, number] {
-  if (motion === 'walk') return [1 + (Math.floor(seconds * 10) % walkFrames), facing]
-  if (motion === 'sit') return [2, 4 + facing]
-  return [Math.floor(seconds * 1.5) % 2, 4 + facing]
+  switch (motion) {
+    case 'walk':
+      return [1 + (Math.floor(seconds * 10) % walkFrames), facing]
+    case 'sit':
+      return [2, 4 + facing]
+    case 'talk':
+      return [3 + (Math.floor(seconds * 5) % 3), 4 + facing]
+    case 'perform':
+      return [Math.floor(seconds * 8) % 7, 8 + facing]
+    case 'work':
+      return [Math.floor(seconds * 8) % 8, 12 + facing]
+    default:
+      return [Math.floor(seconds * 1.5) % 2, 4 + facing]
+  }
 }
 
 export function Sprites({

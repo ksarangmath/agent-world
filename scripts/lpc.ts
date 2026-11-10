@@ -1,10 +1,10 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
 const commit = '124dd3af4aa3b60e2dd1c507bd4db3f7f80934cc'
 const source = `https://raw.githubusercontent.com/LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator/${commit}`
 const bodies = ['male', 'female'] as const
-const animations = ['walk', 'idle', 'sit'] as const
+const animations = ['walk', 'idle', 'sit', 'emote', 'spellcast', 'thrust'] as const
 const materials = ['body', 'hair', 'cloth', 'eye'] as const
 const licenseTexts: Record<string, string> = {
   CC0: 'https://creativecommons.org/publicdomain/zero/1.0/',
@@ -69,7 +69,10 @@ async function fetchOk(path: string) {
   return response
 }
 
-await rm('public/lpc', { recursive: true, force: true })
+for (const entry of await readdir('public/lpc', { withFileTypes: true })) {
+  if (entry.name !== 'README.md')
+    await rm(`public/lpc/${entry.name}`, { recursive: true, force: true })
+}
 const credits = new Map<string, { authors: string[]; licenses: string[]; urls: string[] }>()
 const manifest: Record<
   string,
