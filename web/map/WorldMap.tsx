@@ -36,12 +36,17 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
   const scene = useRef<Object3D | null>(null)
   const navigate = useNavigate()
   const select = useCallback(
-    (personId: string) => void navigate({ to: '/people/$personId', params: { personId } }),
+    (personId: string) =>
+      void navigate({ to: '/people/$personId', params: { personId }, search: true }),
     [navigate],
   )
   const read = useCallback(
     (conversationId: string) =>
-      void navigate({ to: '/conversations/$conversationId', params: { conversationId } }),
+      void navigate({
+        to: '/conversations/$conversationId',
+        params: { conversationId },
+        search: true,
+      }),
     [navigate],
   )
   useEffect(() => () => scene.current?.traverse(release), [])
