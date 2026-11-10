@@ -59,7 +59,7 @@ export const builderTools: Record<string, Tool<BuilderCall>> = {
 
 export const portraitTools: Record<string, Tool<PortraitCall>> = {
   draw_portrait: tool(
-    "Draw the person's pixel-art portrait from their LinkedIn photo, or from your description when there's no usable photo. Describe how they look: hair, facial hair, glasses, apparent age, skin tone, and anything distinctive, from the photo and your research. Takes up to three minutes. Call it once and wait for the result before submit_profile; if it fails, call it again.",
+    "Draw the person's pixel-art portrait from their LinkedIn photo. Describe how they look in it: hair, facial hair, glasses, apparent age, skin tone, what they're wearing, and anything distinctive. Takes up to three minutes. Call it once and wait for the result before submit_profile; if it fails, call it again.",
     z.object({ description: z.string().trim().min(1).max(600) }),
     async ({ draw }, input) => draw(input.description),
   ),

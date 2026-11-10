@@ -4,6 +4,7 @@ import type { OnboardingStatus } from '../../shared/api'
 import { profileSchema, type Profile } from '../../shared/profile'
 import type { Database, Transaction } from '../db/client'
 import { profileDrafts, verificationAttempts } from '../db/schema'
+import { logError } from '../log'
 import type { AgentConfig } from '../omnara/agents'
 import { archiveAgent, launchAgent } from '../omnara/agents'
 import { sendInput, type Image } from '../omnara/inputs'
@@ -28,7 +29,7 @@ Accuracy matters more than completeness. Never guess, embellish, or fill a gap w
 - Write in a warm, specific, factual voice, using only what your sources say.
 - For every fact you include, add a source with the field name and the URL it came from.
 - Leave avoid and conversation_style empty unless a source states them. The person can't edit the profile, so everything in it must be right.
-- Call draw_portrait once with a description of how they look, from the photo and your research. If the photo shows no person, describe them from your research and their name.
+- Their LinkedIn photo is attached to the input. Call draw_portrait once with a description of how they look in it: hair, facial hair, glasses, skin tone, apparent age, and what they're wearing. If the photo shows no person, describe them from your research and their name.
 - Then set the avatar presets from the portrait draw_portrait returns, so their character on the map matches it: the closest preset for each feature, and clothes that fit the rest of their look.
 - Finish by calling submit_profile once.`
 
@@ -72,15 +73,18 @@ export async function downloadPhoto(url: unknown): Promise<Image | null> {
   const parsed = new URL(url)
   if (parsed.protocol !== 'https:' || parsed.hostname !== photoHost) return null
   try {
-    const response = await fetch(parsed, { redirect: 'error', signal: AbortSignal.timeout(5000) })
+    // https://developers.cloudflare.com/workers/runtime-apis/request/
+    const response = await fetch(parsed, { redirect: 'manual', signal: AbortSignal.timeout(5000) })
     const mediaType = photoTypes.find((type) => type === response.headers.get('content-type'))
-    if (!response.ok || !mediaType) return null
-    const bytes = await readLimited(response, maxPhotoBytes)
-    if (!bytes) return null
-    return { mediaType, data: base64(bytes) }
-  } catch {
-    return null
+    if (response.ok && mediaType) {
+      const bytes = await readLimited(response, maxPhotoBytes)
+      if (bytes) return { mediaType, data: base64(bytes) }
+    }
+    console.error('LinkedIn photo download refused', response.status)
+  } catch (error) {
+    logError('LinkedIn photo download failed', error)
   }
+  return null
 }
 
 const identitySchema = z.object({
@@ -122,13 +126,15 @@ export async function startBuilder(
   services: Services,
   env: Env,
   userId: string,
-  identity: LinkedInIdentity,
-  linkedinUrl: string,
-): Promise<'started' | 'busy'> {
+  name: string,
+  linkedIn: { url: string; photoUrl: string },
+): Promise<'started' | 'busy' | 'no photo'> {
   const { db, omnara } = services
+  const { url: linkedinUrl, photoUrl } = linkedIn
+  const photo = await downloadPhoto(photoUrl)
+  if (!photo) return 'no photo'
   const now = new Date()
   const runId = crypto.randomUUID()
-  const photoUrl = identity.picture
   const [claimed] = await db
     .insert(profileDrafts)
     .values({ userId, runId, photoUrl, linkedinUrl, createdAt: now })
@@ -163,17 +169,12 @@ export async function startBuilder(
       .update(profileDrafts)
       .set({ builderAgentId: agentId })
       .where(and(eq(profileDrafts.userId, userId), eq(profileDrafts.runId, runId)))
-    const photo = await downloadPhoto(photoUrl)
     await sendInput(omnara, agentId, {
-      text: JSON.stringify({
-        name: identity.name,
-        linkedin: linkedinUrl,
-        photo: photo ? 'attached' : 'none available',
-      }),
+      text: JSON.stringify({ name, linkedin: linkedinUrl }),
       mode: 'queued',
       actor: null,
       key: `builder-input-${runId}`,
-      image: photo ?? undefined,
+      image: photo,
     })
     return 'started'
   } catch (error) {

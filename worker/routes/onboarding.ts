@@ -47,6 +47,7 @@ export const onboarding = new Hono<SignedIn>()
     }
     const linkedIn = await verifyLinkedIn(c.env.EXA_API_KEY, identity, linkedinUrl)
     if (typeof linkedIn === 'string') return c.json({ error: problemMessages[linkedIn] }, 422)
-    await startBuilder(services, c.env, c.var.userId, identity, linkedIn.url)
+    const started = await startBuilder(services, c.env, c.var.userId, identity.name, linkedIn)
+    if (started === 'no photo') return c.json({ error: problemMessages.unreachable }, 422)
     return c.json({ status: 'building' })
   })

@@ -41,7 +41,10 @@ describe('LinkedIn URLs', () => {
 describe('verifying a pasted LinkedIn profile', () => {
   test('accepts it when a fresh fetch shows the sign-in photo', async () => {
     const calls = exa([{ url, image: photo('D5603AQsignedin') }])
-    expect(await verifyLinkedIn('key', identity, url)).toEqual({ url })
+    expect(await verifyLinkedIn('key', identity, url)).toEqual({
+      url,
+      photoUrl: photo('D5603AQsignedin'),
+    })
     expect(calls).toEqual([expect.objectContaining({ urls: [url], maxAgeHours: 0 })])
   })
 

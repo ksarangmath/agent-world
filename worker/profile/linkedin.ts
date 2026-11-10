@@ -33,15 +33,16 @@ export async function verifyLinkedIn(
   apiKey: string,
   identity: LinkedInIdentity,
   url: string,
-): Promise<{ url: string } | LinkedInProblem> {
+): Promise<{ url: string; photoUrl: string } | LinkedInProblem> {
   const signedIn = photoId(identity.picture)
   if (!signedIn) return 'no-sign-in-photo'
   try {
     const [profile] = await exaFreshContents(apiKey, [url])
     if (!profile || profileUrl(profile.url) !== url) return 'unreachable'
-    const photo = photoId(profile.image)
-    if (!photo) return 'no-public-photo'
-    return photo === signedIn ? { url } : 'not-yours'
+    const photoUrl = profile.image
+    const photo = photoId(photoUrl)
+    if (!photoUrl || !photo) return 'no-public-photo'
+    return photo === signedIn ? { url, photoUrl } : 'not-yours'
   } catch {
     return 'unreachable'
   }

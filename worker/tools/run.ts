@@ -326,6 +326,7 @@ async function runPortraitCall(services: Services, env: Env, call: ToolCall): Pr
   let portrait: Uint8Array | null = null
   const draw = async (description: string) => {
     const photo = await downloadPhoto(claim.photoUrl)
+    if (!photo) throw new Error('LinkedIn photo download failed')
     portrait = await drawPortrait(env.OPENAI_API_KEY, photo, description)
     return {
       ...done(
