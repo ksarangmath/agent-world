@@ -2,7 +2,7 @@ import { and, count, eq, gt, isNotNull, ne, sql } from 'drizzle-orm'
 import { places, placesById, regionNames, type Place } from '../../shared/map/places'
 import { conversationRequests, people, worldEvents } from '../db/schema'
 import { expirePendingRequests } from './conversations'
-import { done, record, refuse, type Outcome, type World } from './events'
+import { clockTime, done, record, refuse, type Outcome, type World } from './events'
 import { isAt, lockPeople, personColumns, statusOf } from './people'
 
 const words = (text: string) =>
@@ -154,6 +154,7 @@ export async function lookAround(world: World, meId: string): Promise<Outcome> {
         description: place.description,
       },
       your_status: statusOf(me, now),
+      your_break_ends: statusOf(me, now) === 'resting' ? clockTime(me.restingUntil!) : undefined,
       people_here: others
         .filter((person) => isAt(person, place.id, now))
         .map((person) => ({

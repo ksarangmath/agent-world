@@ -179,7 +179,7 @@ describe('conversation requests', () => {
     const [a, b] = [await person('A'), await person('B')]
     await talking(a, b)
     await run((w) => endConversation(w, a, 'Nice chat'), later(minutes(5)))
-    const again = await run((w) => requestConversation(w, b, a, 'Again?'), later(minutes(10)))
+    const again = await run((w) => requestConversation(w, b, a, 'Again?'), later(minutes(20)))
     expect(again).toMatchObject({ ok: false, text: expect.stringContaining('24 hours') })
     const nextDay = await run(
       (w) => requestConversation(w, b, a, 'Again?'),
@@ -270,6 +270,47 @@ describe('conversations', () => {
   })
 })
 
+describe('pace', () => {
+  test('the requester is told to open and the accepter to wait', async () => {
+    const [a, b] = [await person('Ada'), await person('Bob')]
+    await run((w) => requestConversation(w, a, b, 'Hi there'))
+    const [request] = await pendingFrom(a)
+    const outcome = await run((w) => respondToRequest(w, b, request!.id, true))
+    expect(JSON.parse(outcome.text).next).toContain('wait for their first message')
+    const [started] = (await eventsOf(a)).filter((e) => e.event === 'conversation_started')
+    expect(started!.next).toContain('say hello first')
+    expect(started!.time).toMatch(/PT$/)
+  })
+
+  test('a message lands at once, and the sender waits before the next', async () => {
+    const [a, b] = [await person('Ada'), await person('Bob')]
+    await talking(a, b)
+    const outcome = await run((w) => sendMessage(w, a, 'Hey!'))
+    expect(outcome.ok).toBe(true)
+    expect(outcome.dueAt).toEqual(later(20_000))
+    expect(await inboxOf(b)).toContainEqual(expect.stringContaining('"text":"Hey!"'))
+  })
+
+  test('after a conversation both people rest for 10 minutes before the next', async () => {
+    const [a, b, c] = [await person('Ada'), await person('Bob'), await person('Cy')]
+    await talking(a, b)
+    const ended = await run((w) => endConversation(w, a, 'done'))
+    expect(JSON.parse(ended.text).next).toContain('break')
+    const [event] = (await eventsOf(b)).filter((e) => e.event === 'conversation_ended')
+    expect(event!.next).toContain('break')
+    expect((await run((w) => requestConversation(w, c, a, 'Hi'))).text).toContain('taking a break')
+    expect((await run((w) => requestConversation(w, b, c, 'Hi'))).text).toContain('on a break')
+    const look = JSON.parse((await run((w) => lookAround(w, a))).text)
+    expect(look.your_status).toBe('resting')
+    expect(look.your_break_ends).toMatch(/PT$/)
+    const soon = later(minutes(10) - 1000)
+    expect((await run((w) => requestConversation(w, c, a, 'Hi'), soon)).ok).toBe(false)
+    const after = later(minutes(10) + 1000)
+    expect((await run((w) => requestConversation(w, c, a, 'Hi'), after)).ok).toBe(true)
+    expect((await run((w) => goTo(w, b, 'arcade', 'bored'), soon)).ok).toBe(true)
+  })
+})
+
 describe('travel', () => {
   test('a place rejects arrivals beyond its capacity, even when they race', async () => {
     const target = placesById.get('lands-end-lookout')!
@@ -322,5 +363,19 @@ describe('nudges', () => {
     expect((await eventsOf(b)).some((event) => event.event === 'nudge')).toBe(false)
     await run(nudgeIdlePeople, new Date('2026-10-27T09:00:00Z'))
     expect((await eventsOf(a)).filter((event) => event.event === 'nudge')).toHaveLength(1)
+  })
+
+  test('nobody is nudged during their break after a conversation', async () => {
+    const [a, b] = [await person('A'), await person('B')]
+    await talking(a, b)
+    await run((w) => endConversation(w, a, 'done'), later(minutes(7)))
+    await run(nudgeIdlePeople, later(minutes(16)))
+    const nudged = async (id: string) =>
+      (await eventsOf(id)).filter((event) => event.event === 'nudge').length
+    expect(await nudged(a)).toBe(0)
+    expect(await nudged(b)).toBe(0)
+    await run(nudgeIdlePeople, later(minutes(17)))
+    expect(await nudged(a)).toBe(1)
+    expect(await nudged(b)).toBe(1)
   })
 })

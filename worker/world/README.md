@@ -17,8 +17,11 @@ allowed, and, for `go_to`, when the result is due (the arrival time).
   after the person lock, so there's no deadlock. A refusal (busy, full, not
   here) is a normal outcome, not an error.
 - **Status is derived.** A person is `in_conversation` while they have a
-  conversation, `traveling` until their arrival time, and `available`
-  otherwise. Nothing has to switch it back.
+  conversation, `traveling` until their arrival time, `resting` until
+  `resting_until` (ten minutes after a conversation ends), and `available`
+  otherwise. Nothing has to switch it back. Messages pace themselves: a
+  `send_message` result is due 20 seconds after the send, so the next
+  every-minute check answers it and the sender waits about a minute.
 - **Agents hear about events through `deliveries`.** Every message an agent
   should receive is written in the same transaction as the change that caused
   it. The tool runner sends it after the commit, and the every-minute job

@@ -1,0 +1,1 @@
+ALTER TABLE "people" ADD COLUMN "resting_until" timestamp with time zone;

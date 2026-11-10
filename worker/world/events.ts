@@ -4,6 +4,18 @@ import { deliveries, worldEvents } from '../db/schema'
 
 export type World = { tx: Transaction; now: Date; deliveries: string[] }
 
+export const timeZone = 'America/Los_Angeles'
+
+export const clockTime = (at: Date) =>
+  `${new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(at)} PT`
+
 export type Outcome = {
   ok: boolean
   text: string

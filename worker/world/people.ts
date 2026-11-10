@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, isNotNull, isNull, lt, lte, notExists, or, sql }
 import type { Profile } from '../../shared/profile'
 import type { PersonStatus } from '../../shared/world'
 import { conversationRequests, deliveries, people } from '../db/schema'
-import { worldEvent, type World } from './events'
+import { clockTime, timeZone, worldEvent, type World } from './events'
 
 export type Person = Omit<typeof people.$inferSelect, 'portrait'>
 
@@ -20,6 +20,7 @@ export const personColumns = {
   departedAt: people.departedAt,
   arrivesAt: people.arrivesAt,
   conversationId: people.conversationId,
+  restingUntil: people.restingUntil,
   lastActiveAt: people.lastActiveAt,
   lastNudgedAt: people.lastNudgedAt,
   profileVersion: people.profileVersion,
@@ -30,6 +31,7 @@ export const personColumns = {
 export function statusOf(person: Person, now: Date): PersonStatus {
   if (person.conversationId) return 'in_conversation'
   if (person.arrivesAt && person.arrivesAt > now) return 'traveling'
+  if (person.restingUntil && person.restingUntil > now) return 'resting'
   return 'available'
 }
 
@@ -56,13 +58,13 @@ export async function touch({ tx, now }: World, personId: string) {
 }
 
 export const idleBeforeNudgeMs = 15 * 60 * 1000
-export const wakingHours = { from: 8, to: 23, timeZone: 'America/Los_Angeles' } as const
+export const wakingHours = { from: 8, to: 23 } as const
 const nudgeBatch = 500
 
 export function isWakingHour(now: Date) {
   const hour = Number(
     new Intl.DateTimeFormat('en-US', {
-      timeZone: wakingHours.timeZone,
+      timeZone,
       hour: 'numeric',
       hourCycle: 'h23',
     }).format(now),
@@ -73,15 +75,11 @@ export function isWakingHour(now: Date) {
 export async function nudgeIdlePeople(world: World) {
   const { tx, now } = world
   if (!isWakingHour(now)) return
-  const time = new Intl.DateTimeFormat('en-US', {
-    timeZone: wakingHours.timeZone,
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(now)
   const eligible = and(
     isNotNull(people.agentId),
     isNull(people.conversationId),
     or(isNull(people.arrivesAt), lte(people.arrivesAt, now)),
+    or(isNull(people.restingUntil), lte(people.restingUntil, now)),
     lte(people.lastActiveAt, new Date(now.getTime() - idleBeforeNudgeMs)),
     or(isNull(people.lastNudgedAt), lt(people.lastNudgedAt, people.lastActiveAt)),
     notExists(
@@ -123,7 +121,7 @@ export async function nudgeIdlePeople(world: World) {
   if (nudged.length === 0) return
   const ids = nudged.map((row) => row.id)
   const text = worldEvent('nudge', {
-    time: `${time} PT`,
+    time: clockTime(now),
     you_are: 'free',
     next: 'Look around and decide what to do next.',
   })

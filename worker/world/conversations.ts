@@ -3,12 +3,23 @@ import { alias } from 'drizzle-orm/pg-core'
 import { placesById } from '../../shared/map/places'
 import type { Database } from '../db/client'
 import { conversationRequests, conversations, deliveries, messages, people } from '../db/schema'
-import { deliver, done, record, refuse, worldEvent, type Outcome, type World } from './events'
+import {
+  clockTime,
+  deliver,
+  done,
+  record,
+  refuse,
+  worldEvent,
+  type Outcome,
+  type World,
+} from './events'
 import { isAt, lockPeople, statusOf, type Person } from './people'
 
 export const requestLifetimeMs = 5 * 60 * 1000
 export const repeatPairingWindowMs = 24 * 60 * 60 * 1000
 export const idleConversationMs = 10 * 60 * 1000
+export const restAfterConversationMs = 10 * 60 * 1000
+export const messagePauseMs = 20 * 1000
 
 const ordered = (a: string, b: string) => (a < b ? [a, b] : [b, a]) as [string, string]
 
@@ -18,7 +29,8 @@ const card = (person: Person) => ({
   headline: person.profile.headline,
 })
 
-const afterConversation = 'Update your memory file for them, then call record_impression.'
+const afterConversation = (restingUntil: Date) =>
+  `Update your memory file for them, then call record_impression. You're on a break from conversations until ${clockTime(restingUntil)}; you can still look around or go somewhere new.`
 
 async function notifyAll(world: World, items: { to: string; text: string }[]) {
   if (items.length === 0) return
@@ -70,9 +82,19 @@ export async function requestConversation(
   if (myStatus === 'in_conversation')
     return refuse("You're busy: you're already in a conversation.")
   if (myStatus === 'traveling') return refuse("You're still on your way somewhere.")
+  if (myStatus === 'resting') {
+    return refuse(
+      `You're on a break from conversations until ${clockTime(me.restingUntil!)}. Update your notes, look around, or go somewhere new, and ask again after.`,
+    )
+  }
   if (!me.placeId || !isAt(them, me.placeId, now)) return refuse("That person isn't here.")
   if (statusOf(them, now) === 'in_conversation') {
     return refuse('That person is busy in another conversation.')
+  }
+  if (statusOf(them, now) === 'resting') {
+    return refuse(
+      'That person just finished a conversation and is taking a break. Ask someone else.',
+    )
   }
 
   await tx
@@ -214,12 +236,16 @@ export async function respondToRequest(
     .where(inArray(people.id, [a, b]))
   await expirePendingRequests(world, [a, b], 'they started another conversation')
   const place = placesById.get(me.placeId)!
-  const next =
-    'Talk with send_message, and end it with end_conversation when it has run its course.'
+  const ending = 'End it with end_conversation when it has run its course.'
   await deliver(
     world,
     them.id,
-    worldEvent('conversation_started', { with: card(me), place: place.name, next }),
+    worldEvent('conversation_started', {
+      with: card(me),
+      place: place.name,
+      time: clockTime(now),
+      next: `You asked, so say hello first with send_message. ${ending}`,
+    }),
   )
   for (const [person, other] of [
     [me, them],
@@ -230,7 +256,14 @@ export async function respondToRequest(
       otherId: other.id,
     })
   }
-  return done(JSON.stringify({ conversation_started_with: card(them), next }))
+  return done(
+    JSON.stringify({
+      conversation_started_with: card(them),
+      place: place.name,
+      time: clockTime(now),
+      next: `They asked, so wait for their first message, then reply with send_message. ${ending}`,
+    }),
+  )
 }
 
 export async function sendMessage(world: World, meId: string, text: string): Promise<Outcome> {
@@ -255,7 +288,7 @@ export async function sendMessage(world: World, meId: string, text: string): Pro
     `[conversation] ${JSON.stringify({ from: me.profile.name, person_id: meId, text })}`,
     { actor: meId },
   )
-  return done('Delivered.')
+  return done('Delivered. Wait for their reply.', new Date(now.getTime() + messagePauseMs))
 }
 
 async function finish(
@@ -266,13 +299,14 @@ async function finish(
   reason: string | null,
 ) {
   const { tx, now } = world
+  const restingUntil = new Date(now.getTime() + restAfterConversationMs)
   await tx
     .update(conversations)
     .set({ endedAt: now, endedBy, endReason: reason })
     .where(eq(conversations.id, conversationId))
   await tx
     .update(people)
-    .set({ conversationId: null })
+    .set({ conversationId: null, restingUntil })
     .where(
       inArray(
         people.id,
@@ -296,10 +330,12 @@ async function finish(
         with: card(other),
         ended_by: endedBy === null ? 'idle for 10 minutes' : 'them',
         reason,
-        next: afterConversation,
+        time: clockTime(now),
+        next: afterConversation(restingUntil),
       }),
     )
   }
+  return restingUntil
 }
 
 export async function endConversation(
@@ -321,9 +357,19 @@ export async function endConversation(
   const locked = await lockPeople(world, [row.personA, row.personB])
   if (locked.get(meId)?.conversationId !== row.id) return refuse("You're not in a conversation.")
   const partner = locked.get(row.personA === meId ? row.personB : row.personA)!
-  await finish(world, row.id, [locked.get(meId)!, partner], meId, reason ?? null)
+  const restingUntil = await finish(
+    world,
+    row.id,
+    [locked.get(meId)!, partner],
+    meId,
+    reason ?? null,
+  )
   return done(
-    JSON.stringify({ ended: true, next: afterConversation, record_impression_for: card(partner) }),
+    JSON.stringify({
+      ended: true,
+      next: afterConversation(restingUntil),
+      record_impression_for: card(partner),
+    }),
   )
 }
 
