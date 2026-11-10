@@ -1,4 +1,11 @@
-export type Hover = { id: string; name: string; placeId: string; x: number; y: number }
+export type Hover = {
+  id: string
+  name: string
+  placeId: string
+  doing: string
+  x: number
+  y: number
+}
 
 let current: Hover | null = null
 const listeners = new Set<() => void>()

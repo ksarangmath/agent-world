@@ -18,7 +18,7 @@ import { isAt, lockPeople, statusOf, type Person } from './people'
 export const requestLifetimeMs = 5 * 60 * 1000
 export const repeatPairingWindowMs = 24 * 60 * 60 * 1000
 export const idleConversationMs = 10 * 60 * 1000
-export const restAfterConversationMs = 10 * 60 * 1000
+export const restAfterConversationMs = 35 * 60 * 1000
 export const messagePauseMs = 20 * 1000
 
 const ordered = (a: string, b: string) => (a < b ? [a, b] : [b, a]) as [string, string]

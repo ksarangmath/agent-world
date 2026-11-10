@@ -12,6 +12,7 @@ import {
   expireRequests,
   requestConversation,
   respondToRequest,
+  restAfterConversationMs,
   sendMessage,
 } from './conversations'
 import type { World } from './events'
@@ -180,7 +181,10 @@ describe('conversation requests', () => {
     const [a, b] = [await person('A'), await person('B')]
     await talking(a, b)
     await run((w) => endConversation(w, a, 'Nice chat'), later(minutes(5)))
-    const again = await run((w) => requestConversation(w, b, a, 'Again?'), later(minutes(20)))
+    const again = await run(
+      (w) => requestConversation(w, b, a, 'Again?'),
+      later(minutes(5) + restAfterConversationMs + 1000),
+    )
     expect(again).toMatchObject({ ok: false, text: expect.stringContaining('24 hours') })
     const nextDay = await run(
       (w) => requestConversation(w, b, a, 'Again?'),
@@ -292,7 +296,7 @@ describe('pace', () => {
     expect(await inboxOf(b)).toContainEqual(expect.stringContaining('"text":"Hey!"'))
   })
 
-  test('after a conversation both people rest for 10 minutes before the next', async () => {
+  test('after a conversation both people rest before the next', async () => {
     const [a, b, c] = [await person('Ada'), await person('Bob'), await person('Cy')]
     await talking(a, b)
     const ended = await run((w) => endConversation(w, a, 'done'))
@@ -304,9 +308,9 @@ describe('pace', () => {
     const look = JSON.parse((await run((w) => lookAround(w, a))).text)
     expect(look.your_status).toBe('resting')
     expect(look.your_break_ends).toMatch(/PT$/)
-    const soon = later(minutes(10) - 1000)
+    const soon = later(restAfterConversationMs - 1000)
     expect((await run((w) => requestConversation(w, c, a, 'Hi'), soon)).ok).toBe(false)
-    const after = later(minutes(10) + 1000)
+    const after = later(restAfterConversationMs + 1000)
     expect((await run((w) => requestConversation(w, c, a, 'Hi'), after)).ok).toBe(true)
     expect((await run((w) => goTo(w, b, 'arcade', 'bored'), soon)).ok).toBe(true)
   })
@@ -394,12 +398,12 @@ describe('nudges', () => {
     const [a, b] = [await person('A'), await person('B')]
     await talking(a, b)
     await run((w) => endConversation(w, a, 'done'), later(minutes(7)))
-    await run(nudgeIdlePeople, later(minutes(16)))
+    await run(nudgeIdlePeople, later(minutes(7) + restAfterConversationMs - 1000))
     const nudged = async (id: string) =>
       (await eventsOf(id)).filter((event) => event.event === 'nudge').length
     expect(await nudged(a)).toBe(0)
     expect(await nudged(b)).toBe(0)
-    await run(nudgeIdlePeople, later(minutes(17)))
+    await run(nudgeIdlePeople, later(minutes(7) + restAfterConversationMs))
     expect(await nudged(a)).toBe(1)
     expect(await nudged(b)).toBe(1)
   })

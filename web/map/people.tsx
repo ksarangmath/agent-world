@@ -5,6 +5,7 @@ import type { WorldPerson } from '../../shared/api'
 import { placesById, type Activity } from '../../shared/map/places'
 import { positionOnRoute, type Route } from '../../shared/map/route'
 import { onScreen, viewFrom } from './clock'
+import { doing } from './doing'
 import { hash, surfaceAt } from './elevation'
 import { hovered } from './hover'
 import type { RouteReply, RouteRequest } from './routing.worker'
@@ -14,6 +15,9 @@ const capacity = 2000
 const hoverZoom = 14
 const hitPixels = 16
 const seated = new Set<Activity>(['coding', 'coffee', 'eating', 'reading', 'chess', 'picnic'])
+const strollEvery = 28
+const strollFor = 7
+const strollRadius = 0.9
 const performing = new Set<Activity>(['pitching', 'music'])
 const working = new Set<Activity>(['tinkering', 'art'])
 const afloat = new Set<Activity>(['surfing', 'sailing'])
@@ -152,11 +156,24 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
               id: person.id,
               name: person.name,
               placeId: person.placeId,
+              doing: doingNow(person),
               x: event.clientX,
               y: event.clientY,
             }
           : null,
       )
+    }
+    const doingNow = (person: WorldPerson) => {
+      const place = placesById.get(person.placeId)
+      if (person.trip) return `on the way to ${place?.name ?? 'somewhere'}`
+      const partner = partners[shown.indexOf(person)]
+      if (partner !== undefined) return `deep in it with ${shown[partner]!.name}`
+      return doing[person.placeId] ?? 'taking it all in'
+    }
+    const current = hovered.get()
+    if (current) {
+      const person = shown.find((candidate) => candidate.id === current.id)
+      hovered.set(person ? { ...current, doing: doingNow(person) } : null)
     }
     const down = (event: PointerEvent) => {
       press.current =
@@ -187,7 +204,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
       canvas.removeEventListener('pointerup', up)
       canvas.removeEventListener('pointerleave', leave)
     }
-  }, [gl, shown, onSelect])
+  }, [gl, shown, partners, onSelect])
   useEffect(() => () => hovered.set(null), [])
 
   const projected = useMemo(() => new Vector3(), [])
@@ -222,12 +239,24 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         heading = Math.atan2(partner.tile.x - person.tile.x, partner.tile.y - person.tile.y)
         const myTurn = Math.floor(now / 3000) % 2 === (i < partners[i]! ? 0 : 1)
         if (myTurn) motion = 'talk'
+      } else if (t % strollEvery < strollFor && !afloat.has(spot?.activity ?? 'chatting')) {
+        const along = (t % strollEvery) / strollFor
+        const direction = hash(person.tile.y, person.tile.x) * Math.PI * 2
+        const out = strollRadius * Math.sin(along * Math.PI)
+        x += out * Math.sin(direction)
+        y += out * Math.cos(direction)
+        heading = along < 0.5 ? direction : direction + Math.PI
+        motion = 'walk'
       } else {
         const activity = spot?.activity ?? 'chatting'
         if (seated.has(activity)) motion = 'sit'
-        else if (performing.has(activity)) motion = 'perform'
-        else if (working.has(activity)) motion = 'work'
-        else if (activity === 'chatting' && Math.floor(t / 4) % 4 === 0) motion = 'talk'
+        else if (performing.has(activity)) {
+          motion = 'perform'
+          x += 0.12 * Math.sin(t * 2.2)
+        } else if (working.has(activity)) {
+          motion = 'work'
+          x += 0.15 * Math.sin(t * 1.4)
+        } else if (activity === 'chatting' && Math.floor(t / 4) % 4 === 0) motion = 'talk'
         if (activity === 'running') {
           const lap = t * 1.3
           x += 0.3 * Math.cos(lap)
@@ -239,9 +268,9 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
           heading = Math.cos(t * 0.5) > 0 ? Math.PI / 2 : -Math.PI / 2
           motion = 'walk'
         } else if (afloat.has(activity)) {
-          x += 0.8 * Math.sin(t * 0.5)
-          heading = Math.cos(t * 0.5) > 0 ? Math.PI / 2 : -Math.PI / 2
-          lift = 0.08 * Math.sin(t * 3)
+          x += 1.6 * Math.sin(t * 0.6)
+          heading = Math.cos(t * 0.6) > 0 ? Math.PI / 2 : -Math.PI / 2
+          lift = 0.12 * Math.sin(t * 3)
         } else if (activity === 'climbing') {
           heading = Math.atan2(ahead.x, ahead.y)
           lift = 0.6 + 0.6 * Math.sin(t * 0.7)

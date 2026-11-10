@@ -24,8 +24,8 @@ function Card({ hover }: { hover: Hover }) {
       )}
       <strong>{hover.name}</strong>
       {card.data && <span>{card.data.headline}</span>}
-      {place && <span className="muted">At {place.name}</span>}
-      {card.data?.conversationId && <span className="talking">Talking now</span>}
+      <span className="doing">{hover.doing}</span>
+      {place && <span className="muted">{place.name}</span>}
       {card.data && card.data.interests.length > 0 && (
         <span className="muted">{card.data.interests.slice(0, 4).join(' · ')}</span>
       )}

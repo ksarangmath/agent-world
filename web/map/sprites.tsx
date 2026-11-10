@@ -248,9 +248,9 @@ function cellOf({ facing, motion, seconds }: Placement): [number, number] {
     case 'talk':
       return [3 + (Math.floor(seconds * 5) % 3), 4 + facing]
     case 'perform':
-      return [Math.floor(seconds * 8) % 7, 8 + facing]
+      return [Math.floor(seconds * 10) % 7, 8 + facing]
     case 'work':
-      return [Math.floor(seconds * 8) % 8, 12 + facing]
+      return [Math.floor(seconds * 10) % 8, 12 + facing]
     default:
       return [Math.floor(seconds * 1.5) % 2, 4 + facing]
   }
