@@ -2,11 +2,91 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 import { placesById } from '../../shared/map/places'
-import { sendToAgent, useMatches, useMe, useMyConversations, useThread, useWorld } from '../api'
+import {
+  sendToAgent,
+  useMatches,
+  useMe,
+  useMyConversations,
+  useThread,
+  useTimeline,
+  useWorld,
+} from '../api'
+import type { TimelineEvent } from '../../shared/api'
 import { useSession } from '../auth'
 import { doingNow } from '../map/doing'
 import { ago } from './Overlay'
 import { ProfileForm } from './ProfileForm'
+
+const placeName = (id: string | null) => (id ? (placesById.get(id)?.name ?? id) : 'somewhere')
+
+function sentence(first: string, event: TimelineEvent) {
+  const who = event.other?.name ?? 'someone'
+  const quoted = event.note ? ` “${event.note}”` : ''
+  switch (event.kind) {
+    case 'departed':
+      return `${first} headed to ${placeName(event.placeId)}.${quoted}`
+    case 'arrived':
+      return `${first} arrived at ${placeName(event.placeId)}.`
+    case 'looked_around':
+      return `${first} looked around ${placeName(event.placeId)}.`
+    case 'asked':
+      return `${first} went up to ${who}:${quoted}`
+    case 'was_asked':
+      return `${who} came over:${quoted}`
+    case 'accepted':
+      return `${first} said yes to ${who}.`
+    case 'declined':
+      return `${first} passed on ${who}.${quoted}`
+    case 'was_declined':
+      return `${who} passed.${quoted}`
+    case 'request_expired':
+      return `${who} never answered.`
+    case 'conversation_started':
+      return `${first} started talking with ${who} at ${placeName(event.placeId)}.`
+    case 'conversation_ended':
+      return `${first} and ${who} wrapped up.`
+    case 'judged_match':
+      return `${first} would meet ${who}:${quoted}`
+    case 'judged_not_a_match':
+      return `${first} wouldn't meet ${who}:${quoted}`
+    case 'mutual_match':
+      return `${first} and ${who} both said match.`
+  }
+}
+
+function Timeline({ userId, first }: { userId: string; first: string }) {
+  const timeline = useTimeline(userId)
+  const events = (timeline.data ?? []).filter(
+    (event, i, all) =>
+      !(
+        event.kind === 'looked_around' &&
+        all[i + 1]?.kind === 'looked_around' &&
+        all[i + 1]?.placeId === event.placeId
+      ),
+  )
+  return (
+    <section>
+      <h2>What your agent has been up to</h2>
+      {events.length === 0 && <p className="muted">Nothing yet.</p>}
+      <ol className="timeline">
+        {events.map((event) => (
+          <li key={event.id} className={event.kind}>
+            <span>
+              {event.other ? (
+                <Link to="/people/$personId" params={{ personId: event.other.id }}>
+                  {sentence(first, event)}
+                </Link>
+              ) : (
+                sentence(first, event)
+              )}
+            </span>
+            <span className="muted">{ago(event.at)}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
 
 function Thread({ userId }: { userId: string }) {
   const thread = useThread(userId)
@@ -127,6 +207,7 @@ export function MyAgent() {
         </ul>
       </section>
       <Thread userId={userId} />
+      <Timeline userId={userId} first={me.data.person.profile.name.split(' ')[0] ?? 'Your agent'} />
       <section>
         <h2>Who your agent has talked to</h2>
         <ul className="history">

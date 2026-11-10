@@ -1,13 +1,22 @@
-import { and, asc, desc, eq, inArray, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, lte, or, sql } from 'drizzle-orm'
 import type {
   Matches,
   MyConversation,
   PersonCard,
   ThreadMessage,
+  TimelineEvent,
   Transcript,
 } from '../../shared/api'
+import { alias } from 'drizzle-orm/pg-core'
 import type { Database, Transaction } from '../db/client'
-import { conversations, impressions, messages, ownerMessages, people } from '../db/schema'
+import {
+  conversations,
+  impressions,
+  messages,
+  ownerMessages,
+  people,
+  worldEvents,
+} from '../db/schema'
 
 export async function transcript(
   db: Database,
@@ -186,4 +195,36 @@ export async function portraitOf(db: Database, personId: string) {
     .from(people)
     .where(eq(people.id, personId))
   return person?.portrait ?? null
+}
+
+const others = alias(people, 'others')
+
+export async function timeline(
+  db: Database,
+  personId: string,
+  now = new Date(),
+): Promise<TimelineEvent[]> {
+  const rows = await db
+    .select({
+      id: worldEvents.id,
+      kind: worldEvents.kind,
+      placeId: worldEvents.placeId,
+      otherId: others.id,
+      otherName: sql<string | null>`${others.profile}->>'name'`,
+      note: worldEvents.note,
+      at: worldEvents.createdAt,
+    })
+    .from(worldEvents)
+    .leftJoin(others, eq(worldEvents.otherId, others.id))
+    .where(and(eq(worldEvents.personId, personId), lte(worldEvents.createdAt, now)))
+    .orderBy(desc(worldEvents.createdAt), desc(worldEvents.id))
+    .limit(100)
+  return rows.map((row) => ({
+    id: row.id,
+    kind: row.kind,
+    placeId: row.placeId,
+    other: row.otherId ? { id: row.otherId, name: row.otherName ?? '' } : null,
+    note: row.note,
+    at: row.at.toISOString(),
+  }))
 }

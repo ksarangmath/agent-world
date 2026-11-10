@@ -12,7 +12,7 @@ import { omnara } from '../omnara/client'
 import { saveProfile } from '../profile/save'
 import { sendDeliveries } from '../tools/run'
 import { messageAgent } from '../world/owner-thread'
-import { myConversations, myMatches, thread } from '../world/reads'
+import { myConversations, myMatches, thread, timeline } from '../world/reads'
 
 const choicesSchema = profileSchema.pick({ hobbies: true, looking_for: true, about_me: true })
 
@@ -67,6 +67,11 @@ export const me = new Hono<SignedIn>()
     const db = database(c.env)
     const person = await personOf(db, c.var.userId)
     return c.json(person ? await myMatches(db, person.id) : { verdicts: [], mutual: [] })
+  })
+  .get('/timeline', async (c) => {
+    const db = database(c.env)
+    const person = await personOf(db, c.var.userId)
+    return c.json(person ? await timeline(db, person.id) : [])
   })
   .get('/thread', async (c) => {
     const db = database(c.env)

@@ -291,6 +291,35 @@ canvas {
   flex: 1;
 }
 
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.timeline li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.timeline li a {
+  color: inherit;
+}
+
+.timeline .judged_match,
+.timeline .mutual_match {
+  color: #7ed38a;
+}
+
+.timeline .looked_around,
+.timeline .request_expired {
+  color: #c9c2b2;
+}
+
 .history {
   display: flex;
   flex-direction: column;

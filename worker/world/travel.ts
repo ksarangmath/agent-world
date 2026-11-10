@@ -97,6 +97,7 @@ export async function goTo(
   const from = me.tileX !== null && me.tileY !== null ? { x: me.tileX, y: me.tileY } : ferryTerminal
   const arrivesAt = new Date(now.getTime() + Math.ceil(route(from, spot).seconds * 1000))
   await expirePendingRequests(world, [me.id], 'they left for somewhere else')
+  await record(world, me.id, 'departed', now, { placeId, note: reason })
   await tx
     .update(people)
     .set({
@@ -144,6 +145,7 @@ export async function lookAround(world: World, meId: string): Promise<Outcome> {
         sql`${meId} in (${conversationRequests.fromId}, ${conversationRequests.toId})`,
       ),
     )
+  await record(world, me.id, 'looked_around', now, { placeId: place.id })
   const met = new Set(
     (
       await tx

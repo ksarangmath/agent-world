@@ -181,6 +181,12 @@ export async function requestConversation(
       createdAt: now,
     })
     .returning({ id: conversationRequests.id })
+  await record(world, meId, 'asked', now, { placeId: me.placeId, otherId: personId, note: opener })
+  await record(world, personId, 'was_asked', now, {
+    placeId: me.placeId,
+    otherId: meId,
+    note: opener,
+  })
   await deliver(
     world,
     personId,
@@ -235,6 +241,8 @@ export async function respondToRequest(
   }
   if (!accept) {
     await close('declined')
+    await record(world, me.id, 'declined', now, { otherId: them.id, note: reason })
+    await record(world, them.id, 'was_declined', now, { otherId: me.id, note: reason })
     await deliver(
       world,
       them.id,
@@ -258,6 +266,7 @@ export async function respondToRequest(
     .values({ personA: a, personB: b, placeId: me.placeId, startedAt: now, lastMessageAt: now })
     .returning({ id: conversations.id })
   await close('accepted')
+  await record(world, me.id, 'accepted', now, { otherId: them.id })
   await tx
     .update(people)
     .set({ conversationId: conversation!.id })
@@ -433,6 +442,9 @@ export async function expireRequests(world: World) {
       toId: conversationRequests.toId,
     })
   if (expired.length === 0) return
+  for (const request of expired) {
+    await record(world, request.fromId, 'request_expired', now, { otherId: request.toId })
+  }
   await notifyAll(
     world,
     expired.map((request) => ({

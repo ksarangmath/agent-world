@@ -256,7 +256,7 @@ export const worldEvents = pgTable(
     createdAt: createdAt(),
   },
   (t) => [
-    index('world_events_person').on(t.personId, t.id),
+    index('world_events_person').on(t.personId, t.createdAt, t.id),
     check('world_events_note_length', maxLength(t.note, maxReasonLength)),
   ],
 ).enableRLS()

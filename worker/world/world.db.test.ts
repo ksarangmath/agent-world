@@ -17,7 +17,7 @@ import {
   sendMessage,
   speakingMs,
 } from './conversations'
-import { transcript } from './reads'
+import { timeline, transcript } from './reads'
 import type { World } from './events'
 import { recordImpression } from './impressions'
 import { messageAgent, messageOwner } from './owner-thread'
@@ -393,6 +393,45 @@ describe('owner messages', () => {
     expect(raced.filter((outcome) => outcome.ok)).toHaveLength(1)
     await run((w) => messageAgent(w, a, 'Tell me more.'))
     expect((await run((w) => messageOwner(w, a, 'Sure.'))).ok).toBe(true)
+  })
+})
+
+describe('timeline', () => {
+  test('the world records what each person did, with the other person and a note', async () => {
+    const [a, b] = [await person('Ada'), await person('Bob')]
+    await run((w) => lookAround(w, a))
+    await run((w) => requestConversation(w, a, b, "hey, I'm Ada"))
+    const [request] = await pendingFrom(a)
+    await run((w) => respondToRequest(w, b, request!.id, false, 'not today'))
+    await run((w) => goTo(w, a, 'arcade', 'bored'), later(1000))
+    const kinds = async (id: string) =>
+      (
+        await db
+          .select({ kind: worldEvents.kind, note: worldEvents.note, otherId: worldEvents.otherId })
+          .from(worldEvents)
+          .where(eq(worldEvents.personId, id))
+          .orderBy(worldEvents.id)
+      ).map((row) => [row.kind, row.otherId, row.note])
+    expect(await kinds(a)).toEqual([
+      ['looked_around', null, null],
+      ['asked', b, "hey, I'm Ada"],
+      ['was_declined', b, 'not today'],
+      ['departed', null, 'bored'],
+      ['arrived', null, 'bored'],
+    ])
+    expect(await kinds(b)).toEqual([
+      ['was_asked', a, "hey, I'm Ada"],
+      ['declined', a, 'not today'],
+    ])
+    const [trip] = await db
+      .select({ arrivesAt: people.arrivesAt })
+      .from(people)
+      .where(eq(people.id, a))
+    const before = await timeline(db, a, later(2000))
+    expect(before[0]).toMatchObject({ kind: 'departed', placeId: 'arcade', note: 'bored' })
+    expect(before.some((event) => event.kind === 'arrived')).toBe(false)
+    const after = await timeline(db, a, trip!.arrivesAt!)
+    expect(after[0]).toMatchObject({ kind: 'arrived', placeId: 'arcade' })
   })
 })
 

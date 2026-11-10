@@ -6,6 +6,7 @@ import type {
   OnboardingStatus,
   PersonCard,
   ThreadMessage,
+  TimelineEvent,
   Transcript,
   WorldSnapshot,
 } from '../shared/api'
@@ -86,6 +87,8 @@ export const useMyConversations = (userId: string | undefined) =>
   usePrivate<MyConversation[]>('/api/me/conversations', userId)
 export const useMatches = (userId: string | undefined) =>
   usePrivate<Matches>('/api/me/matches', userId)
+export const useTimeline = (userId: string | undefined) =>
+  usePrivate<TimelineEvent[]>('/api/me/timeline', userId)
 export const useThread = (userId: string | undefined) =>
   usePrivate<ThreadMessage[]>('/api/me/thread', userId)
 

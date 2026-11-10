@@ -38,6 +38,10 @@ export async function recordImpression(
       target: [impressions.ownerId, impressions.conversationId],
       set: { verdict, reason, createdAt: now },
     })
+  await record(world, meId, verdict === 'match' ? 'judged_match' : 'judged_not_a_match', now, {
+    otherId: aboutId,
+    note: reason,
+  })
 
   const [theirs] = await tx
     .select({ verdict: impressions.verdict })

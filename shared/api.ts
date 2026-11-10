@@ -1,6 +1,6 @@
 import type { Tile } from './map/route'
 import type { Avatar, Profile } from './profile'
-import type { OwnerMessageDirection, Verdict } from './world'
+import type { OwnerMessageDirection, Verdict, WorldEventKind } from './world'
 
 export type MeResponse = { person: { id: string; profile: Profile; tile: Tile | null } | null }
 
@@ -46,6 +46,15 @@ export type Matches = {
 }
 
 export type ThreadMessage = { direction: OwnerMessageDirection; text: string; at: string }
+
+export type TimelineEvent = {
+  id: number
+  kind: WorldEventKind
+  placeId: string | null
+  other: { id: string; name: string } | null
+  note: string | null
+  at: string
+}
 
 export type PersonCard = {
   id: string
