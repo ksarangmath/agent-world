@@ -89,18 +89,31 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
         <PixelPass />
       </Canvas>
       <PersonHover />
-      <div className="zoom">
-        <button type="button" aria-label="Zoom in" title="Zoom in (+)" onClick={() => zoomBy(1.6)}>
-          +
-        </button>
-        <button
-          type="button"
-          aria-label="Zoom out"
-          title="Zoom out (−)"
-          onClick={() => zoomBy(1 / 1.6)}
-        >
-          −
-        </button>
+      <div className="controls">
+        <div className="move">
+          <kbd>↑</kbd>
+          <kbd>←</kbd>
+          <kbd>↓</kbd>
+          <kbd>→</kbd>
+          <span>
+            Move
+            <br />
+            or WASD
+          </span>
+        </div>
+        <div className="zoom">
+          <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1.6)}>
+            +
+          </button>
+          <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.6)}>
+            −
+          </button>
+          <span>
+            Zoom
+            <br />
+            or scroll
+          </span>
+        </div>
       </div>
     </div>
   )
