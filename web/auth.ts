@@ -10,7 +10,11 @@ export const supabase = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_PU
   auth: { flowType: 'pkce' },
 })
 
-export const signIn = () => supabase.auth.signInWithOAuth({ provider: 'linkedin_oidc' })
+export const signIn = () =>
+  supabase.auth.signInWithOAuth({
+    provider: 'linkedin_oidc',
+    options: { queryParams: { enable_extended_login: 'true' } },
+  })
 
 export const signOut = () => supabase.auth.signOut()
 
