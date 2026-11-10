@@ -36,10 +36,13 @@ export async function verifyLinkedIn(
 ): Promise<{ url: string; photoUrl: string } | LinkedInProblem> {
   const signedIn = photoId(identity.picture)
   if (!signedIn) return 'no-sign-in-photo'
-  try {
+  const read = async () => {
     const [profile] = await exaFreshContents(apiKey, [url])
-    if (!profile || profileUrl(profile.url) !== url) return 'unreachable'
-    const photoUrl = profile.image
+    if (!profile || profileUrl(profile.url) !== url) throw new Error('LinkedIn profile not read')
+    return profile
+  }
+  try {
+    const photoUrl = (await Promise.any([read(), read()])).image
     const photo = photoId(photoUrl)
     if (!photoUrl || !photo) return 'no-public-photo'
     return photo === signedIn ? { url, photoUrl } : 'not-yours'

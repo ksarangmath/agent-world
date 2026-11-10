@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 const timeoutMs = 20_000
+const freshCrawlMs = 30_000
 const maxCharacters = 3000
 
 const resultsSchema = z.object({
@@ -16,12 +17,17 @@ const resultsSchema = z.object({
   ),
 })
 
-async function exa(apiKey: string, endpoint: 'search' | 'contents', body: object) {
+async function exa(
+  apiKey: string,
+  endpoint: 'search' | 'contents',
+  body: object,
+  timeout = timeoutMs,
+) {
   const response = await fetch(`https://api.exa.ai/${endpoint}`, {
     method: 'POST',
     headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: AbortSignal.timeout(timeout),
   })
   if (!response.ok) throw new Error(`Exa ${endpoint} failed with ${response.status}`)
   return resultsSchema.parse(await response.json()).results.map((result) => ({
@@ -40,5 +46,11 @@ export const exaSearch = (apiKey: string, query: string, results: number) =>
 export const exaContents = (apiKey: string, urls: string[]) =>
   exa(apiKey, 'contents', { urls, text: { maxCharacters } })
 
+// https://docs.exa.ai/reference/get-contents
 export const exaFreshContents = (apiKey: string, urls: string[]) =>
-  exa(apiKey, 'contents', { urls, text: { maxCharacters }, maxAgeHours: 0 })
+  exa(
+    apiKey,
+    'contents',
+    { urls, text: { maxCharacters }, maxAgeHours: 0, livecrawlTimeout: freshCrawlMs },
+    freshCrawlMs + timeoutMs,
+  )

@@ -8,12 +8,13 @@ const photo = (id: string) =>
 const identity = { name: 'Ada Lovelace', picture: photo('D5603AQsignedin') }
 const url = 'https://www.linkedin.com/in/ada'
 
-function exa(fresh: Result[] | Error) {
+function exa(...replies: (Result[] | Error)[]) {
   const calls: Record<string, unknown>[] = []
   vi.stubGlobal('fetch', async (_input: string, init: RequestInit) => {
+    const reply = replies[Math.min(calls.length, replies.length - 1)]!
     calls.push(JSON.parse(String(init.body)) as Record<string, unknown>)
-    if (fresh instanceof Error) throw fresh
-    return Response.json({ results: fresh })
+    if (reply instanceof Error) throw reply
+    return Response.json({ results: reply })
   })
   return calls
 }
@@ -39,13 +40,20 @@ describe('LinkedIn URLs', () => {
 })
 
 describe('verifying a pasted LinkedIn profile', () => {
+  const theirs = { url, photoUrl: photo('D5603AQsignedin') }
+  const fresh = expect.objectContaining({ urls: [url], maxAgeHours: 0, livecrawlTimeout: 30_000 })
+
   test('accepts it when a fresh fetch shows the sign-in photo', async () => {
     const calls = exa([{ url, image: photo('D5603AQsignedin') }])
-    expect(await verifyLinkedIn('key', identity, url)).toEqual({
-      url,
-      photoUrl: photo('D5603AQsignedin'),
-    })
-    expect(calls).toEqual([expect.objectContaining({ urls: [url], maxAgeHours: 0 })])
+    expect(await verifyLinkedIn('key', identity, url)).toEqual(theirs)
+    expect(calls).toEqual([fresh, fresh])
+  })
+
+  test('needs only one of its two fresh fetches to come back', async () => {
+    exa([], [{ url, image: photo('D5603AQsignedin') }])
+    expect(await verifyLinkedIn('key', identity, url)).toEqual(theirs)
+    exa(new Error('timed out'), [{ url, image: photo('D5603AQsignedin') }])
+    expect(await verifyLinkedIn('key', identity, url)).toEqual(theirs)
   })
 
   test("rejects a profile with someone else's photo", async () => {
@@ -71,7 +79,12 @@ describe('verifying a pasted LinkedIn profile', () => {
     expect(await verifyLinkedIn('key', identity, url)).toBe('unreachable')
   })
 
-  test('reports LinkedIn as unreachable when the fetch fails', async () => {
+  test('reports LinkedIn as unreachable when both fetches come back empty', async () => {
+    exa([])
+    expect(await verifyLinkedIn('key', identity, url)).toBe('unreachable')
+  })
+
+  test('reports LinkedIn as unreachable when both fetches fail', async () => {
     exa(new Error('network down'))
     expect(await verifyLinkedIn('key', identity, url)).toBe('unreachable')
   })
