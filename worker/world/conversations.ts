@@ -30,7 +30,7 @@ const card = (person: Person) => ({
 })
 
 const afterConversation = (restingUntil: Date) =>
-  `Update your memory file for them, then call record_impression. You're on a break from conversations until ${clockTime(restingUntil)}; you can still look around or go somewhere new.`
+  `The conversation is over, so no more messages to them. Update your memory file for them, then call record_impression. You're on a break from conversations until ${clockTime(restingUntil)}; you can still look around or go somewhere new.`
 
 async function notifyAll(world: World, items: { to: string; text: string }[]) {
   if (items.length === 0) return

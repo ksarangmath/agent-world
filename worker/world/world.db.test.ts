@@ -16,6 +16,7 @@ import {
 } from './conversations'
 import type { World } from './events'
 import { recordImpression } from './impressions'
+import { messageAgent, messageOwner } from './owner-thread'
 import { nudgeIdlePeople } from './people'
 import { goTo, lookAround } from './travel'
 
@@ -308,6 +309,30 @@ describe('pace', () => {
     const after = later(minutes(10) + 1000)
     expect((await run((w) => requestConversation(w, c, a, 'Hi'), after)).ok).toBe(true)
     expect((await run((w) => goTo(w, b, 'arcade', 'bored'), soon)).ok).toBe(true)
+  })
+})
+
+describe('owner messages', () => {
+  test('an agent writes to its owner unprompted once every two hours, and answers any time', async () => {
+    const a = await person('Ada')
+    expect((await run((w) => messageOwner(w, a, 'Met someone great.'))).ok).toBe(true)
+    const again = await run((w) => messageOwner(w, a, 'And another.'), later(minutes(30)))
+    expect(again).toMatchObject({ ok: false, text: expect.stringContaining('write again after') })
+    await run((w) => messageAgent(w, a, 'Who was it?'), later(minutes(31)))
+    expect((await run((w) => messageOwner(w, a, 'Omar.'), later(minutes(32)))).ok).toBe(true)
+    expect((await run((w) => messageOwner(w, a, 'Also…'), later(minutes(33)))).ok).toBe(false)
+    expect((await run((w) => messageOwner(w, a, 'Later.'), later(minutes(153)))).ok).toBe(true)
+  })
+
+  test('the ration holds when calls race, and ties go by thread order', async () => {
+    const a = await person('Ada')
+    const raced = await Promise.all([
+      run((w) => messageOwner(w, a, 'One.')),
+      run((w) => messageOwner(w, a, 'Two.')),
+    ])
+    expect(raced.filter((outcome) => outcome.ok)).toHaveLength(1)
+    await run((w) => messageAgent(w, a, 'Tell me more.'))
+    expect((await run((w) => messageOwner(w, a, 'Sure.'))).ok).toBe(true)
   })
 })
 
