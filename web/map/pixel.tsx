@@ -1,5 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   Vector2,
   Vector3,
@@ -13,14 +13,18 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import type { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
 import { RenderPixelatedPass } from 'three/examples/jsm/postprocessing/RenderPixelatedPass.js'
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
-import { detailZoom } from './clock'
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
+import { HorizontalTiltShiftShader } from 'three/examples/jsm/shaders/HorizontalTiltShiftShader.js'
+import { VerticalTiltShiftShader } from 'three/examples/jsm/shaders/VerticalTiltShiftShader.js'
+import { detailZoom, sky } from './clock'
 
-const pixel = 2
-const dither = 0.3
+const pixel = 1
+const miniature = { blur: 3.5, from: 14, full: 55 }
+const glow = { strength: 0.45, radius: 0.6, threshold: 0.82 }
 const [right, up, shift] = [new Vector3(), new Vector3(), new Vector3()]
 
 const grade = {
-  uniforms: { tDiffuse: { value: null }, grid: { value: new Vector2() } },
+  uniforms: { tDiffuse: { value: null } },
   vertexShader: `
 varying vec2 vUv;
 void main() {
@@ -29,20 +33,16 @@ void main() {
 }`,
   fragmentShader: `
 uniform sampler2D tDiffuse;
-uniform vec2 grid;
 varying vec2 vUv;
-float bayer2(vec2 a) { a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }
-float bayer4(vec2 a) { return bayer2(0.5 * a) * 0.25 + bayer2(a); }
 void main() {
   vec4 texel = texture2D(tDiffuse, vUv);
   vec3 color = texel.rgb;
   float light = dot(color, vec3(0.2126, 0.7152, 0.0722));
-  float threshold = 0.5 + (bayer4(vUv * grid) - 0.5) * ${dither};
-  float step = floor(pow(light, 1.0 / 2.2) * 8.0 + threshold) / 8.0;
+  float step = floor(pow(light, 1.0 / 2.2) * 8.0 + 0.5) / 8.0;
   color *= pow(max(step, 0.02), 2.2) / max(light, 1e-4);
   color *= mix(vec3(0.84, 0.86, 1.12), vec3(1.07, 1.0, 0.9), smoothstep(0.02, 0.5, light));
-  color = mix(vec3(dot(color, vec3(0.2126, 0.7152, 0.0722))), color, 1.18);
-  gl_FragColor = vec4(color, texel.a);
+  color = mix(vec3(dot(color, vec3(0.2126, 0.7152, 0.0722))), color, 1.4);
+  gl_FragColor = vec4(max(color, 0.0), texel.a);
 }`,
 }
 
@@ -79,36 +79,62 @@ class OutlinedPixelPass extends RenderPixelatedPass {
   }
 }
 
+type Passes = {
+  effects: EffectComposer
+  bloom: UnrealBloomPass
+  across: ShaderPass
+  down: ShaderPass
+}
+
 export function PixelPass() {
   const { gl, scene, camera, size } = useThree()
-  const composer = useMemo(() => {
+  const passes = useRef<Passes | null>(null)
+  useEffect(() => {
     const effects = new EffectComposer(gl)
-    const shading = new ShaderPass(grade)
+    const bloom = new UnrealBloomPass(new Vector2(), 0, glow.radius, glow.threshold)
+    const across = new ShaderPass(HorizontalTiltShiftShader)
+    const down = new ShaderPass(VerticalTiltShiftShader)
+    across.uniforms.r!.value = 0.5
+    down.uniforms.r!.value = 0.5
     effects.addPass(
       new OutlinedPixelPass(pixel, scene, camera, {
         normalEdgeStrength: 0.45,
         depthEdgeStrength: 0.6,
       }),
     )
-    effects.addPass(shading)
+    effects.addPass(new ShaderPass(grade))
+    effects.addPass(bloom)
+    effects.addPass(across)
+    effects.addPass(down)
     effects.addPass(new OutputPass())
-    return { effects, grid: shading.uniforms.grid!.value as Vector2 }
+    passes.current = { effects, bloom, across, down }
+    return () => {
+      passes.current = null
+      effects.passes.forEach((pass) => pass.dispose())
+      effects.dispose()
+    }
   }, [gl, scene, camera])
-  useEffect(() => {
-    composer.effects.setSize(size.width, size.height)
-    composer.grid.set(Math.floor(size.width / pixel), Math.floor(size.height / pixel))
-  }, [composer, size])
   useEffect(
-    () => () => {
-      composer.effects.passes.forEach((pass) => pass.dispose())
-      composer.effects.dispose()
-    },
-    [composer],
+    () => passes.current?.effects.setSize(size.width, size.height),
+    [gl, scene, camera, size],
   )
   useFrame(() => {
+    const live = passes.current
+    if (!live) return
     const view = camera as OrthographicCamera
-    const across = (view.right - view.left) / view.zoom / composer.grid.x
-    const tall = (view.top - view.bottom) / view.zoom / composer.grid.y
+    const night = 1 - sky.daylight.value
+    live.bloom.enabled = night > 0.05
+    live.bloom.strength = glow.strength * night
+    const near = Math.min(
+      1,
+      Math.max(0, Math.log(view.zoom / miniature.from) / Math.log(miniature.full / miniature.from)),
+    )
+    const blur = miniature.blur * near * near * (3 - 2 * near)
+    live.across.enabled = live.down.enabled = blur > 0
+    live.across.uniforms.h!.value = blur / size.width
+    live.down.uniforms.v!.value = blur / size.height
+    const across = ((view.right - view.left) / view.zoom / size.width) * pixel
+    const tall = ((view.top - view.bottom) / view.zoom / size.height) * pixel
     right.setFromMatrixColumn(view.matrixWorld, 0)
     up.setFromMatrixColumn(view.matrixWorld, 1)
     const [along, rise] = [view.position.dot(right), view.position.dot(up)]
@@ -118,7 +144,7 @@ export function PixelPass() {
       .addScaledVector(up, Math.round(rise / tall) * tall - rise)
     view.position.add(shift)
     view.updateMatrixWorld()
-    composer.effects.render()
+    live.effects.render()
     view.position.sub(shift)
     view.updateMatrixWorld()
   }, 1)

@@ -20,8 +20,9 @@ export function colored(geometry: BufferGeometry, hex: string): BufferGeometry {
   return flat
 }
 
-export const toonBands = (() => {
-  const texture = new DataTexture(new Uint8Array([120, 185, 235, 255]), 4, 1, RedFormat)
+export const toonRamp = (() => {
+  const shades = Uint8Array.from({ length: 64 }, (_, i) => Math.round(105 + 150 * (i / 63) ** 0.8))
+  const texture = new DataTexture(shades, shades.length, 1, RedFormat)
   texture.minFilter = NearestFilter
   texture.magFilter = NearestFilter
   texture.needsUpdate = true
@@ -29,4 +30,4 @@ export const toonBands = (() => {
 })()
 
 export const toon = (parameters: MeshToonMaterialParameters = {}) =>
-  new MeshToonMaterial({ gradientMap: toonBands, ...parameters })
+  new MeshToonMaterial({ gradientMap: toonRamp, ...parameters })

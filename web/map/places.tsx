@@ -5,7 +5,7 @@ import { spots } from '../../shared/map/spots'
 import { useDetail } from './clock'
 import { surfaceAt } from './decks'
 import { hash } from './elevation'
-import { toonBands } from './paint'
+import { toonRamp } from './paint'
 
 type Prop = {
   x: number
@@ -159,7 +159,7 @@ export function Places() {
       castShadow={useDetail()}
       receiveShadow
     >
-      <meshToonMaterial gradientMap={toonBands} />
+      <meshToonMaterial gradientMap={toonRamp} />
     </instancedMesh>
   )
 }

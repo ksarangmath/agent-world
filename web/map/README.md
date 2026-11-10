@@ -1,9 +1,10 @@
 # The map view
 
-A toon-shaded three.js scene, rendered at 2 screen points per pixel with
-`RenderPixelatedPass` (`pixel.tsx`, which also quantizes and grades color) and
-seen from the south-southwest through an orthographic
-camera. One world unit is one tile. Nothing here talks to the server except
+A toon-shaded three.js scene, rendered in fine pixels with
+`RenderPixelatedPass` (`pixel.tsx`, which also quantizes and grades color,
+blurs the top and bottom of the screen more the closer you zoom, and makes
+lights glow after dark) and seen from the south-southwest through an
+orthographic camera. One world unit is one tile. Nothing here talks to the server except
 the world snapshot that `People` and `Labels` draw.
 
 - **`elevation.ts`**: named hills raise a height grid under the land, and the
