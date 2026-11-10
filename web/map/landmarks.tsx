@@ -19,7 +19,10 @@ const landmarks = icons()
 const parts = [...bridgework.parts, ...landmarks.parts]
 const lights = [...bridgework.lights, ...landmarks.lights]
 
-export const reservedTiles: ReadonlySet<number> = landmarks.reserved
+export const reservedTiles: ReadonlySet<number> = new Set([
+  ...landmarks.reserved,
+  ...bridgework.reserved,
+])
 
 const solidMaterial = toon()
 const lightMaterial = new MeshBasicMaterial()

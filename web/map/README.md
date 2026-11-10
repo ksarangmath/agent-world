@@ -7,7 +7,14 @@ camera. One world unit is one tile. Nothing here talks to the server except
 the world snapshot that `People` and `Labels` draw.
 
 - **`elevation.ts`**: named hills raise a height grid under the land, and the
-  distance from shore shades the water and lifts bridge decks.
+  distance from shore shades the water.
+- **`decks.ts`**: every bridge deck as slabs, each a sloped plank between two
+  points. A deck rises from the ground where its road meets land to its
+  span's height; the three big spans follow the centerline of their own road
+  pieces. `landmarks/bridgeworks.ts` draws these slabs and `surfaceAt` puts
+  walkers and traffic on the same ones, so nothing floats above a bridge or
+  sinks into it. **`lines.ts`** joins road lines end to end, for traffic and
+  for finding where a road crosses water.
 - **`city.ts`**: derives the city from the ground and roads. Each tile takes
   the style of its nearest neighborhood (`neighborhoods.ts`): Victorian rows in
   the Mission, stucco in the Sunset, towers downtown, warehouses in Dogpatch,

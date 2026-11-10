@@ -1,7 +1,5 @@
 import { groundKinds, mapHeight, mapWidth, warp } from '../../shared/map/grid'
-import { roads } from '../../shared/map/route'
 import { ground, isDry } from '../../shared/map/terrain'
-import { deckPieces } from './landmarks/bridges'
 
 export const vertexStep = 2
 export const columns = mapWidth / vertexStep + 1
@@ -177,37 +175,3 @@ export function heightAt(x: number, y: number): number {
   const bottom = at(column, row + 1) + (at(column + 1, row + 1) - at(column, row + 1)) * fx
   return top + (bottom - top) * fy
 }
-
-export const decks = deckPieces.map((piece) => ({
-  ...piece,
-  height: Math.min(
-    piece.cap,
-    Math.max(heightAt(piece.shoreX, piece.shoreY), shoreHeight) + piece.slope * piece.fromShore,
-  ),
-}))
-
-const deckTiles = new Map<number, number>()
-for (const deck of decks) {
-  const [ax, ay] = [Math.sin(deck.angle), Math.cos(deck.angle)]
-  for (const along of [-0.5, 0, 0.5]) {
-    for (const across of [-0.6, 0, 0.6]) {
-      const [x, y] = [
-        deck.x + ax * along * deck.length + ay * across,
-        deck.y + ay * along * deck.length - ax * across,
-      ]
-      const key = Math.floor(y) * mapWidth + Math.floor(x)
-      deckTiles.set(key, Math.max(deckTiles.get(key) ?? 0, deck.height))
-    }
-  }
-}
-
-export function deckHeight(x: number, y: number): number | undefined {
-  const [tx, ty] = [Math.floor(x), Math.floor(y)]
-  if (tx < 0 || ty < 0 || tx >= mapWidth || ty >= mapHeight) return undefined
-  const i = ty * mapWidth + tx
-  if (!roads[i] || shoreDistance[i] === 0) return undefined
-  return deckTiles.get(i) ?? 0.8
-}
-
-export const surfaceAt = (x: number, y: number) =>
-  deckHeight(x, y) ?? Math.max(heightAt(x, y), shoreHeight)

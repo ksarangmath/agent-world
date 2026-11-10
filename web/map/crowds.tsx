@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Vector3 } from 'three'
 import { flyTo } from './camera'
 import { onScreen } from './clock'
-import { surfaceAt } from './elevation'
+import { surfaceAt } from './decks'
 import { crowd } from './people'
 
 export const peopleZoom = 20

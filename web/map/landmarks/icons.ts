@@ -1,7 +1,7 @@
-import { mapHeight, mapWidth, warp } from '../../../shared/map/grid'
+import { warp } from '../../../shared/map/grid'
 import { heightAt, shoreHeight } from '../elevation'
 import { wetAt } from './bridges'
-import { beam, solid, type Light, type Part, type Point } from './shapes'
+import { beam, reserve, solid, type Light, type Part, type Point } from './shapes'
 
 type Site = { x: number; y: number; ground: number }
 
@@ -10,16 +10,6 @@ export const windmillSite = site(-122.5094, 37.7705)
 function site(lon: number, lat: number): Site {
   const [x, y] = warp(lon, lat)
   return { x, y, ground: Math.max(heightAt(x, y), shoreHeight) }
-}
-
-function reserve(tiles: Set<number>, x: number, y: number, radius: number) {
-  for (let ty = Math.floor(y - radius); ty <= Math.ceil(y + radius); ty++) {
-    for (let tx = Math.floor(x - radius); tx <= Math.ceil(x + radius); tx++) {
-      const inside = (tx + 0.5 - x) ** 2 + (ty + 0.5 - y) ** 2 <= radius * radius
-      if (inside && tx >= 0 && ty >= 0 && tx < mapWidth && ty < mapHeight)
-        tiles.add(ty * mapWidth + tx)
-    }
-  }
 }
 
 const angleBetween = (a: [number, number], b: [number, number]) => {

@@ -9,6 +9,7 @@ import {
   SphereGeometry,
   Vector3,
 } from 'three'
+import { mapHeight, mapWidth } from '../../../shared/map/grid'
 
 function gable() {
   const geometry = new BufferGeometry()
@@ -44,6 +45,16 @@ export type Point = readonly [x: number, y: number, z: number]
 export type Part = { shape: Shape; matrix: Matrix4; color: string }
 export type Light = { position: Point; color: string; blink?: number; shimmer?: number }
 
+export function reserve(tiles: Set<number>, x: number, y: number, radius: number) {
+  for (let ty = Math.floor(y - radius); ty <= Math.ceil(y + radius); ty++) {
+    for (let tx = Math.floor(x - radius); tx <= Math.ceil(x + radius); tx++) {
+      const inside = (tx + 0.5 - x) ** 2 + (ty + 0.5 - y) ** 2 <= radius * radius
+      if (inside && tx >= 0 && ty >= 0 && tx < mapWidth && ty < mapHeight)
+        tiles.add(ty * mapWidth + tx)
+    }
+  }
+}
+
 const dummy = new Object3D()
 const target = new Vector3()
 const centered = new Matrix4().makeTranslation(0, -0.5, 0)
@@ -67,11 +78,12 @@ export function beam(
   [ax, ay, az]: Point,
   [bx, by, bz]: Point,
   thickness: number,
+  width = thickness,
 ): Part {
   dummy.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2)
   dummy.rotation.set(0, 0, 0)
   dummy.lookAt(target.set(bx, by, bz))
-  dummy.scale.set(thickness, thickness, Math.sqrt((bx - ax) ** 2 + (by - ay) ** 2 + (bz - az) ** 2))
+  dummy.scale.set(width, thickness, Math.sqrt((bx - ax) ** 2 + (by - ay) ** 2 + (bz - az) ** 2))
   dummy.updateMatrix()
   dummy.matrix.multiply(centered)
   return { shape: 'box', color, matrix: dummy.matrix.clone() }

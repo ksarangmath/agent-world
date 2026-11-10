@@ -2,6 +2,7 @@ import geography from '../../../shared/map/geography.json'
 import { groundKinds, mapHeight, mapWidth, warp } from '../../../shared/map/grid'
 import { roadClasses } from '../../../shared/map/route'
 import { ground } from '../../../shared/map/terrain'
+import { chains } from '../lines'
 
 export type Span = 'goldenGate' | 'bayWest' | 'bayEast' | 'generic'
 
@@ -14,16 +15,13 @@ export type DeckPiece = {
   span: Span
   cap: number
   slope: number
-  shoreX: number
-  shoreY: number
-  fromShore: number
   order: number
 }
 
 const profiles: Record<Span, { cap: number; slope: number; width?: number }> = {
-  goldenGate: { cap: 4.5, slope: 6, width: 1.3 },
-  bayWest: { cap: 3.6, slope: 0.9, width: 1.5 },
-  bayEast: { cap: 2.6, slope: 0.6, width: 1.5 },
+  goldenGate: { cap: 3.6, slope: 0.8, width: 1.8 },
+  bayWest: { cap: 3.6, slope: 0.9, width: 1.7 },
+  bayEast: { cap: 2.6, slope: 0.6, width: 2 },
   generic: { cap: 1.2, slope: 0.4 },
 }
 
@@ -67,10 +65,14 @@ function distanceToAxis(x: number, y: number, points: [number, number][]) {
   return best
 }
 
-const spanAt = (x: number, y: number, roadClass: (typeof roadClasses)[number]): Span =>
-  (roadClass === 'freeway' &&
-    warpedAxes.find(([, points]) => distanceToAxis(x, y, points) < 2.5)?.[0]) ||
-  'generic'
+function spanOf(run: { x: number; y: number }[], roadClass: (typeof roadClasses)[number]): Span {
+  const middle = run[run.length >> 1]!
+  return (
+    (roadClass === 'freeway' &&
+      warpedAxes.find(([, points]) => distanceToAxis(middle.x, middle.y, points) < 2.5)?.[0]) ||
+    'generic'
+  )
+}
 
 export const wetAt = (x: number, y: number) => {
   const [tx, ty] = [Math.floor(x), Math.floor(y)]
@@ -81,6 +83,7 @@ export const wetAt = (x: number, y: number) => {
 
 const sampleStep = 0.25
 const piecesPerTile = 4
+const tileCenter = 0.5
 
 function samples(line: number[]): { x: number; y: number }[] {
   const points: { x: number; y: number }[] = []
@@ -88,7 +91,10 @@ function samples(line: number[]): { x: number; y: number }[] {
     const [x0, y0, x1, y1] = [line[p]!, line[p + 1]!, line[p + 2]!, line[p + 3]!]
     const count = Math.max(1, Math.ceil(Math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2) / sampleStep))
     for (let s = p === 0 ? 0 : 1; s <= count; s++) {
-      points.push({ x: x0 + ((x1 - x0) * s) / count, y: y0 + ((y1 - y0) * s) / count })
+      points.push({
+        x: x0 + ((x1 - x0) * s) / count + tileCenter,
+        y: y0 + ((y1 - y0) * s) / count + tileCenter,
+      })
     }
   }
   return points
@@ -108,14 +114,16 @@ function wetRuns(points: { x: number; y: number }[]) {
   return runs.filter((run) => run.length > piecesPerTile)
 }
 
-function buildDecks(): DeckPiece[] {
-  const runs = [...roadClasses]
-    .reverse()
-    .flatMap((roadClass) =>
-      geography.roads[roadClass].flatMap((line) =>
-        wetRuns(samples(line)).map((run) => ({ run, roadClass })),
-      ),
-    )
+function buildDecks() {
+  const runs = [...roadClasses].reverse().flatMap((roadClass) =>
+    chains(geography.roads[roadClass]).flatMap((line) =>
+      wetRuns(samples(line)).map((run) => ({
+        run,
+        roadClass,
+        span: spanOf(run, roadClass),
+      })),
+    ),
+  )
   const shores = runs.flatMap(({ run }) => [run[0]!, run.at(-1)!].filter((p) => !wetAt(p.x, p.y)))
   const taken = new Map<number, { x: number; y: number }[]>()
   const near = (x: number, y: number) => {
@@ -128,17 +136,13 @@ function buildDecks(): DeckPiece[] {
     return false
   }
   const pieces: DeckPiece[] = []
-  for (const { run, roadClass } of runs) {
+  for (const { run, roadClass, span } of runs) {
     for (let k = 0; k + 1 < run.length; k += piecesPerTile) {
       const [a, b] = [run[k]!, run[Math.min(run.length - 1, k + piecesPerTile)]!]
       const [x, y] = [(a.x + b.x) / 2, (a.y + b.y) / 2]
       if (near(x, y)) continue
       const key = Math.floor(y) * mapWidth + Math.floor(x)
       taken.set(key, [...(taken.get(key) ?? []), { x, y }])
-      const span = spanAt(x, y, roadClass)
-      const shore = shores.reduce((best, p) =>
-        (p.x - x) ** 2 + (p.y - y) ** 2 < (best.x - x) ** 2 + (best.y - y) ** 2 ? p : best,
-      )
       pieces.push({
         x,
         y,
@@ -148,14 +152,11 @@ function buildDecks(): DeckPiece[] {
         span,
         cap: profiles[span].cap,
         slope: profiles[span].slope,
-        shoreX: shore.x,
-        shoreY: shore.y,
-        fromShore: Math.sqrt((shore.x - x) ** 2 + (shore.y - y) ** 2),
         order: k / piecesPerTile,
       })
     }
   }
-  return pieces
+  return { pieces, shores }
 }
 
-export const deckPieces: DeckPiece[] = buildDecks()
+export const { pieces: deckPieces, shores } = buildDecks()

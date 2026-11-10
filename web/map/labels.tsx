@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Vector3 } from 'three'
 import { warp } from '../../shared/map/grid'
 import { places, regionNames, type Region } from '../../shared/map/places'
-import { surfaceAt } from './elevation'
+import { surfaceAt } from './decks'
 import { neighborhoods } from './neighborhoods'
 
 type Label = {

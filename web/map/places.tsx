@@ -3,7 +3,8 @@ import { BoxGeometry, Color, Object3D, type InstancedMesh } from 'three'
 import { places, type Place } from '../../shared/map/places'
 import { spots } from '../../shared/map/spots'
 import { useDetail } from './clock'
-import { hash, surfaceAt } from './elevation'
+import { surfaceAt } from './decks'
+import { hash } from './elevation'
 import { toonBands } from './paint'
 
 type Prop = {

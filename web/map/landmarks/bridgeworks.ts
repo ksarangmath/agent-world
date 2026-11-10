@@ -1,10 +1,12 @@
-import { warp } from '../../../shared/map/grid'
-import { decks } from '../elevation'
-import { axes, type Major, type Span } from './bridges'
-import { beam, solid, type Light, type Part, type Point } from './shapes'
+import { decks, routes, slabs, type Route, type Slab } from '../decks'
+import type { Major, Span } from './bridges'
+import { beam, reserve, solid, type Light, type Part, type Point } from './shapes'
 
 const seabed = -1.2
 const deckThickness = 0.25
+const trussDepth = 0.4
+const truss = '#9e2b23'
+const clearing = 2
 
 const colors: Record<Span, string> = {
   goldenGate: '#c0362c',
@@ -13,38 +15,7 @@ const colors: Record<Span, string> = {
   generic: '#a29f99',
 }
 
-function path(span: Major) {
-  const points = axes[span].map(([lon, lat]) => warp(lon, lat))
-  const pieces = decks.filter((deck) => deck.span === span)
-  const distances = [0]
-  points.slice(1).forEach(([x, y], i) => {
-    const [px, py] = points[i]!
-    distances.push(distances[i]! + Math.sqrt((x - px) ** 2 + (y - py) ** 2))
-  })
-  const length = distances.at(-1)!
-  const at = (s: number) => {
-    const target = Math.max(0, Math.min(length, s))
-    let i = 0
-    while (i < points.length - 2 && distances[i + 1]! < target) i++
-    const [[px, py], [qx, qy]] = [points[i]!, points[i + 1]!]
-    const segment = distances[i + 1]! - distances[i]!
-    const t = (target - distances[i]!) / segment
-    const [x, y] = [px + (qx - px) * t, py + (qy - py) * t]
-    const nearest = pieces.reduce((best, p) =>
-      (p.x - x) ** 2 + (p.y - y) ** 2 < (best.x - x) ** 2 + (best.y - y) ** 2 ? p : best,
-    )
-    return {
-      x,
-      y,
-      deck: nearest.height,
-      across: { x: (qy - py) / segment, y: -(qx - px) / segment },
-      yaw: Math.atan2(qx - px, qy - py),
-    }
-  }
-  return { length, at }
-}
-
-type Path = ReturnType<typeof path>
+type Path = Route
 
 const side = (p: ReturnType<Path['at']>, offset: number, height: number): Point => [
   p.x + p.across.x * offset,
@@ -132,38 +103,15 @@ const parabola = (from: number, to: number, high: number, low: number) => (s: nu
 const linear = (s0: number, h0: number, s1: number, h1: number) => (s: number) =>
   h0 + ((h1 - h0) * (s - s0)) / (s1 - s0)
 
-function roadway(
-  parts: Part[],
-  lights: Light[],
-  span: Major,
-  route: Path,
-  width: number,
-  truss?: string,
-) {
+function roadway(parts: Part[], lights: Light[], reserved: Set<number>, span: Major, route: Path) {
+  for (const s of [0, route.length]) {
+    const shore = route.at(s)
+    reserve(reserved, shore.x, shore.y, clearing)
+  }
   for (let s = 0; s < route.length; s += 1) {
     const point = route.at(s + 0.5)
-    const length = Math.min(1, route.length - s) + 0.05
-    parts.push(
-      solid(
-        'box',
-        colors[span],
-        [point.x, point.deck - deckThickness, point.y],
-        [width, deckThickness, length],
-        point.yaw,
-      ),
-    )
-    if (truss)
-      parts.push(
-        solid(
-          'box',
-          truss,
-          [point.x, point.deck - 0.65, point.y],
-          [width * 0.9, 0.4, length],
-          point.yaw,
-        ),
-      )
     if (s % 2 === 0) {
-      for (const offset of [-width * 0.45, width * 0.45])
+      for (const offset of [-route.width * 0.45, route.width * 0.45])
         lights.push({ position: side(point, offset, point.deck + 0.25), color: '#ffd98a' })
     }
     if (span === 'bayEast' && s % 3 === 1 && s > route.length * 0.42) {
@@ -180,28 +128,49 @@ function roadway(
   }
 }
 
-function goldenGate(parts: Part[], lights: Light[]) {
-  const route = path('goldenGate')
-  roadway(parts, lights, 'goldenGate', route, 1.5, '#9e2b23')
+const plank = (color: string, slab: Slab, below: number, thickness: number, width: number) =>
+  beam(
+    color,
+    [slab.from[0], slab.from[1] - below - thickness / 2, slab.from[2]],
+    [slab.to[0], slab.to[1] - below - thickness / 2, slab.to[2]],
+    thickness,
+    width,
+  )
+
+function goldenGate(parts: Part[], lights: Light[], reserved: Set<number>) {
+  const route = routes.goldenGate
+  roadway(parts, lights, reserved, 'goldenGate', route)
   const color = colors.goldenGate
-  const [south, north] = [route.length * 0.18, route.length * 0.82]
+  const [south, north] = [route.length * 0.22, route.length * 0.78]
   const deck = route.at(route.length / 2).deck
   const top = 16
   for (const s of [south, north])
-    tower(parts, lights, route.at(s), top, 0.8, color, [deck - 0.7, 8, 11, 13.8, top - 0.2])
+    tower(parts, lights, route.at(s), top, 1, color, [deck - 0.7, 8, 11, 13.8, top - 0.2])
+  for (const s of [0.5, route.length - 0.5]) {
+    const shore = route.at(s)
+    parts.push(
+      solid(
+        'box',
+        '#b9b6ae',
+        [shore.x, seabed, shore.y],
+        [2, shore.deck - deckThickness - seabed, 1.5],
+        shore.yaw,
+      ),
+    )
+  }
   const height = (s: number) =>
     s < south
       ? linear(0, route.at(0).deck + 0.4, south, top)(s)
       : s > north
         ? linear(north, top, route.length, route.at(route.length).deck + 0.4)(s)
         : parabola(south, north, top, deck + 0.7)(s)
-  for (const offset of [-0.65, 0.65]) cable(parts, color, route, offset, height, 0, route.length)
-  suspenders(parts, lights, color, route, 0.65, height, 0, route.length)
+  for (const offset of [-0.85, 0.85]) cable(parts, color, route, offset, height, 0, route.length)
+  suspenders(parts, lights, color, route, 0.85, height, 0, route.length)
 }
 
-function bayWest(parts: Part[], lights: Light[]) {
-  const route = path('bayWest')
-  roadway(parts, lights, 'bayWest', route, 1.7)
+function bayWest(parts: Part[], lights: Light[], reserved: Set<number>) {
+  const route = routes.bayWest
+  roadway(parts, lights, reserved, 'bayWest', route)
   const color = colors.bayWest
   const towers = [0.12, 0.36, 0.64, 0.88].map((f) => f * route.length)
   const center = route.length / 2
@@ -241,9 +210,9 @@ function bayWest(parts: Part[], lights: Light[]) {
   suspenders(parts, lights, color, route, 0.75, height, 0, route.length, '#f4f7ff')
 }
 
-function bayEast(parts: Part[], lights: Light[]) {
-  const route = path('bayEast')
-  roadway(parts, lights, 'bayEast', route, 1.7)
+function bayEast(parts: Part[], lights: Light[], reserved: Set<number>) {
+  const route = routes.bayEast
+  roadway(parts, lights, reserved, 'bayEast', route)
   const color = colors.bayEast
   const s = route.length * 0.2
   const point = route.at(s)
@@ -263,17 +232,15 @@ function bayEast(parts: Part[], lights: Light[]) {
 export function bridges() {
   const parts: Part[] = []
   const lights: Light[] = []
+  const reserved = new Set<number>()
+  for (const slab of slabs) {
+    parts.push(plank(colors[slab.span], slab, 0, deckThickness, slab.width))
+    if (slab.span === 'goldenGate') {
+      parts.push(plank(truss, slab, deckThickness, trussDepth, slab.width * 0.9))
+    }
+  }
   for (const deck of decks) {
     if (deck.span !== 'generic') continue
-    parts.push(
-      solid(
-        'box',
-        colors.generic,
-        [deck.x, deck.height - deckThickness, deck.y],
-        [deck.width, deckThickness, deck.length],
-        deck.angle,
-      ),
-    )
     if (deck.order % 3 === 1) {
       parts.push(
         solid(
@@ -297,8 +264,8 @@ export function bridges() {
       })
     }
   }
-  goldenGate(parts, lights)
-  bayWest(parts, lights)
-  bayEast(parts, lights)
-  return { parts, lights }
+  goldenGate(parts, lights, reserved)
+  bayWest(parts, lights, reserved)
+  bayEast(parts, lights, reserved)
+  return { parts, lights, reserved }
 }
