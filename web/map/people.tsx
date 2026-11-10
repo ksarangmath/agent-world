@@ -9,11 +9,11 @@ import { doingNow } from './doing'
 import { hash, surfaceAt } from './elevation'
 import { hovered } from './hover'
 import type { RouteReply, RouteRequest } from './routing.worker'
-import { Sprites, type Facing, type Placement } from './sprites'
+import { body, Sprites, type Facing, type Placement } from './sprites'
 
 const capacity = 2000
 const hoverZoom = 14
-const hitPixels = 16
+const hitMargin = 12
 const seated = new Set<Activity>(['coding', 'coffee', 'eating', 'reading', 'chess', 'picnic'])
 const strollEvery = 28
 const strollFor = 7
@@ -45,7 +45,8 @@ export const talks = {
   y: new Float32Array(capacity),
   height: new Float32Array(capacity),
 }
-const bubbleLift = 1.6
+const bubbleLift = 1.7
+const rise = viewFrom.y / across
 const tripKey = (person: WorldPerson) =>
   person.trip && `${person.trip.from.x},${person.trip.from.y}>${person.tile.x},${person.tile.y}`
 
@@ -126,19 +127,37 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
   }, [shown])
   const avatars = useMemo(() => shown.map((person) => person.avatar), [shown])
 
-  const screen = useRef(new Float32Array(capacity * 2).fill(Number.NaN))
+  const screen = useRef(new Float32Array(capacity * 3).fill(Number.NaN))
   const press = useRef<{ pointer: number; x: number; y: number; moved: boolean } | null>(null)
   useEffect(() => {
     const canvas = gl.domElement
     const nearest = (event: PointerEvent) => {
       const bounds = canvas.getBoundingClientRect()
       const [px, py] = [event.clientX - bounds.left, event.clientY - bounds.top]
-      let [best, bestDistance] = [-1, hitPixels ** 2]
+      const [halfWidth, halfHeight] = [
+        (body.width * camera.zoom) / 2,
+        (body.height * camera.zoom) / 2,
+      ]
+      let [best, bestMiss, bestDepth] = [
+        -1,
+        Math.max(hitMargin, body.reach * camera.zoom),
+        Infinity,
+      ]
       for (let i = 0; i < shown.length; i++) {
-        const [sx, sy] = [screen.current[i * 2]!, screen.current[i * 2 + 1]!]
-        if (Number.isNaN(sx)) continue
-        const d = (sx - px) ** 2 + (sy - py) ** 2
-        if (d < bestDistance) [best, bestDistance] = [i, d]
+        const [x, feet, depth] = [
+          screen.current[i * 3]!,
+          screen.current[i * 3 + 1]!,
+          screen.current[i * 3 + 2]!,
+        ]
+        if (Number.isNaN(x)) continue
+        const miss = Math.max(
+          0,
+          Math.abs(x - px) - halfWidth,
+          Math.abs(feet - halfHeight - py) - halfHeight,
+        )
+        if (miss < bestMiss || (miss === bestMiss && depth < bestDepth)) {
+          ;[best, bestMiss, bestDepth] = [i, miss, depth]
+        }
       }
       return shown[best]
     }
@@ -197,7 +216,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
       canvas.removeEventListener('pointerup', up)
       canvas.removeEventListener('pointerleave', leave)
     }
-  }, [gl, shown, onSelect])
+  }, [gl, camera, shown, onSelect])
   useEffect(() => () => hovered.set(null), [])
 
   const projected = useMemo(() => new Vector3(), [])
@@ -272,7 +291,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
       crowd.x[i] = x
       crowd.y[i] = y
       crowd.shown[i] = hide ? 0 : 1
-      screen.current[i * 2] = Number.NaN
+      screen.current[i * 3] = Number.NaN
       if (hide || !onScreen(x, y)) {
         placements.current[i] = null
         return
@@ -287,9 +306,10 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         seconds: t,
       }
       if (hoverable) {
-        projected.set(x, ground + 0.6, y).project(camera)
-        screen.current[i * 2] = ((projected.x + 1) / 2) * size.width
-        screen.current[i * 2 + 1] = ((1 - projected.y) / 2) * size.height
+        projected.set(x, ground, y).project(camera)
+        screen.current[i * 3] = ((projected.x + 1) / 2) * size.width
+        screen.current[i * 3 + 1] = ((1 - projected.y) / 2) * size.height
+        screen.current[i * 3 + 2] = projected.z
       }
     })
     talks.count = 0
@@ -299,12 +319,13 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
       const [x, y] = [(crowd.x[i]! + crowd.x[j]!) / 2, (crowd.y[i]! + crowd.y[j]!) / 2]
       if (!onScreen(x, y)) return
       const k = talks.count++
+      const headOf = (talker: number) =>
+        surfaceAt(crowd.x[talker]!, crowd.y[talker]!) +
+        rise * ((crowd.x[talker]! - x) * ahead.x + (crowd.y[talker]! - y) * ahead.y)
       talks.id[k] = person.conversationId!
       talks.x[k] = x
       talks.y[k] = y
-      talks.height[k] =
-        Math.max(surfaceAt(crowd.x[i]!, crowd.y[i]!), surfaceAt(crowd.x[j]!, crowd.y[j]!)) +
-        bubbleLift
+      talks.height[k] = Math.max(headOf(i), headOf(j)) + bubbleLift
     })
   })
 

@@ -4,6 +4,8 @@ import { Vector3 } from 'three'
 import { detailZoom } from './clock'
 import { talks } from './people'
 
+const tail = 6
+
 export function Talks({ onOpen }: { onOpen: (conversationId: string) => void }) {
   const { gl, camera, size } = useThree()
   const pool = useRef<HTMLButtonElement[]>([])
@@ -35,7 +37,7 @@ export function Talks({ onOpen }: { onOpen: (conversationId: string) => void }) 
       element.dataset.id = talks.id[i]!
       element.style.display = 'flex'
       element.style.setProperty('--size', `${scale}px`)
-      element.style.transform = `translate(${((projected.x + 1) / 2) * size.width}px, ${((1 - projected.y) / 2) * size.height}px) translate(-50%, -100%)`
+      element.style.transform = `translate(${((projected.x + 1) / 2) * size.width}px, ${((1 - projected.y) / 2) * size.height}px) translate(-50%, calc(-100% - ${tail}px))`
     }
     for (let i = shown; i < pool.current.length; i++) pool.current[i]!.style.display = 'none'
   })

@@ -38,6 +38,11 @@ const columns = 9
 const rows = 16
 const frame = 64
 const walkFrames = 8
+export const body = {
+  width: (size * 30) / frame,
+  height: (size * 56) / frame,
+  reach: (size * 17) / frame,
+}
 const placeholder = new Vector3()
 const retries = 4
 
