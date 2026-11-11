@@ -42,6 +42,11 @@ export const speakingMs = (text: string) => Math.min(20_000, 1_500 + text.length
 
 const ordered = (a: string, b: string) => (a < b ? [a, b] : [b, a]) as [string, string]
 
+const hasTalkedThisVisit = (person: Person) =>
+  person.restingUntil !== null &&
+  (person.departedAt === null ||
+    person.departedAt.getTime() < person.restingUntil.getTime() - restAfterConversationMs)
+
 async function talkedToday({ tx, now }: World, personId: string) {
   const [today] = await tx
     .select({ n: count() })
@@ -56,7 +61,7 @@ async function talkedToday({ tx, now }: World, personId: string) {
 }
 
 const afterConversation = (restingUntil: Date) =>
-  `The conversation is over, so no more messages to them. Update your memory file for them, then call record_impression. You're on a break from conversations until ${clockTime(restingUntil)}; you can still look around or go somewhere new.`
+  `The conversation is over, so no more messages to them. Update your memory file for them, then call record_impression. You're on a break from conversations until ${clockTime(restingUntil)}. It's one conversation per visit, so head somewhere else now: a place for something you like doing.`
 
 async function notifyAll(world: World, items: { to: string; text: string }[]) {
   if (items.length === 0) return
@@ -130,6 +135,16 @@ export async function requestConversation(
   if (statusOf(them, now) === 'resting') {
     return refuse(
       'That person just finished a conversation and is taking a break. Ask someone else.',
+    )
+  }
+  if (hasTalkedThisVisit(me)) {
+    return refuse(
+      "You've already had a conversation on this visit. Go do something you like somewhere else, then meet people there.",
+    )
+  }
+  if (hasTalkedThisVisit(them)) {
+    return refuse(
+      'That person has already had a conversation on this visit and is about to head off. Ask someone else.',
     )
   }
 

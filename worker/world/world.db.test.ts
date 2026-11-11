@@ -135,6 +135,9 @@ async function parted(leaver: string, other: string, at = t0, reason?: string) {
   return over
 }
 
+const steppedOut = (id: string, at: Date) =>
+  db.update(people).set({ departedAt: at, arrivesAt: at }).where(eq(people.id, id))
+
 async function talking(a: string, b: string, now = t0) {
   await run((w) => requestConversation(w, a, b, 'Hi there'), now)
   const [request] = await pendingFrom(a)
@@ -200,11 +203,13 @@ describe('conversation requests', () => {
     const [a, b, c] = [await person('A'), await person('B'), await person('C')]
     await talking(a, b)
     const first = await parted(a, b, later(minutes(5)))
+    await Promise.all([steppedOut(a, first), steppedOut(b, first)])
     const free = new Date(first.getTime() + restAfterConversationMs + 1000)
     const again = await run((w) => requestConversation(w, b, a, 'Again?'), free)
     expect(again).toMatchObject({ ok: false, text: expect.stringContaining('Meet 1 more person') })
     await talking(a, c, free)
     const second = await parted(a, c, new Date(free.getTime() + minutes(5)))
+    await steppedOut(a, second)
     const tooSoon = await run(
       (w) => requestConversation(w, a, b, 'Round two?'),
       new Date(second.getTime() + restAfterConversationMs + 1000),
@@ -221,6 +226,7 @@ describe('conversation requests', () => {
     const [a, b] = [await person('A'), await person('B')]
     await talking(a, b)
     const first = await parted(a, b, later(minutes(5)))
+    await Promise.all([steppedOut(a, first), steppedOut(b, first)])
     const rested = await run(
       (w) => requestConversation(w, b, a, 'Again?'),
       new Date(first.getTime() + restAfterConversationMs + 1000),
@@ -556,6 +562,7 @@ describe('pace', () => {
     const [a, b, c] = [await person('Ada'), await person('Bob'), await person('Cy')]
     await talking(a, b)
     const over = await parted(a, b, later(minutes(1)))
+    await steppedOut(a, over)
     const free = new Date(over.getTime() + restAfterConversationMs + 1000)
     const look = JSON.parse((await run((w) => lookAround(w, a), free)).text)
     expect(look.people_here).toEqual(
@@ -594,7 +601,7 @@ describe('pace', () => {
     expect(count!.n).toBe(3)
   })
 
-  test('after a conversation both people rest before the next', async () => {
+  test('after a conversation both people rest, then go elsewhere, before the next', async () => {
     const [a, b, c] = [await person('Ada'), await person('Bob'), await person('Cy')]
     await talking(a, b)
     await run((w) => endConversation(w, a, 'gotta run', 'done'))
@@ -610,6 +617,13 @@ describe('pace', () => {
     const soon = later(30_000 + restAfterConversationMs - 1000)
     expect((await run((w) => requestConversation(w, c, a, 'Hi'), soon)).ok).toBe(false)
     const after = later(30_000 + restAfterConversationMs + 1000)
+    expect((await run((w) => requestConversation(w, b, c, 'Hi'), after)).text).toContain(
+      "You've already had a conversation on this visit",
+    )
+    expect((await run((w) => requestConversation(w, c, a, 'Hi'), after)).text).toContain(
+      'about to head off',
+    )
+    await steppedOut(a, after)
     expect((await run((w) => requestConversation(w, c, a, 'Hi'), after)).ok).toBe(true)
     expect((await run((w) => goTo(w, b, 'arcade', 'bored'), soon)).ok).toBe(true)
   })
