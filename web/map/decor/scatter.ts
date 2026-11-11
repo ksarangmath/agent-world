@@ -1,6 +1,6 @@
 import geography from '../../../shared/map/geography.json'
 import { mapHeight, mapWidth, warp } from '../../../shared/map/grid'
-import { places } from '../../../shared/map/places'
+import { places, type Place } from '../../../shared/map/places'
 import { accessRoad, roads } from '../../../shared/map/route'
 import { spots } from '../../../shared/map/spots'
 import { groundAt } from '../../../shared/map/terrain'
@@ -517,6 +517,45 @@ export function scatter(city: City) {
         phase: pod * 3 + n * 0.45,
       })),
   )
+
+  const beside = (place: Place, k: number, radius: number) => {
+    const angle = hash(place.center.x + k * 3, place.center.y) * Math.PI * 2 + k * 2.4
+    for (let reach = radius; reach < radius + 4; reach += 0.5) {
+      const x = Math.floor(place.center.x + reach * Math.cos(angle))
+      const y = Math.floor(place.center.y + reach * Math.sin(angle))
+      if (!free(x, y)) continue
+      claim(x, y, 0)
+      return { x: x + 0.5, y: y + 0.5 }
+    }
+    return null
+  }
+  for (const place of places) {
+    if (place.activity === 'camping') {
+      for (let k = 0; k < 6; k++) {
+        const at = beside(place, k, 2.5)
+        if (at)
+          put(
+            'tent',
+            at.x,
+            at.y,
+            k * 1.3,
+            pick(bold, hash(k, place.center.x) * 31),
+            [1.5, 1.5, 1.5],
+          )
+      }
+      const fire = beside(place, 9, 1.5)
+      if (fire) {
+        put('bonfire', fire.x, fire.y, 0.4)
+        flames.push({ ...fire, base: surfaceAt(fire.x, fire.y) + 0.08, phase: 3 })
+      }
+    } else if (place.activity === 'stargazing') {
+      const at = beside(place, 0, 3)
+      if (at) put('dome', at.x, at.y, 0.6, '#ffffff', [1.7, 1.7, 1.7])
+    } else if (place.activity === 'pottery') {
+      const at = beside(place, 0, 2.5)
+      if (at) put('kiln', at.x, at.y, 0.3, '#ffffff', [1.3, 1.3, 1.3])
+    }
+  }
 
   return { lit, glow, flames, seaLions, kites, mist, whales, dolphins }
 }

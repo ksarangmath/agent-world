@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Vector3 } from 'three'
 import type { WorldPerson } from '../../shared/api'
 import { placesById, type Activity } from '../../shared/map/places'
+import { spots } from '../../shared/map/spots'
 import { positionOnRoute, type Route } from '../../shared/map/route'
 import { onScreen, viewFrom } from './clock'
 import { doingNow } from './doing'
@@ -12,17 +13,38 @@ import { closeIn, stopFlight, track } from './camera'
 import { following, hovered } from './watching'
 import type { RouteReply, RouteRequest } from './routing.worker'
 import { body, Sprites, type Facing, type Placement } from './sprites'
+import { Wings } from './wings'
 
 const capacity = 2000
 const hoverZoom = 14
 const hitMargin = 12
-const seated = new Set<Activity>(['coding', 'coffee', 'eating', 'reading', 'chess', 'picnic'])
+const seated = new Set<Activity>([
+  'coding',
+  'coffee',
+  'eating',
+  'reading',
+  'chess',
+  'picnic',
+  'games',
+  'camping',
+  'yoga',
+  'stargazing',
+])
 const strollEvery = 28
 const strollFor = 7
 const strollRadius = 0.9
-const performing = new Set<Activity>(['pitching', 'music'])
-const working = new Set<Activity>(['tinkering', 'art'])
+const performing = new Set<Activity>(['pitching', 'music', 'dancing'])
+const working = new Set<Activity>([
+  'tinkering',
+  'art',
+  'gardening',
+  'cooking',
+  'pottery',
+  'rallying',
+])
 const afloat = new Set<Activity>(['surfing', 'sailing'])
+const staged = new Set<Activity>(['comedy', 'karaoke'])
+const rooted = new Set<Activity>(['surfing', 'sailing', 'swimming', 'flying', 'fishing', 'yoga'])
 const across = Math.hypot(viewFrom.x, viewFrom.z)
 const ahead = { x: -viewFrom.x / across, y: -viewFrom.z / across }
 
@@ -222,6 +244,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
 
   const projected = useMemo(() => new Vector3(), [])
   const placements = useRef<(Placement | null)[]>([])
+  const soaring = useRef(new Float32Array(capacity).fill(Number.NaN))
   const followed = useRef<string | null>(null)
   useEffect(
     () =>
@@ -253,6 +276,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         : 0
       let motion: Placement['motion'] = 'idle'
       let lift = 0
+      soaring.current[i] = Number.NaN
       const trip = trips[i]
       const partner = partners[i] === undefined ? undefined : shown[partners[i]!]
       let hide = false
@@ -271,7 +295,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         if (myTurn) motion = 'talk'
       } else if (person.asleep) {
         motion = 'idle'
-      } else if (t % strollEvery < strollFor && !afloat.has(spot?.activity ?? 'chatting')) {
+      } else if (t % strollEvery < strollFor && !rooted.has(spot?.activity ?? 'chatting')) {
         const along = (t % strollEvery) / strollFor
         const direction = hash(person.tile.y, person.tile.x) * Math.PI * 2
         const out = strollRadius * Math.sin(along * Math.PI)
@@ -306,6 +330,41 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         } else if (activity === 'climbing') {
           heading = Math.atan2(ahead.x, ahead.y)
           lift = 0.6 + 0.6 * Math.sin(t * 0.7)
+        } else if (staged.has(activity)) {
+          const [stage] = spots(spot!)
+          const onStage = stage!.x === person.tile.x && stage!.y === person.tile.y
+          motion = onStage ? 'perform' : Math.floor(t / 5) % 5 === 0 ? 'talk' : 'sit'
+          if (onStage) x += 0.1 * Math.sin(t * 1.8)
+        } else if (activity === 'skating') {
+          const lap = t * 2.1
+          x += 0.42 * Math.cos(lap)
+          y += 0.42 * Math.sin(lap)
+          heading = Math.atan2(-Math.sin(lap), Math.cos(lap))
+          motion = 'walk'
+        } else if (activity === 'dogs') {
+          x += 0.45 * Math.sin(t * 0.6)
+          heading = Math.cos(t * 0.6) > 0 ? Math.PI / 2 : -Math.PI / 2
+          motion = Math.abs(Math.cos(t * 0.6)) > 0.25 ? 'walk' : 'idle'
+        } else if (activity === 'swimming') {
+          y += 0.32 * Math.sin(t * 0.9)
+          heading = Math.cos(t * 0.9) > 0 ? 0 : Math.PI
+          lift = -0.3 + 0.03 * Math.sin(t * 4)
+          motion = 'walk'
+        } else if (activity === 'flying') {
+          const turn = t * 0.22
+          x += 2.4 * Math.cos(turn)
+          y += 1.5 * Math.sin(turn)
+          lift = 2.1 + 0.7 * Math.sin(turn * 1.7)
+          heading = Math.atan2(-2.4 * Math.sin(turn), 1.5 * Math.cos(turn))
+          soaring.current[i] = heading
+        } else if (activity === 'dancing') {
+          x += 0.22 * Math.sin(t * 2.4)
+          y += 0.12 * Math.cos(t * 1.2)
+          heading += t * 1.5
+        } else if (activity === 'rallying') {
+          x += 0.3 * Math.sin(t * 2)
+        } else if (activity === 'birding' || activity === 'fishing') {
+          motion = Math.floor(t / 6) % 6 === 0 ? 'talk' : 'idle'
         }
       }
       crowd.x[i] = x
@@ -362,5 +421,10 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
     })
   })
 
-  return <Sprites avatars={avatars} placements={placements} />
+  return (
+    <>
+      <Sprites avatars={avatars} placements={placements} />
+      <Wings placements={placements} soaring={soaring} />
+    </>
+  )
 }

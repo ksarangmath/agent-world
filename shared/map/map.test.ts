@@ -16,11 +16,11 @@ import { groundAt, isDry } from './terrain'
 const key = (tile: Tile) => `${tile.x},${tile.y}`
 
 describe('places', () => {
-  test('there are at least 30, with unique ids, and most are in Fog City', () => {
-    expect(places.length).toBeGreaterThanOrEqual(30)
+  test('there are at least 50, with unique ids, and most are in Fog City', () => {
+    expect(places.length).toBeGreaterThanOrEqual(50)
     expect(new Set(places.map((place) => place.id)).size).toBe(places.length)
     const sf = places.filter((place) => place.region === 'sf').length
-    expect(sf / places.length).toBeGreaterThan(0.65)
+    expect(sf / places.length).toBeGreaterThan(0.55)
   })
 
   test('capacity is 12 to 24, with one spot per seat', () => {

@@ -20,7 +20,7 @@ const box = new BoxGeometry(1, 1, 1).translate(0, 0.5, 0)
 const propScale = 1.7
 const bright = ['#e8524a', '#f2b632', '#4aa3df', '#5fbf6b', '#b06ad9', '#f28c38']
 
-function propsOf(place: Place): Prop[] {
+export function propsOf(place: Place): Prop[] {
   const props: Prop[] = []
   spots(place).forEach((spot, i) => {
     const [cx, cz] = [spot.x + 0.5, spot.y + 0.5]
@@ -45,6 +45,15 @@ function propsOf(place: Place): Prop[] {
         size: [size[0] * propScale, size[1] * propScale, size[2] * propScale],
         color: tint,
         yaw,
+      })
+    const floor = (tint: string, top: number) =>
+      props.push({
+        x: cx,
+        z: cz,
+        y: ground,
+        size: [1, top, 1],
+        color: tint,
+        yaw: 0,
       })
     const stool = () => add(0, 0, [0.16, 0.12, 0.16], '#7a5a3a')
     const table = (top: string) => {
@@ -130,9 +139,137 @@ function propsOf(place: Place): Prop[] {
       case 'chatting':
         add(0.3, 0, [0.45, 0.12, 0.16], '#7a5a3a')
         break
+      case 'comedy':
+      case 'karaoke':
+        if (i === 0) {
+          add(0, 0, [1.2, 0.12, 1.2], '#7a3b3b')
+          add(0.3, 0.12, [0.03, 0.5, 0.03], '#2a2a33')
+          add(0.3, 0.62, [0.07, 0.07, 0.07], '#c7cdd3')
+          add(
+            -0.7,
+            0.12,
+            [1.3, place.activity === 'karaoke' ? 0.6 : 0.95, 0.08],
+            place.activity === 'karaoke' ? '#ff5fa8' : '#9a4b3c',
+          )
+        } else {
+          stool()
+          add(0.24, 0, [0.04, 0.2, 0.04], '#5b4632')
+          add(0.24, 0.2, [0.18, 0.03, 0.18], '#2f2a36')
+          add(0.24, 0.23, [0.05, 0.07, 0.05], color)
+        }
+        break
+      case 'games':
+        stool()
+        table('#e3d5b8')
+        add(0.26, 0.26, [0.22, 0.015, 0.22], '#3f8f5a')
+        add(0.22, 0.275, [0.04, 0.05, 0.04], color, 0.05)
+        add(0.3, 0.275, [0.04, 0.04, 0.04], bright[(i + 2) % bright.length]!, -0.05)
+        add(0.26, 0.275, [0.03, 0.03, 0.03], '#f4f1ea')
+        break
+      case 'rallying':
+        floor((spot.x + spot.y) % 2 ? '#3f7fbf' : '#3f9f6f', 0.03)
+        add(0.3, 0.06, [0.6, 0.18, 0.02], '#f4f1ea')
+        add(0.1, 0.06, [0.05, 0.05, 0.05], '#d8f23a', 0.25)
+        break
+      case 'swimming':
+        floor((spot.x + spot.y) % 2 ? '#49b6e8' : '#5cc3ee', 0.3)
+        break
+      case 'skating':
+        floor((spot.x + spot.y) % 2 ? '#c79a5e' : '#d4a96b', 0.04)
+        if (i === 0) {
+          add(0, 1.5, [0.02, 0.5, 0.02], '#8e969e')
+          add(0, 1.25, [0.25, 0.25, 0.25], '#e8eef5')
+        }
+        break
+      case 'dogs':
+        add(
+          0.35,
+          0,
+          [0.12, 0.12, 0.26],
+          i % 3 === 0 ? '#3a2f28' : i % 3 === 1 ? '#c98a4b' : '#f1e6d2',
+          0.2,
+        )
+        add(
+          0.5,
+          0.08,
+          [0.1, 0.1, 0.1],
+          i % 3 === 0 ? '#3a2f28' : i % 3 === 1 ? '#c98a4b' : '#f1e6d2',
+          0.2,
+        )
+        if (i % 4 === 0) add(0.2, 0, [0.07, 0.07, 0.07], '#d8f23a', -0.3)
+        break
+      case 'flying':
+        add(0, 0, [0.5, 0.02, 0.5], color)
+        if (i === 0) {
+          add(0.9, 0, [0.03, 0.9, 0.03], '#8e969e', 0.9)
+          add(0.9, 0.8, [0.1, 0.1, 0.34], '#f28c38', 0.9)
+        }
+        break
+      case 'camping':
+        add(0, 0, [0.3, 0.1, 0.14], '#7a5a3a')
+        add(0.3, 0, [0.08, 0.3, 0.08], '#5b4632', 0.2)
+        add(0.3, 0.3, [0.07, 0.07, 0.07], '#f4f1ea', 0.2)
+        break
+      case 'yoga':
+        floor('#c9a978', 0.05)
+        add(0, 0.06, [0.38, 0.015, 0.56], color)
+        break
+      case 'dancing':
+        floor((spot.x + spot.y) % 2 ? '#b8834f' : '#a8744a', 0.04)
+        if (i === 0) {
+          add(0.7, 0.05, [0.3, 0.6, 0.3], '#2a2a33', 0.6)
+          add(0.7, 0.05, [0.3, 0.6, 0.3], '#2a2a33', -0.6)
+        }
+        break
+      case 'gardening':
+        add(0.36, 0, [0.7, 0.14, 0.4], '#8b5a2b')
+        add(0.36, 0.14, [0.6, 0.03, 0.3], '#4a3524')
+        add(0.36, 0.17, [0.1, 0.16, 0.1], '#4f9f4a', -0.2)
+        add(0.36, 0.17, [0.1, 0.22, 0.1], '#5fbf6b')
+        add(0.36, 0.17, [0.1, 0.12, 0.1], i % 2 ? '#e8524a' : '#f2b632', 0.2)
+        break
+      case 'cooking':
+        add(0.32, 0, [0.6, 0.3, 0.3], '#c7cdd3')
+        add(0.32, 0.3, [0.16, 0.1, 0.16], '#2f2a36', -0.14)
+        add(0.32, 0.3, [0.18, 0.02, 0.12], '#e3d5b8', 0.16)
+        add(0.32, 0.32, [0.05, 0.04, 0.05], i % 2 ? '#e8524a' : '#5fbf6b', 0.16)
+        break
+      case 'fishing':
+        add(0.55, 0.42, [0.015, 0.015, 0.9], '#5b4632')
+        add(0.98, 0, [0.008, 0.42, 0.008], '#e8eef5')
+        add(0.1, 0, [0.14, 0.14, 0.14], '#4aa3df', 0.28)
+        break
+      case 'stargazing':
+        add(0.3, 0, [0.03, 0.32, 0.03], '#2a2a33')
+        add(0.3, 0.32, [0.09, 0.09, 0.4], '#e8eef5')
+        add(0, 0, [0.4, 0.02, 0.8], '#5a4a7a')
+        break
+      case 'pottery':
+        stool()
+        add(0.3, 0, [0.3, 0.16, 0.3], '#6b6f7a')
+        add(0.3, 0.16, [0.22, 0.03, 0.22], '#9aa3ad')
+        add(0.3, 0.19, [0.1, 0.12, 0.1], '#c0643f')
+        break
+      case 'birding':
+        add(0.5, 0, [0.03, 0.5, 0.03], '#7f9a4a', 0.3)
+        add(0.56, 0, [0.03, 0.62, 0.03], '#8fae5a', 0.18)
+        add(0.48, 0, [0.03, 0.42, 0.03], '#6f8a3a', -0.26)
+        if (i % 3 === 0) {
+          add(0.26, 0, [0.02, 0.3, 0.02], '#2a2a33')
+          add(0.26, 0.3, [0.06, 0.06, 0.22], '#3a4a3a')
+        }
+        break
     }
   })
-  return props
+  const taken = spots(place).map((spot) => [spot.x + 0.5, spot.y + 0.5] as const)
+  return props.filter(({ x, z, size: [width, height, depth], yaw }) => {
+    if (height < 0.5 || Math.min(width, depth) < 0.3) return true
+    const [cos, sin] = [Math.cos(yaw), Math.sin(yaw)]
+    return !taken.some(([sx, sz]) => {
+      const [across, along] = [(sx - x) * cos - (sz - z) * sin, (sx - x) * sin + (sz - z) * cos]
+      return Math.abs(across) < width / 2 + 0.15 && Math.abs(along) < depth / 2 + 0.15
+    })
+  })
 }
 
 export function Places() {

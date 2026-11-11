@@ -50,6 +50,23 @@ const plazas: Record<Activity, string> = {
   picnic: '#9bd66f',
   chess: '#e4ddcf',
   pitching: '#c8d4e4',
+  comedy: '#c9a09a',
+  karaoke: '#e0a8cf',
+  games: '#d9cfa8',
+  rallying: '#8fc7a4',
+  swimming: '#a8d8ea',
+  skating: '#e0c08f',
+  dogs: '#a9d47f',
+  flying: '#b7d98a',
+  camping: '#a8c48a',
+  yoga: '#cfe0b4',
+  dancing: '#e0b48f',
+  gardening: '#9fcf7a',
+  cooking: '#f0d0a8',
+  fishing: '#c9b48f',
+  stargazing: '#b4b0d4',
+  pottery: '#dcbfa4',
+  birding: '#b4cf9a',
 }
 
 const roadColors = ['#4e5360', '#454a56', '#626774']

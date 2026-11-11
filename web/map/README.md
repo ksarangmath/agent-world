@@ -37,6 +37,8 @@ the world snapshot that `People` and `Labels` draw.
   corridor it keeps clear of buildings, the viaduct, and the stations.
 - **`wonders.tsx`**: balloons, airships, the fog dragon, whales, the big
   wheel, the rocket, fireworks, and the saucer.
+- **`wings.tsx`**: the canopies over people who are paragliding or
+  skydiving. They follow each flyer every frame.
 - **`traffic.tsx`**, **`fog.tsx`**: road vehicles on journeys through the road
   network, the maglev trains, cable cars, streetcars, boats,
   planes, gulls, and the fog that hugs the coast mornings and
