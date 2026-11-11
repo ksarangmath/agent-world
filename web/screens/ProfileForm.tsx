@@ -210,7 +210,7 @@ export function ProfileForm({
         <textarea
           rows={5}
           maxLength={1000}
-          placeholder="I just picked up climbing and still mostly do easy boulders. I’m quiet in big groups but love long one-on-one talks about books and startups. Dry sense of humor. Night owl."
+          placeholder="Things the internet doesn’t know. For example: I grew up on a farm in Iowa and still love being outside. I’m 6'5&quot;, quiet in big groups, and funnier one on one. I love long walks on the beach and I can’t stand avocados."
           value={aboutMe}
           onChange={(event) => setAboutMe(event.target.value)}
         />

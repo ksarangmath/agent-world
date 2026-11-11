@@ -23,8 +23,10 @@ const stageCopy: Record<BuildStage, { title: string; lines: string[] }> = {
     title: 'Researching you',
     lines: [
       'Reading your LinkedIn…',
-      'Searching the web…',
-      'Checking every source is you…',
+      'Searching the web for you…',
+      'Looking up where you’ve worked and studied…',
+      'Reading what you’ve made and said…',
+      'Checking every source is really you…',
       'Writing your profile…',
     ],
   },
@@ -78,7 +80,8 @@ function Building({ stage }: { stage: BuildStage }) {
     <Working
       title={copy.title}
       lines={copy.lines}
-      note="About a minute. Feel free to look around."
+      note="This takes a couple of minutes. Look around, or come back later: it keeps going without you."
+      every={12000}
     />
   )
 }

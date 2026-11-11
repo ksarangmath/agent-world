@@ -58,12 +58,16 @@ describe('LinkedIn URLs', () => {
 
 describe('verifying a pasted LinkedIn profile', () => {
   const theirs = { url, photoUrl: photo('D5603AQsignedin') }
-  const fresh = expect.objectContaining({ urls: [url], maxAgeHours: 0, livecrawlTimeout: 25_000 })
+  const recent = expect.objectContaining({
+    urls: [url],
+    maxAgeHours: 144,
+    livecrawlTimeout: 25_000,
+  })
 
-  test('accepts it when a fresh fetch shows the sign-in photo, and fetches once', async () => {
+  test('accepts it when a copy under six days old shows the sign-in photo, and fetches once', async () => {
     const calls = exa([{ url, image: photo('D5603AQsignedin') }])
     expect(await verify()).toEqual(theirs)
-    expect(calls).toEqual([fresh])
+    expect(calls).toEqual([recent])
   })
 
   test('tries again every five seconds until a fetch comes back', async () => {
@@ -95,10 +99,15 @@ describe('verifying a pasted LinkedIn profile', () => {
     expect(calls).toHaveLength(0)
   })
 
-  test('says so when LinkedIn has no public profile at that address', async () => {
+  test('says there is no public profile only after two fetches say so', async () => {
     const calls = exa('not found')
     expect(await verify()).toBe('not-found')
-    expect(calls).toHaveLength(1)
+    expect(calls).toHaveLength(2)
+  })
+
+  test('one fetch that finds nothing does not stop a later one that finds the profile', async () => {
+    exa('not found', [{ url, image: photo('D5603AQsignedin') }])
+    expect(await verify()).toEqual(theirs)
   })
 
   test('does not trust a fetch that landed on a different profile', async () => {
@@ -108,11 +117,11 @@ describe('verifying a pasted LinkedIn profile', () => {
     expect(log).toHaveBeenCalledWith('LinkedIn check failed', 'no profile')
   })
 
-  test('reports LinkedIn as unreachable after four fetches that come back empty or fail', async () => {
+  test('reports LinkedIn as unreachable after five fetches that come back empty or fail', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const calls = exa([], new Error('network down'))
     expect(await verify()).toBe('unreachable')
-    expect(calls).toHaveLength(4)
+    expect(calls).toHaveLength(5)
     expect(log).toHaveBeenCalledWith('LinkedIn check failed', 'no profile, Error')
   })
 

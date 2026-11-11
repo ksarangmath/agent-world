@@ -1,5 +1,5 @@
 import type { LinkedInIdentity } from './builder'
-import { exaFreshContents } from './exa'
+import { exaRecentContents } from './exa'
 
 export type LinkedInProblem =
   | 'no-sign-in-photo'
@@ -36,8 +36,11 @@ export function profileUrl(value: string) {
     : null
 }
 
-const tries = 4
+// https://www.linkedin.com/help/linkedin/answer/a542685
+const heldFromOthersHours = 6 * 24
+const tries = 5
 const everyMs = 5000
+const notFoundTwice = 2
 
 const pause = (ms: number, stop: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -63,13 +66,19 @@ export async function verifyLinkedIn(
   if (!signedIn) return 'no-sign-in-photo'
   const stop = new AbortController()
   const failures = new Set<string>()
+  let missing = 0
   const read = async (attempt: number) => {
     await pause(attempt * everyMs, stop.signal)
     try {
-      const { results, errors } = await exaFreshContents(apiKey, [url], stop.signal)
+      const { results, errors } = await exaRecentContents(
+        apiKey,
+        [url],
+        heldFromOthersHours,
+        stop.signal,
+      )
       const profile = results.find((result) => profileUrl(result.url) === url)
       if (profile) return profile
-      if (errors.includes('CRAWL_NOT_FOUND')) return null
+      if (errors.includes('CRAWL_NOT_FOUND') && ++missing >= notFoundTwice) return null
       for (const error of errors.length > 0 ? errors : ['no profile']) failures.add(error)
     } catch (error) {
       failures.add(failure(error))

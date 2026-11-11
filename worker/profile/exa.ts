@@ -77,10 +77,15 @@ export const exaContents = async (apiKey: string, urls: string[]) =>
 
 // https://exa.ai/docs/reference/get-contents
 // https://exa.ai/docs/admin/error-codes
-export const exaFreshContents = (apiKey: string, urls: string[], stop: AbortSignal) =>
+export const exaRecentContents = (
+  apiKey: string,
+  urls: string[],
+  maxAgeHours: number,
+  stop: AbortSignal,
+) =>
   exa(
     apiKey,
     'contents',
-    { urls, text: { maxCharacters }, maxAgeHours: 0, livecrawlTimeout: freshCrawlMs },
+    { urls, text: { maxCharacters }, maxAgeHours, livecrawlTimeout: freshCrawlMs },
     AbortSignal.any([stop, AbortSignal.timeout(freshCrawlMs + 5000)]),
   )
