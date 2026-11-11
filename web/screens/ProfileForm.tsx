@@ -48,7 +48,7 @@ export function ProfileForm({
   const [goals, setGoals] = useState(() => goalExamples.map((_, i) => draft.looking_for[i] ?? ''))
   const [aboutMe, setAboutMe] = useState(draft.about_me)
   const [query, setQuery] = useState('')
-  const portrait = useMyPortrait()
+  const portrait = useMyPortrait(userId)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const save = useMutation({

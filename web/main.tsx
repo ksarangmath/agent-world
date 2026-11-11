@@ -92,7 +92,7 @@ function World() {
             Join with LinkedIn
           </button>
         )}
-        {me.data?.person && <You person={me.data.person} />}
+        {session && me.data?.person && <You person={me.data.person} userId={session.user.id} />}
         {session && (
           <p className="account">
             Signed in as {String(session.user.user_metadata.name ?? session.user.email)}.{' '}

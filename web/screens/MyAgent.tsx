@@ -378,9 +378,15 @@ function Sleep({ userId, awakeUntil }: { userId: string; awakeUntil: string | nu
   )
 }
 
-export function You({ person }: { person: NonNullable<MeResponse['person']> }) {
+export function You({
+  person,
+  userId,
+}: {
+  person: NonNullable<MeResponse['person']>
+  userId: string
+}) {
   const world = useWorld()
-  const portrait = useMyPortrait()
+  const portrait = useMyPortrait(userId)
   const people = world.data?.snapshot.people ?? []
   const live = people.find((other) => other.id === person.id)
   return (
@@ -410,7 +416,7 @@ export function MyAgent() {
   const userId = session?.user.id
   const me = useMe(userId)
   const world = useWorld()
-  const portrait = useMyPortrait()
+  const portrait = useMyPortrait(userId)
   const matches = useMatches(userId)
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('Chat')

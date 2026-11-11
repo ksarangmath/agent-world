@@ -111,9 +111,10 @@ export const usePersonCard = (id: string) =>
     refetchInterval: 3000,
   })
 
-export const useMyPortrait = () =>
+export const useMyPortrait = (userId: string | undefined) =>
   useQuery({
-    queryKey: ['my-portrait'],
+    queryKey: ['my-portrait', userId],
+    enabled: userId !== undefined,
     queryFn: async () => {
       const token = (await supabase.auth.getSession()).data.session?.access_token
       const response = await fetch('/api/me/portrait', {
