@@ -140,7 +140,9 @@ if (vBoxNormal.y > 0.5) {
   float siding = step(0.82, fract(up / 0.09)) * clamp(0.4 / max(fwidth(up / 0.09), 1e-4) - 1.0, 0.0, 1.0);
   diffuseColor.rgb *= 1.0 - 0.07 * siding;
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2, 0.25, 0.32), pane * 0.6 * detail);
-  glow = mix(0.12, pane * lit, detail) * (1.0 - daylight);
+  float floors = clamp(1.0 / max(fwidth(up / 0.7), 1e-4) - 1.0, 0.0, 1.0);
+  float distant = mix(0.17, 0.34 * step(0.5, windowHash(vec3(floor(along * 0.8), floor(up / 0.7), vSeed))), floors);
+  glow = mix(distant, pane * lit, detail) * (1.0 - daylight);
 }`,
       )
       .replace(
