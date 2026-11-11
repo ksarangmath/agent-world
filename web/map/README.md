@@ -34,7 +34,10 @@ the world snapshot that `People` and `Labels` draw.
   nearest junction, and dash phase) that the ground shader paints asphalt,
   curbs, sidewalks, lane lines, and crossings from.
 - **`skyloop.tsx`**: the elevated maglev around the bay: its route, the
-  corridor it keeps clear of buildings, the viaduct, and the stations.
+  corridor it keeps clear of buildings, the viaduct with a track for trains
+  and one for pods, and the stations.
+- **`rides.tsx`**: what a travelling person rides: a boat along the ferry
+  lanes and a pod on the Skyloop, with the walk on and off at each stop.
 - **`wonders.tsx`**: balloons, airships, the fog dragon, whales, the big
   wheel, the rocket, fireworks, and the saucer.
 - **`wings.tsx`**: the canopies over people who are paragliding or

@@ -1295,7 +1295,7 @@ a {
   background: #c9c2b2;
 }
 
-.following {
+.watching {
   display: flex;
   gap: 10px;
   align-items: center;
@@ -1309,7 +1309,7 @@ a {
   border: 3px solid #101522;
 }
 
-.following b {
+.watching b {
   flex: none;
   padding: 2px 8px;
   color: #101522;

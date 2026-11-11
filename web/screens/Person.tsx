@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { placesById } from '../../shared/map/places'
 import { usePersonCard, useWorld } from '../api'
 import { doingNow } from '../map/doing'
-import { follow } from '../map/watching'
+import { watch } from '../map/watching'
 import { ago, Overlay, Portrait } from './Overlay'
 
 export function PersonOverlay() {
@@ -46,11 +46,11 @@ export function PersonOverlay() {
               type="button"
               className="big"
               onClick={() => {
-                follow({ id: live.id, name: person.name })
+                watch({ id: live.id, name: person.name })
                 void navigate({ to: '/', search: true })
               }}
             >
-              Follow
+              Watch on the map
             </button>
           )}
           {person.conversationId && (

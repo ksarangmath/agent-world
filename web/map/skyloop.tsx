@@ -16,6 +16,7 @@ const clearance = 2.6
 const liftOver = 6
 const easeOver = 9
 const corridor = 0.8
+const apart = 0.28
 
 const stops: readonly [x: number, y: number, station?: string][] = [
   [243, 184, 'Ferry Plaza'],
@@ -58,11 +59,22 @@ const eased = over(
   (window) => window.reduce((sum, v) => sum + v, 0) / window.length,
 )
 
+const track = (side: number) =>
+  spaced.map((point, i) => {
+    const [before, after] = [spaced[wrap(i - 1)]!, spaced[wrap(i + 1)]!]
+    const [tx, tz] = [after.x - before.x, after.z - before.z]
+    const reach = (side * apart) / Math.hypot(tx, tz)
+    return { x: point.x - tz * reach, z: point.z + tx * reach }
+  })
+
 export const skyloop = {
   count,
   x: spaced.map((point) => point.x),
   z: spaced.map((point) => point.z),
   y: eased.map((height) => height + clearance),
+  float: 0.1,
+  trains: track(-1),
+  pods: track(1),
   ground,
   stations: stops
     .filter(([, , station]) => station)
@@ -94,7 +106,7 @@ type Beam = {
   color: string
 }
 
-const deck = { width: 0.72, depth: 0.16, color: '#eef2f6' }
+const deck = { width: 1.24, depth: 0.16, color: '#eef2f6' }
 const pylon = { every: 5, width: 0.24, color: '#c5cfda' }
 const canopies = ['#ff7a59', '#3fd0c9', '#ffd166', '#b28dff']
 const railGlow = '#49e6ff'
@@ -122,7 +134,16 @@ function beams(): { solids: Beam[]; glows: Beam[] } {
       size: [run + 0.04, deck.depth, deck.width],
       color: deck.color,
     })
-    glows.push({ ...span, y: top + 0.02, size: [run + 0.04, 0.04, 0.12], color: railGlow })
+    for (const side of [-apart, apart]) {
+      glows.push({
+        ...span,
+        x: span.x - (dz / run) * side,
+        z: span.z + (dx / run) * side,
+        y: top + 0.02,
+        size: [run + 0.04, 0.04, 0.12],
+        color: railGlow,
+      })
+    }
     if (i % pylon.every === 0) {
       const foot = ground[i]! - 0.6
       solids.push({

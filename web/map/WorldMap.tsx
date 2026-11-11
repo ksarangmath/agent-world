@@ -21,7 +21,7 @@ import { Skyloop } from './skyloop'
 import { Marks, Snores, Talks } from './talks'
 import { Traffic } from './traffic'
 import { Trees } from './trees'
-import { following, tour, touring } from './watching'
+import { tour, touring, watched } from './watching'
 import { Water } from './water'
 import { Wonders } from './wonders'
 
@@ -39,7 +39,7 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
   const view = { ...sanFrancisco, ...focus }
   const scene = useRef<Object3D | null>(null)
   const navigate = useNavigate()
-  const followed = useSyncExternalStore(following.subscribe, following.get)
+  const watching = useSyncExternalStore(watched.subscribe, watched.get)
   const onTour = useSyncExternalStore(touring.subscribe, touring.get)
   const music = useMusic()
   const select = useCallback(
@@ -104,9 +104,9 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
       </Canvas>
       <PersonHover />
       <div className="dock">
-        {followed && (
-          <button type="button" className="following" onClick={() => following.set(null)}>
-            Following {followed.name}
+        {watching && (
+          <button type="button" className="watching" onClick={() => watched.set(null)}>
+            Watching {watching.name}
             <b>Stop</b>
           </button>
         )}

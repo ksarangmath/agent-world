@@ -99,14 +99,14 @@ const stations = {
 
 export const ferryTerminal: Tile = stations.ferryBuilding
 
-export const rides: readonly { name: string; from: Tile; to: Tile }[] = [
-  { name: 'Bay Rail', from: stations.embarcadero, to: stations.westOakland },
-  { name: 'Peninsula Rail', from: stations.fourthAndKing, to: stations.millbrae },
-  { name: 'Peninsula Rail', from: stations.millbrae, to: stations.paloAlto },
-  { name: 'Peninsula Rail', from: stations.paloAlto, to: stations.mountainView },
-  { name: 'Peninsula Rail', from: stations.mountainView, to: stations.sanJose },
-  { name: 'Sausalito ferry', from: stations.ferryBuilding, to: stations.sausalito },
-  { name: 'Oakland ferry', from: stations.ferryBuilding, to: stations.jackLondon },
+export const rides: readonly { name: string; by: 'rail' | 'ferry'; from: Tile; to: Tile }[] = [
+  { name: 'Bay Rail', by: 'rail', from: stations.embarcadero, to: stations.westOakland },
+  { name: 'Peninsula Rail', by: 'rail', from: stations.fourthAndKing, to: stations.millbrae },
+  { name: 'Peninsula Rail', by: 'rail', from: stations.millbrae, to: stations.paloAlto },
+  { name: 'Peninsula Rail', by: 'rail', from: stations.paloAlto, to: stations.mountainView },
+  { name: 'Peninsula Rail', by: 'rail', from: stations.mountainView, to: stations.sanJose },
+  { name: 'Sausalito ferry', by: 'ferry', from: stations.ferryBuilding, to: stations.sausalito },
+  { name: 'Oakland ferry', by: 'ferry', from: stations.ferryBuilding, to: stations.jackLondon },
 ]
 
 const rideLinks = new Map<number, { to: number; seconds: number }[]>()
@@ -277,7 +277,14 @@ export function route(from: Tile, to: Tile): Route {
   return { legs: nonEmpty, seconds: nonEmpty.reduce((sum, leg) => sum + legSeconds(leg), 0) }
 }
 
-export type Position = { x: number; y: number; mode: Leg['mode']; heading: number }
+export type Position = {
+  x: number
+  y: number
+  mode: Leg['mode']
+  heading: number
+  leg: number
+  seconds: number
+}
 
 function along(path: Tile[], fraction: number): { x: number; y: number; heading: number } {
   const lengths = path.slice(1).map((tile, i) => distance(path[i]!, tile))
@@ -300,15 +307,26 @@ function along(path: Tile[], fraction: number): { x: number; y: number; heading:
 
 export function positionOnRoute(trip: Route, elapsedSeconds: number): Position {
   let remaining = elapsedSeconds
-  for (const leg of trip.legs) {
+  for (const [index, leg] of trip.legs.entries()) {
     const seconds = legSeconds(leg)
     if (remaining < seconds) {
       const moving = leg.mode === 'ride' ? remaining - rideBoardingSeconds : remaining
       const span = leg.mode === 'ride' ? seconds - rideBoardingSeconds : seconds
-      return { ...along(leg.path, moving <= 0 ? 0 : moving / span), mode: leg.mode }
+      return {
+        ...along(leg.path, moving <= 0 ? 0 : moving / span),
+        mode: leg.mode,
+        leg: index,
+        seconds: remaining,
+      }
     }
     remaining -= seconds
   }
   const last = trip.legs.at(-1)
-  return { ...(last ? last.path.at(-1)! : { x: 0, y: 0 }), mode: 'walk', heading: 0 }
+  return {
+    ...(last ? last.path.at(-1)! : { x: 0, y: 0 }),
+    mode: 'walk',
+    heading: 0,
+    leg: trip.legs.length - 1,
+    seconds: 0,
+  }
 }

@@ -10,7 +10,8 @@ import { doingNow } from './doing'
 import { surfaceAt } from './decks'
 import { hash } from './elevation'
 import { closeIn, stopFlight, track } from './camera'
-import { following, hovered, matched, mine } from './watching'
+import { hovered, matched, mine, watched } from './watching'
+import { carriers, rideAt, Rides, type Seat } from './rides'
 import type { RouteReply, RouteRequest } from './routing.worker'
 import { body, Sprites, type Facing, type Placement } from './sprites'
 import { Wings } from './wings'
@@ -82,6 +83,7 @@ export const sleepers = {
   height: new Float32Array(capacity),
 }
 const bubbleLift = 1.7
+const seat: Seat = { x: 0, y: 0, height: 0, heading: 0, walking: false }
 const rise = viewFrom.y / across
 const tripKey = (person: WorldPerson) =>
   person.trip && `${person.trip.from.x},${person.trip.from.y}>${person.tile.x},${person.tile.y}`
@@ -252,18 +254,18 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
   const projected = useMemo(() => new Vector3(), [])
   const placements = useRef<(Placement | null)[]>([])
   const soaring = useRef(new Float32Array(capacity).fill(Number.NaN))
-  const followed = useRef<string | null>(null)
+  const tracked = useRef<string | null>(null)
   useEffect(
     () =>
-      following.subscribe(() => {
-        if (followed.current && !following.get()) stopFlight()
-        followed.current = null
+      watched.subscribe(() => {
+        if (tracked.current && !watched.get()) stopFlight()
+        tracked.current = null
       }),
     [],
   )
   useEffect(() => {
-    const id = following.get()?.id
-    if (id && !shown.some((person) => person.id === id)) following.set(null)
+    const id = watched.get()?.id
+    if (id && !shown.some((person) => person.id === id)) watched.set(null)
   }, [shown])
 
   useFrame(() => {
@@ -274,6 +276,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
     if (doing && doing !== hover.doing) hovered.set({ ...hover, doing })
     const hoverable = camera.zoom >= hoverZoom
     placements.current.length = shown.length
+    carriers.count = 0
     shown.forEach((person, i) => {
       let [x, y] = [person.tile.x + 0.5, person.tile.y + 0.5]
       const t = now / 1000 + hash(person.tile.x, person.tile.y) * 50
@@ -283,6 +286,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         : 0
       let motion: Placement['motion'] = 'idle'
       let lift = 0
+      let deck: number | undefined
       soaring.current[i] = Number.NaN
       const trip = trips[i]
       const partner = partners[i] === undefined ? undefined : shown[partners[i]!]
@@ -293,6 +297,10 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
           const step = positionOnRoute(path, (now - trip.departed) / 1000)
           ;[x, y, heading] = [step.x + 0.5, step.y + 0.5, step.heading]
           if (step.mode !== 'ride') motion = 'walk'
+          else if (rideAt(path, step.leg, step.seconds, seat)) {
+            ;[x, y, heading, deck] = [seat.x, seat.y, seat.heading, seat.height]
+            if (seat.walking) motion = 'walk'
+          }
         } else {
           hide = true
         }
@@ -376,10 +384,11 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
       }
       crowd.x[i] = x
       crowd.y[i] = y
-      if (person.id === following.get()?.id && !hide) {
-        if (followed.current === person.id) track(x, y)
-        else closeIn(x, y)
-        followed.current = person.id
+      if (person.id === watched.get()?.id && !hide) {
+        const height = deck ?? surfaceAt(x, y) + lift
+        if (tracked.current === person.id) track(x, y, height)
+        else closeIn(x, y, height)
+        tracked.current = person.id
       }
       crowd.shown[i] = hide ? 0 : 1
       screen.current[i * 3] = Number.NaN
@@ -387,7 +396,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         placements.current[i] = null
         return
       }
-      const ground = surfaceAt(x, y) + lift
+      const ground = deck ?? surfaceAt(x, y) + lift
       placements.current[i] = {
         x,
         y,
@@ -446,6 +455,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
     <>
       <Sprites avatars={avatars} placements={placements} />
       <Wings placements={placements} soaring={soaring} />
+      <Rides />
     </>
   )
 }

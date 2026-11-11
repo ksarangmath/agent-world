@@ -27,21 +27,21 @@ export type Hover = {
 }
 
 export const hovered = store<Hover | null>(null)
-export const following = store<{ id: string; name: string } | null>(null)
+export const watched = store<{ id: string; name: string } | null>(null)
 export const touring = store(false)
 
-export function follow(person: { id: string; name: string }) {
+export function watch(person: { id: string; name: string }) {
   touring.set(false)
-  following.set(person)
+  watched.set(person)
 }
 
 export function tour(on: boolean) {
-  if (on) following.set(null)
+  if (on) watched.set(null)
   touring.set(on)
 }
 
 export function steer() {
-  following.set(null)
+  watched.set(null)
   touring.set(false)
 }
 

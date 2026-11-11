@@ -24,7 +24,7 @@ import {
 import type { Matches as MatchList, MeResponse, TimelineEvent } from '../../shared/api'
 import { useSession } from '../auth'
 import { doingNow } from '../map/doing'
-import { follow, visit } from '../map/watching'
+import { visit, watch } from '../map/watching'
 import { markSeen, useNews } from '../news'
 import { ago, Overlay, Portrait } from './Overlay'
 import { Pixel, type PixelName } from './Pixel'
@@ -540,7 +540,7 @@ export function MyAgent() {
             type="button"
             className="big"
             onClick={() => {
-              follow({ id, name: profile.name })
+              watch({ id, name: profile.name })
               void navigate({ to: '/', search: true })
             }}
           >

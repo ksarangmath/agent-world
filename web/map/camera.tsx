@@ -4,6 +4,7 @@ import { Vector3, type OrthographicCamera } from 'three'
 import { MapControls } from 'three/examples/jsm/controls/MapControls.js'
 import { mapHeight, mapWidth } from '../../shared/map/grid'
 import { detailZoom, showDetail, view, viewFrom } from './clock'
+import { surfaceAt } from './decks'
 import { revealAt } from './sightlines'
 import { steer } from './watching'
 
@@ -13,9 +14,9 @@ const movingFor = 100
 const panSpeed = 1000
 const zoomSpeed = 1.5
 const flightSeconds = 0.7
-const followZoom = 30
+const watchZoom = 30
 const dragPixels = 5
-const followEase = 0.12
+const trackEase = 0.12
 const glide = { tilesPerSecond: 9, shortest: 5, longest: 16, dipPerTile: 1 / 120, deepest: 0.7 }
 
 export type Focus = { x: number; y: number; zoom: number }
@@ -43,15 +44,26 @@ export const stopFlight = () => {
   flight.start = -1
 }
 
+const sightOf = (x: number, y: number, height = surfaceAt(x, y)) => ({
+  x: x - (viewFrom.x * height) / viewFrom.y,
+  y: y - (viewFrom.z * height) / viewFrom.y,
+})
+
 export function glideTo(x: number, y: number, zoom: number) {
   if (!active) return 0
-  const far = Math.hypot(x - active.target.x, y - active.target.z)
+  const at = sightOf(x, y)
+  const far = Math.hypot(at.x - active.target.x, at.y - active.target.z)
   const seconds = Math.min(glide.longest, Math.max(glide.shortest, far / glide.tilesPerSecond))
-  flyTo(x, y, zoom, seconds, Math.min(glide.deepest, far * glide.dipPerTile))
+  fly(at.x, at.y, zoom, seconds, Math.min(glide.deepest, far * glide.dipPerTile))
   return seconds
 }
 
-export function flyTo(x: number, y: number, zoom: number, seconds = flightSeconds, dip = 0) {
+export function flyTo(x: number, y: number, zoom: number) {
+  const at = sightOf(x, y)
+  fly(at.x, at.y, zoom)
+}
+
+function fly(x: number, y: number, zoom: number, seconds = flightSeconds, dip = 0) {
   if (!active) return
   const from = { x: active.target.x, y: active.target.z, zoom: zoomOf(active) }
   const to = {
@@ -62,17 +74,19 @@ export function flyTo(x: number, y: number, zoom: number, seconds = flightSecond
   Object.assign(flight, { start: performance.now() / 1000, seconds, dip, from, to })
 }
 
-export function closeIn(x: number, y: number) {
-  if (active) flyTo(x, y, Math.max(zoomOf(active), followZoom))
+export function closeIn(x: number, y: number, height: number) {
+  const at = sightOf(x, y, height)
+  if (active) fly(at.x, at.y, Math.max(zoomOf(active), watchZoom))
 }
 
-export function track(x: number, y: number) {
+export function track(x: number, y: number, height: number) {
   if (!active) return
+  const at = sightOf(x, y, height)
   if (flight.start >= 0) {
-    Object.assign(flight.to, { x, y })
+    Object.assign(flight.to, at)
     return
   }
-  moveBy(active, (x - active.target.x) * followEase, (y - active.target.z) * followEase)
+  moveBy(active, (at.x - active.target.x) * trackEase, (at.y - active.target.z) * trackEase)
   active.update()
 }
 
@@ -80,7 +94,7 @@ export function zoomBy(factor: number) {
   if (!active) return
   const from =
     flight.start < 0 ? { x: active.target.x, y: active.target.z, zoom: zoomOf(active) } : flight.to
-  flyTo(from.x, from.y, from.zoom * factor)
+  fly(from.x, from.y, from.zoom * factor)
 }
 
 const forwardLength = Math.hypot(viewFrom.x, viewFrom.z)

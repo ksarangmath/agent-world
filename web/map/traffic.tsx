@@ -47,8 +47,8 @@ export type Fleet = {
 }
 
 const epoch = Date.UTC(2026, 0, 1)
-const paint = toon({ vertexColors: true })
-const lamp = new MeshBasicMaterial({ vertexColors: true })
+export const paint = toon({ vertexColors: true })
+export const lamp = new MeshBasicMaterial({ vertexColors: true })
 const pose: Pose = { x: 0, y: 0, z: 0, heading: 0, pitch: 0, scale: 1, stretch: 1 }
 const dummy = new Object3D()
 const hidden = new Matrix4().makeScale(0, 0, 0)
@@ -452,7 +452,7 @@ function railCars(
   }
 }
 
-const ferryLanes: [lat: number, lon: number][][] = [
+export const ferryLanes: [lat: number, lon: number][][] = [
   [
     [37.7962, -122.3905],
     [37.806, -122.386],
@@ -566,13 +566,13 @@ function boats(): Fleet[] {
   ]
 }
 
-const express = { trains: 5, cars: 6, spacing: 1.78, cruise: 13, push: 5, dwell: 9, float: 0.1 }
+const express = { trains: 5, cars: 6, spacing: 1.78, cruise: 13, push: 5, dwell: 9 }
 
 function maglev(): Fleet {
-  const { count, x, y, z, stations } = skyloop
+  const { count, y, trains, stations } = skyloop
   const ring = [...Array(count).keys(), 0]
   const path = makePath(
-    ring.flatMap((i) => [x[i]!, z[i]!]),
+    ring.flatMap((i) => [trains[i]!.x, trains[i]!.z]),
     0,
     ring.map((i) => y[i]!),
   )
@@ -607,7 +607,7 @@ function maglev(): Fleet {
       const head = reached(seconds + (train * period) / express.trains)
       const at = head - (i % express.cars) * express.spacing
       sample(path, ((at % path.length) + path.length) % path.length, out)
-      out.y += express.float
+      out.y += skyloop.float
     },
   }
 }
