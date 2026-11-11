@@ -58,7 +58,11 @@ async function send<T>(path: string, method: 'POST' | 'PUT', body: unknown): Pro
     body: JSON.stringify(body),
   })
   const json = (await response.json().catch(() => ({}))) as { error?: string }
-  if (!response.ok) throw new Error(json.error ?? `${path} failed with ${response.status}`)
+  if (!response.ok) {
+    throw Object.assign(new Error(json.error ?? `${path} failed with ${response.status}`), {
+      status: response.status,
+    })
+  }
   return json as T
 }
 

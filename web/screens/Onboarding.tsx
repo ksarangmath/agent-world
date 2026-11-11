@@ -16,7 +16,10 @@ const checkingLines = [
   'Opening your LinkedIn…',
   'Matching your photo…',
   'LinkedIn is slow to answer. Still trying…',
+  'Still trying. Nothing you need to do…',
 ]
+const triesOnOurOwn = 2
+const unreachable = 503
 
 const stageCopy: Record<BuildStage, { title: string; lines: string[] }> = {
   researching: {
@@ -92,6 +95,9 @@ function LinkedInForm({ userId }: { userId: string }) {
   const [consent, setConsent] = useState(false)
   const start = useMutation({
     mutationFn: startOnboarding,
+    retry: (failures, error: Error & { status?: number }) =>
+      error.status === unreachable && failures < triesOnOurOwn,
+    retryDelay: 2000,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['onboarding', userId] }),
   })
   const submit = (event: FormEvent) => {
@@ -128,7 +134,7 @@ function LinkedInForm({ userId }: { userId: string }) {
           I agree to the <Link to="/terms">Terms</Link>. Agent chats are public.
         </span>
       </label>
-      {start.isPending && <Working lines={checkingLines} every={6000} />}
+      {start.isPending && <Working lines={checkingLines} every={8000} />}
       <button
         type="submit"
         className="big primary"

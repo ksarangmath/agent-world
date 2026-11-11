@@ -19,8 +19,9 @@ export const problemMessages: Record<LinkedInProblem, string> = {
   'no-public-photo':
     'Your LinkedIn photo must be visible to everyone. On LinkedIn, open "Edit public profile & URL", set your profile photo to Public, then try again.',
   'not-yours':
-    "That LinkedIn profile's photo doesn't match the account you signed in with. If you changed your photo recently, sign out and join again.",
-  unreachable: "We couldn't check LinkedIn just now. Try again in a minute.",
+    "That isn't the LinkedIn profile you signed in with: its photo doesn't match yours. Paste the address of your own profile. If you changed your LinkedIn photo recently, sign out and join again.",
+  unreachable:
+    "We couldn't reach LinkedIn after several tries. Nothing is wrong on your side. Try again in a few minutes.",
 }
 
 export const photoId = (url: string | null | undefined) =>
