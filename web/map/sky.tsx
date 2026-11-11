@@ -9,12 +9,13 @@ const day = new Color('#9fd3ee')
 const dusk = new Color('#f4a27a')
 const night = new Color('#141a3a')
 const noon = new Color('#ffe2b6')
-const evening = new Color('#ff9f6e')
+const evening = new Color('#ffab52')
 const moon = new Color('#8fa4ff')
 const daySky = new Color('#fff0dc')
 const nightSky = new Color('#6a78c4')
 const dayGround = new Color('#6c5f8a')
 const nightGround = new Color('#231f48')
+const violet = new Color('#a99cff')
 const radians = Math.PI / 180
 const sunDistance = 400
 const longestShadows = 0.62
@@ -37,14 +38,15 @@ export function Sky() {
   useFrame((state) => {
     const position = getPosition(new Date(), sanFrancisco.latitude, sanFrancisco.longitude)
     const height = Math.sin(position.altitude * radians)
-    const daylight = Math.max(0, Math.min(1, (height + 0.08) / 0.3))
+    const daylight = Math.max(0, Math.min(1, (height + 0.12) / 0.22))
     const twilight = Math.max(0, 1 - Math.abs(height) / 0.2)
+    const golden = twilight * daylight
     sky.time.value = state.clock.elapsedTime
     sky.daylight.value = daylight
     background.current
       .copy(night)
       .lerp(day, daylight)
-      .lerp(dusk, twilight * 0.5)
+      .lerp(dusk, twilight * 0.7)
     state.scene.background = background.current
     const light = sun.current
     if (light) {
@@ -65,16 +67,19 @@ export function Sky() {
         Object.assign(camera, { left: -half, right: half, top: half, bottom: -half })
         camera.updateProjectionMatrix()
       }
-      light.intensity = 0.45 + daylight * 2.25
+      light.intensity = 0.45 + daylight * 2.25 + golden * 0.8
       light.color
         .copy(moon)
         .lerp(evening, Math.min(1, daylight + twilight))
-        .lerp(noon, Math.max(0, Math.min(1, daylight * 1.4 - twilight * 0.4)))
+        .lerp(noon, Math.max(0, Math.min(1, daylight * 1.4 - twilight * 0.9)))
     }
     const hemisphere = ambient.current
     if (hemisphere) {
       hemisphere.intensity = 0.7 + daylight * 1.4
-      hemisphere.color.copy(nightSky).lerp(daySky, daylight)
+      hemisphere.color
+        .copy(nightSky)
+        .lerp(daySky, daylight)
+        .lerp(violet, golden * 0.5)
       hemisphere.groundColor.copy(nightGround).lerp(dayGround, daylight)
     }
   })

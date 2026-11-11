@@ -3,6 +3,7 @@ import {
   FloatType,
   NearestFilter,
   RedFormat,
+  type Material,
   type WebGLProgramParametersWithUniforms,
 } from 'three'
 import { mapHeight, mapWidth } from '../../shared/map/grid'
@@ -13,12 +14,12 @@ import { surfaceAt } from './decks'
 
 const reach = 14
 const open = 1e4
-const clearest = 0.5
 const reveal = { value: 0 }
+export const drawingNormals = { value: false }
 let ceilings: DataTexture | undefined
 
 export function revealAt(zoom: number) {
-  reveal.value = clearest * Math.min(1, Math.max(0, (zoom - 12) / 12))
+  reveal.value = Math.min(1, Math.max(0, (zoom - 12) / 12))
 }
 
 function sightlineCeilings(): DataTexture {
@@ -50,9 +51,21 @@ function sightlineCeilings(): DataTexture {
   return texture
 }
 
-export function seeThrough(shader: WebGLProgramParametersWithUniforms) {
+export function seeThrough(
+  material: Material,
+  also?: (shader: WebGLProgramParametersWithUniforms) => void,
+) {
+  material.allowOverride = false
+  material.onBeforeCompile = (shader) => {
+    cutAway(shader)
+    also?.(shader)
+  }
+}
+
+function cutAway(shader: WebGLProgramParametersWithUniforms) {
   shader.uniforms.sightlines = { value: (ceilings ??= sightlineCeilings()) }
   shader.uniforms.reveal = reveal
+  shader.uniforms.drawingNormals = drawingNormals
   shader.vertexShader = shader.vertexShader
     .replace(
       '#include <common>',
@@ -74,6 +87,7 @@ vSightline = (modelMatrix * sightline).xyz;`,
       `#include <common>
 uniform sampler2D sightlines;
 uniform float reveal;
+uniform bool drawingNormals;
 varying vec3 vSightline;
 float bayer2(vec2 a) { a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }`,
     )
@@ -85,5 +99,10 @@ float bayer2(vec2 a) { a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75);
   if (vSightline.y > ceiling && dither < reveal) discard;
 }
 #include <opaque_fragment>`,
+    )
+    .replace(
+      '#include <dithering_fragment>',
+      `#include <dithering_fragment>
+if (drawingNormals) gl_FragColor = vec4(normal * 0.5 + 0.5, 1.0);`,
     )
 }

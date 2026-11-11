@@ -83,8 +83,7 @@ const crownKinds = Object.keys(crowns) as Crown[]
 
 function wallMaterial() {
   const material = toon()
-  material.onBeforeCompile = (shader) => {
-    seeThrough(shader)
+  seeThrough(material, (shader) => {
     shader.uniforms.daylight = sky.daylight
     shader.vertexShader = shader.vertexShader
       .replace(
@@ -149,21 +148,20 @@ if (vBoxNormal.y > 0.5) {
         `#include <emissivemap_fragment>
 totalEmissiveRadiance += glow * vec3(1.0, 0.72, 0.38) * 1.4;`,
       )
-  }
+  })
   return material
 }
 
 const walls = wallMaterial()
 const roofs = toon({ side: DoubleSide })
-roofs.onBeforeCompile = (shader) => {
-  seeThrough(shader)
+seeThrough(roofs, (shader) => {
   shader.fragmentShader = shader.fragmentShader.replace(
     '#include <color_fragment>',
     `#include <color_fragment>
 float shingle = step(0.78, fract(vSightline.y * 14.0)) * clamp(0.4 / max(fwidth(vSightline.y * 14.0), 1e-4) - 1.0, 0.0, 1.0);
 diffuseColor.rgb *= 1.0 - 0.2 * shingle;`,
   )
-}
+})
 
 function Crowns({ kind, buildings }: { kind: Crown; buildings: Building[] }) {
   const mesh = useRef<InstancedMesh>(null)

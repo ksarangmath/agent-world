@@ -3,7 +3,7 @@ import { toon } from '../paint'
 import { seeThrough } from '../sightlines'
 
 export const litMaterial = toon({ vertexColors: true })
-litMaterial.onBeforeCompile = seeThrough
+seeThrough(litMaterial)
 export const glowMaterial = new MeshBasicMaterial({ vertexColors: true })
 export const mistMaterial = toon({
   vertexColors: true,

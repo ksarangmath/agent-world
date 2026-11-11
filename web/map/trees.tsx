@@ -55,7 +55,7 @@ const shapes: Record<TreeKind, BufferGeometry> = {
 }
 
 const material = toon({ vertexColors: true })
-material.onBeforeCompile = seeThrough
+seeThrough(material)
 
 function Chunk({ trees, kind }: { trees: Tree[]; kind: TreeKind }) {
   const mesh = useRef<InstancedMesh>(null)
