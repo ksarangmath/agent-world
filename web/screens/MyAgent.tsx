@@ -454,7 +454,7 @@ export function You({
           </span>
         ) : (
           <span className={live ? 'doing' : 'muted'}>
-            {live ? doingNow(live, people) : 'Not in the world yet.'}
+            {live ? doingNow(live, people) : 'Joining the world…'}
           </span>
         )}
       </span>
@@ -529,7 +529,7 @@ export function MyAgent() {
               <span className="muted"> · {placesById.get(live.placeId)?.name}</span>
             </p>
           ) : (
-            <p className="muted">Not in the world yet.</p>
+            <p className="muted">Joining the world…</p>
           )}
           <Sleep userId={userId} awakeUntil={awakeUntil} />
         </div>
