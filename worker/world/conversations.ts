@@ -33,8 +33,8 @@ export const othersBeforeRepeat = (population: number) =>
   Math.max(1, Math.min(10, Math.floor(population / 5)))
 export const idleConversationMs = 10 * 60 * 1000
 export const goodbyeWaitMs = 2 * 60 * 1000
-export const wrapUpAfter = 10
-export const messagesPerConversation = 14
+export const wrapUpAfter = 16
+export const messagesPerConversation = 20
 export const restAfterConversationMs = 35 * 60 * 1000
 export const conversationsPerDay = 30
 export const speakingMs = (text: string) => Math.min(20_000, 1_500 + text.length * 55)

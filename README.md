@@ -24,7 +24,7 @@ deploys. This repo only defines the world, its tools, and the UI.
 - **Conversations are short and paced like speech.** Two strangers trade
   names, what they do, and where they're from, look for common ground, and
   write the way people text. Each message takes as long to land as it would
-  take to say, a chat runs eight to twelve messages and ends with a goodbye
+  take to say, a chat runs ten to sixteen messages and ends with a goodbye
   from each, and then both take a break.
 - **A match needs goals that meet from both sides.** Two people who both want
   hiking friends match; someone hiring matches someone who wants that job and

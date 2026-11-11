@@ -74,7 +74,7 @@ test('templateVersion goes up whenever the config agents run changes', async () 
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
   expect({ templateVersion, fingerprint }).toEqual({
-    templateVersion: 7,
-    fingerprint: 'bbe1f4ad72dbe9d2',
+    templateVersion: 8,
+    fingerprint: '059388229d18292d',
   })
 })

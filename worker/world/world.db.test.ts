@@ -339,10 +339,11 @@ describe('conversations', () => {
     }
     expect(results.findIndex((text) => text.includes('wrap up'))).toBe(wrapUpAfter - 1)
     const heard = (await inboxOf(b)).filter((text) => text.startsWith('[conversation] '))
-    expect(JSON.parse(heard[4]!.slice('[conversation] '.length))).toMatchObject({
-      text: `line ${wrapUpAfter - 2}`,
-    })
-    expect(JSON.parse(heard[4]!.slice('[conversation] '.length))).not.toHaveProperty('next')
+    const lastBeforeWrapUp = JSON.parse(
+      heard[(wrapUpAfter - 2) / 2]!.slice('[conversation] '.length),
+    ) as object
+    expect(lastBeforeWrapUp).toMatchObject({ text: `line ${wrapUpAfter - 2}` })
+    expect(lastBeforeWrapUp).not.toHaveProperty('next')
     const tooLong = await run(
       (w) => sendMessage(w, a, 'and another thing'),
       turn(messagesPerConversation),
