@@ -3,7 +3,6 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
-  Link,
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router'
@@ -14,7 +13,7 @@ import { queryClient, useMe } from './api'
 import { signIn, signOut, useSession } from './auth'
 import { ConversationOverlay } from './screens/Conversation'
 import { CreateAgent } from './screens/Onboarding'
-import { MyAgent } from './screens/MyAgent'
+import { MyAgent, You } from './screens/MyAgent'
 import { PersonOverlay } from './screens/Person'
 import { Terms } from './screens/Terms'
 import './styles.css'
@@ -41,7 +40,7 @@ const homeRoute = createRoute({
 })
 
 const termsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => worldRoute,
   path: '/terms',
   component: Terms,
 })
@@ -62,8 +61,7 @@ const personRoute = createRoute({
 
 const router = createRouter({
   routeTree: rootRoute.addChildren([
-    worldRoute.addChildren([homeRoute, conversationRoute, personRoute, meRoute]),
-    termsRoute,
+    worldRoute.addChildren([homeRoute, conversationRoute, personRoute, meRoute, termsRoute]),
   ]),
 })
 
@@ -87,19 +85,17 @@ function World() {
       <header className="panel">
         <img className="lockup" src="/lockup.png" alt="Agent World" />
         {session === null && (
-          <button type="button" onClick={() => void signIn()}>
+          <button type="button" className="big linkedin" onClick={() => void signIn()}>
+            <span className="mark" aria-hidden="true">
+              in
+            </span>
             Join with LinkedIn
           </button>
         )}
+        {me.data?.person && <You person={me.data.person} />}
         {session && (
-          <p>
-            Signed in as {String(session.user.user_metadata.name ?? session.user.email)}
-            {me.data && (me.data.person ? ', and your agent is in the world.' : '.')}{' '}
-            {me.data?.person && (
-              <Link to="/me" search={true}>
-                Your agent
-              </Link>
-            )}{' '}
+          <p className="account">
+            Signed in as {String(session.user.user_metadata.name ?? session.user.email)}.{' '}
             <button type="button" onClick={() => void signOut()}>
               Sign out
             </button>

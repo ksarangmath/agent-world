@@ -18,7 +18,7 @@ import {
   sendMessage,
   speakingMs,
 } from './conversations'
-import { timeline, transcript } from './reads'
+import { myConversations, myMatches, timeline, transcript } from './reads'
 import type { World } from './events'
 import { recordImpression } from './impressions'
 import { messageAgent, messageOwner } from './owner-thread'
@@ -277,6 +277,35 @@ describe('conversations', () => {
     ])
     const matches = await db.select().from(worldEvents).where(eq(worldEvents.kind, 'mutual_match'))
     expect(matches).toHaveLength(2)
+  })
+
+  test("an owner's matches, conversations, and timeline say who it was and which conversation", async () => {
+    const [a, b] = [await person('A'), await person('B')]
+    await db
+      .update(people)
+      .set({ portrait: new Uint8Array([1]) })
+      .where(eq(people.id, b))
+    const id = await talking(a, b)
+    await run((w) => endConversation(w, a))
+    await run((w) => recordImpression(w, a, b, 'match', 'Building the same thing'))
+    await run((w) => recordImpression(w, b, a, 'match', 'Great robotics chat'))
+    const mine = await myMatches(db, a)
+    expect(mine.verdicts).toMatchObject([
+      { aboutId: b, about: 'B', portrait: true, conversationId: id, verdict: 'match' },
+    ])
+    expect(mine.mutual).toMatchObject([
+      { personId: b, name: 'B', portrait: true, conversationId: id },
+    ])
+    expect((await myMatches(db, b)).mutual).toMatchObject([{ personId: a, portrait: false }])
+    expect(await myConversations(db, a)).toMatchObject([
+      { id, with: 'B', withId: b, portrait: true },
+    ])
+    const events = await timeline(db, a)
+    expect(events.find((event) => event.kind === 'mutual_match')?.other).toEqual({
+      id: b,
+      name: 'B',
+      portrait: true,
+    })
   })
 })
 

@@ -44,3 +44,10 @@ export function steer() {
   following.set(null)
   touring.set(false)
 }
+
+export const visiting = store<{ x: number; y: number } | null>(null)
+
+export function visit(tile: { x: number; y: number }) {
+  steer()
+  visiting.set({ ...tile })
+}

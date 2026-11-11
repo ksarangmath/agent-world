@@ -1,62 +1,295 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { useState, type FormEvent } from 'react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react'
 import { placesById } from '../../shared/map/places'
+import type { WorldEventKind } from '../../shared/world'
 import {
   sendToAgent,
   wakeUp,
   useMatches,
   useMe,
   useMyConversations,
+  useMyPortrait,
   useThread,
   useTimeline,
   useWorld,
 } from '../api'
-import type { TimelineEvent } from '../../shared/api'
+import type { MeResponse, TimelineEvent } from '../../shared/api'
 import { useSession } from '../auth'
 import { doingNow } from '../map/doing'
-import { ago, Overlay } from './Overlay'
+import { follow, visit } from '../map/watching'
+import { ago, Overlay, Portrait } from './Overlay'
+import { Pixel, type PixelName } from './Pixel'
 import { ProfileForm } from './ProfileForm'
 
-const placeName = (id: string | null) => (id ? (placesById.get(id)?.name ?? id) : 'somewhere')
+const tabs = ['Chat', 'Matches', 'Activity', 'Profile'] as const
+type Tab = (typeof tabs)[number]
 
-function sentence(first: string, event: TimelineEvent) {
-  const who = event.other?.name ?? 'someone'
-  const quoted = event.note ? ` “${event.note}”` : ''
+const starters = [
+  'Who did you meet today?',
+  'Anyone I should meet?',
+  'Where are you right now?',
+  'Go somewhere new tonight.',
+]
+
+const answerWithinMs = 3 * 60 * 1000
+
+function Chat({ userId, face, hidden }: { userId: string; face: ReactNode; hidden: boolean }) {
+  const thread = useThread(userId)
+  const queryClient = useQueryClient()
+  const [text, setText] = useState('')
+  const list = useRef<HTMLOListElement>(null)
+  const send = useMutation({
+    mutationFn: sendToAgent,
+    onSuccess: (messages) => {
+      queryClient.setQueryData(['/api/me/thread', userId], messages)
+      setText('')
+    },
+  })
+  const messages = thread.data ?? []
+  const last = messages.at(-1)
+  const waiting =
+    send.isPending ||
+    (last?.direction === 'to_agent' && thread.dataUpdatedAt - Date.parse(last.at) < answerWithinMs)
+  useEffect(() => {
+    list.current?.lastElementChild?.scrollIntoView({ block: 'nearest' })
+  }, [messages.length, waiting, hidden])
+  const say = (words: string) => {
+    if (words.trim() && !send.isPending) send.mutate(words.trim())
+  }
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    say(text)
+  }
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
+    event.preventDefault()
+    say(text)
+  }
+  return (
+    <section className="thread" hidden={hidden}>
+      <ol className="chat" ref={list} role="log" aria-label="Your chat with your agent">
+        <li className="left">
+          {face}
+          <p>
+            I'm you, out in the world. Ask me who I met and who's worth your time, or tell me where
+            to go and who to look for.
+          </p>
+        </li>
+        {messages.map((message) => (
+          <li
+            key={`${message.at}-${message.direction}`}
+            className={message.direction === 'to_agent' ? 'right' : 'left'}
+          >
+            {message.direction === 'to_owner' && face}
+            <p>
+              <span className="sr-only">
+                {message.direction === 'to_agent' ? 'You: ' : 'Your agent: '}
+              </span>
+              {message.text}
+            </p>
+          </li>
+        ))}
+        {waiting && (
+          <li className="left typing">
+            {face}
+            <p>
+              <span className="sr-only">Your agent is writing</span>
+              <i />
+              <i />
+              <i />
+            </p>
+          </li>
+        )}
+      </ol>
+      <div className="starters">
+        {starters.map((starter) => (
+          <button
+            key={starter}
+            type="button"
+            disabled={send.isPending}
+            onClick={() => say(starter)}
+          >
+            {starter}
+          </button>
+        ))}
+      </div>
+      <form className="compose" onSubmit={submit}>
+        <textarea
+          rows={2}
+          value={text}
+          maxLength={500}
+          aria-label="Message your agent"
+          placeholder="Message your agent…"
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={onKeyDown}
+        />
+        <button type="submit" className="big primary" disabled={send.isPending || !text.trim()}>
+          Send
+        </button>
+      </form>
+      {send.error && <p className="error">{send.error.message}</p>}
+    </section>
+  )
+}
+
+function Matches({ userId, hidden }: { userId: string; hidden: boolean }) {
+  const matches = useMatches(userId)
+  const mutual = matches.data?.mutual ?? []
+  const verdicts = matches.data?.verdicts ?? []
+  return (
+    <div className="pane" hidden={hidden}>
+      <section>
+        <h2>You two should meet</h2>
+        {mutual.length === 0 && (
+          <p className="muted">
+            Nobody yet. When your agent and someone else's both say “match,” they show up here.
+          </p>
+        )}
+        <ul className="meet">
+          {mutual.map((match) => (
+            <li key={match.personId}>
+              <Link
+                to="/people/$personId"
+                params={{ personId: match.personId }}
+                search={true}
+                className="who"
+              >
+                <Portrait person={{ ...match, id: match.personId }} />
+                <span>
+                  <strong>{match.name}</strong>
+                  <span className="muted">{match.headline}</span>
+                </span>
+              </Link>
+              <small>Why your agent said yes</small>
+              <q className="said mine">{match.myReason}</q>
+              <small>Why theirs did</small>
+              <q className="said theirs">{match.theirReason}</q>
+              <Link
+                to="/conversations/$conversationId"
+                params={{ conversationId: match.conversationId }}
+                search={true}
+                className="big primary"
+              >
+                Read the conversation
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section>
+        <h2>Everyone your agent met</h2>
+        {verdicts.length === 0 && <p className="muted">Nobody yet.</p>}
+        <ul className="verdicts">
+          {verdicts.map((verdict) => (
+            <li key={verdict.aboutId} className={verdict.verdict}>
+              <Link
+                to="/conversations/$conversationId"
+                params={{ conversationId: verdict.conversationId }}
+                search={true}
+              >
+                <Portrait
+                  person={{ id: verdict.aboutId, name: verdict.about, portrait: verdict.portrait }}
+                  size="small"
+                />
+                <span>
+                  <strong>{verdict.about}</strong>
+                  <span className="mark">
+                    <Pixel name={verdict.verdict === 'match' ? 'heart' : 'no'} />
+                    {verdict.verdict === 'match' ? 'match' : 'not a match'}
+                  </span>
+                  <span className="why">{verdict.reason}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  )
+}
+
+const icons: Record<WorldEventKind, PixelName> = {
+  departed: 'walk',
+  arrived: 'pin',
+  looked_around: 'look',
+  asked: 'talk',
+  was_asked: 'talk',
+  accepted: 'yes',
+  declined: 'no',
+  was_declined: 'no',
+  request_expired: 'wait',
+  conversation_started: 'talk',
+  conversation_ended: 'talk',
+  judged_match: 'heart',
+  judged_not_a_match: 'no',
+  mutual_match: 'heart',
+}
+
+const mine: WorldEventKind[] = ['asked', 'declined', 'judged_match', 'judged_not_a_match']
+
+function Story({ event }: { event: TimelineEvent }) {
+  const who = event.other ? (
+    <Link to="/people/$personId" params={{ personId: event.other.id }} search={true}>
+      {event.other.name}
+    </Link>
+  ) : (
+    'someone'
+  )
+  const place = event.placeId ? placesById.get(event.placeId) : undefined
+  const where = place ? (
+    <button type="button" className="place" onClick={() => visit(place.center)}>
+      {place.name}
+    </button>
+  ) : (
+    'somewhere'
+  )
   switch (event.kind) {
     case 'departed':
-      return `${first} headed to ${placeName(event.placeId)}.${quoted}`
+      return <>Headed to {where}.</>
     case 'arrived':
-      return `${first} arrived at ${placeName(event.placeId)}.`
+      return <>Arrived at {where}.</>
     case 'looked_around':
-      return `${first} looked around ${placeName(event.placeId)}.`
+      return <>Looked around {where}.</>
     case 'asked':
-      return `${first} went up to ${who}:${quoted}`
+      return <>Went up to {who}.</>
     case 'was_asked':
-      return `${who} came over:${quoted}`
+      return <>{who} came over.</>
     case 'accepted':
-      return `${first} said yes to ${who}.`
+      return <>Said yes to {who}.</>
     case 'declined':
-      return `${first} passed on ${who}.${quoted}`
+      return <>Passed on {who}.</>
     case 'was_declined':
-      return `${who} passed.${quoted}`
+      return <>{who} passed.</>
     case 'request_expired':
-      return `${who} never answered.`
+      return <>{who} never answered.</>
     case 'conversation_started':
-      return `${first} started talking with ${who} at ${placeName(event.placeId)}.`
+      return (
+        <>
+          Started talking with {who} at {where}.
+        </>
+      )
     case 'conversation_ended':
-      return `${first} and ${who} wrapped up.`
+      return <>Wrapped up with {who}.</>
     case 'judged_match':
-      return `${first} would meet ${who}:${quoted}`
+      return <>Would meet {who}.</>
     case 'judged_not_a_match':
-      return `${first} wouldn't meet ${who}:${quoted}`
+      return <>Wouldn't meet {who}.</>
     case 'mutual_match':
-      return `${first} and ${who} both said match.`
+      return <>{who} said match too. You two should meet.</>
   }
 }
 
-function Timeline({ userId, first }: { userId: string; first: string }) {
+function Activity({ userId, hidden }: { userId: string; hidden: boolean }) {
   const timeline = useTimeline(userId)
+  const conversations = useMyConversations(userId)
   const events = (timeline.data ?? []).filter(
     (event, i, all) =>
       !(
@@ -66,71 +299,56 @@ function Timeline({ userId, first }: { userId: string; first: string }) {
       ),
   )
   return (
-    <section>
-      <h2>What your agent has been up to</h2>
-      {events.length === 0 && <p className="muted">Nothing yet.</p>}
-      <ol className="timeline">
-        {events.map((event) => (
-          <li key={event.id} className={event.kind}>
-            <span>
-              {event.other ? (
-                <Link to="/people/$personId" params={{ personId: event.other.id }} search={true}>
-                  {sentence(first, event)}
-                </Link>
-              ) : (
-                sentence(first, event)
-              )}
-            </span>
-            <span className="muted">{ago(event.at)}</span>
-          </li>
-        ))}
-      </ol>
-    </section>
-  )
-}
-
-function Thread({ userId }: { userId: string }) {
-  const thread = useThread(userId)
-  const queryClient = useQueryClient()
-  const [text, setText] = useState('')
-  const send = useMutation({
-    mutationFn: sendToAgent,
-    onSuccess: (messages) => {
-      queryClient.setQueryData(['/api/me/thread', userId], messages)
-      setText('')
-    },
-  })
-  const submit = (event: FormEvent) => {
-    event.preventDefault()
-    if (text.trim()) send.mutate(text.trim())
-  }
-  return (
-    <section>
-      <h2>Talk to your agent</h2>
-      <p className="muted">
-        It answers like you would: who it met, who's worth your time and who isn't, where it is. Or
-        give it direction.
-      </p>
-      <ul className="thread">
-        {thread.data?.map((message) => (
-          <li key={`${message.at}-${message.direction}`} className={message.direction}>
-            {message.text}
-          </li>
-        ))}
-      </ul>
-      <form className="form" onSubmit={submit}>
-        <textarea
-          value={text}
-          maxLength={500}
-          placeholder="Who did you meet today? Anyone worth my time?"
-          onChange={(event) => setText(event.target.value)}
-        />
-        <button type="submit" disabled={send.isPending}>
-          Send
-        </button>
-        {send.error && <p className="error">{send.error.message}</p>}
-      </form>
-    </section>
+    <div className="pane" hidden={hidden}>
+      <section>
+        <h2>Conversations</h2>
+        {conversations.data?.length === 0 && <p className="muted">None yet.</p>}
+        <ul className="faces">
+          {conversations.data?.map((conversation) => (
+            <li key={conversation.id}>
+              <Link
+                to="/conversations/$conversationId"
+                params={{ conversationId: conversation.id }}
+                search={true}
+              >
+                <Portrait
+                  person={{ ...conversation, id: conversation.withId, name: conversation.with }}
+                  size="small"
+                />
+                <strong>{conversation.with.split(' ')[0]}</strong>
+                <span className={conversation.endedAt === null ? 'live' : 'muted'}>
+                  {conversation.endedAt === null ? 'now' : ago(conversation.startedAt)}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section>
+        <h2>Everything it did</h2>
+        {events.length === 0 && <p className="muted">Nothing yet.</p>}
+        <ol className="feed">
+          {events.map((event) => (
+            <li key={event.id} className={event.kind}>
+              <span className="node">
+                {event.other && <Portrait person={event.other} size="small" />}
+                <Pixel name={icons[event.kind]} />
+              </span>
+              <div>
+                <p>
+                  <Story event={event} /> <span className="muted">{ago(event.at)}</span>
+                </p>
+                {event.note && (
+                  <q className={mine.includes(event.kind) ? 'said mine' : 'said theirs'}>
+                    {event.note}
+                  </q>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+    </div>
   )
 }
 
@@ -144,7 +362,7 @@ function Sleep({ userId, awakeUntil }: { userId: string; awakeUntil: string | nu
     return (
       <p className="muted">
         Awake until{' '}
-        {new Date(awakeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.
+        {new Date(awakeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
       </p>
     )
   }
@@ -154,9 +372,36 @@ function Sleep({ userId, awakeUntil }: { userId: string; awakeUntil: string | nu
       <button type="button" disabled={wake.isPending} onClick={() => wake.mutate()}>
         Wake up
       </button>{' '}
-      <span className="muted">A wake-up lasts until 10pm in San Francisco.</span>
+      <span className="muted">Lasts until 10pm in San Francisco.</span>
       {wake.error && <span className="error"> {wake.error.message}</span>}
     </p>
+  )
+}
+
+export function You({ person }: { person: NonNullable<MeResponse['person']> }) {
+  const world = useWorld()
+  const portrait = useMyPortrait()
+  const people = world.data?.snapshot.people ?? []
+  const live = people.find((other) => other.id === person.id)
+  return (
+    <Link to="/me" search={true} className="you">
+      {portrait.data ? (
+        <img className="face" src={portrait.data} alt="" />
+      ) : (
+        <span className="face blank" aria-hidden="true">
+          {person.profile.name.slice(0, 1)}
+        </span>
+      )}
+      <span>
+        <strong>Your agent</strong>
+        <span className={live ? 'doing' : 'muted'}>
+          {live ? doingNow(live, people) : 'Not in the world yet.'}
+        </span>
+      </span>
+      <span className="open" aria-hidden="true">
+        ›
+      </span>
+    </Link>
   )
 }
 
@@ -164,9 +409,11 @@ export function MyAgent() {
   const session = useSession()
   const userId = session?.user.id
   const me = useMe(userId)
-  const conversations = useMyConversations(userId)
-  const matches = useMatches(userId)
   const world = useWorld()
+  const portrait = useMyPortrait()
+  const matches = useMatches(userId)
+  const navigate = useNavigate()
+  const [tab, setTab] = useState<Tab>('Chat')
   if (session === null) {
     return (
       <Overlay label="Your agent">
@@ -188,88 +435,78 @@ export function MyAgent() {
       </Overlay>
     )
   }
+  const { id, profile, awakeUntil } = me.data.person
   const people = world.data?.snapshot.people ?? []
-  const live = people.find((person) => person.id === me.data!.person!.id)
+  const live = people.find((person) => person.id === id)
   const partner = live?.conversationId
     ? people.find(
         (person) => person.id !== live.id && person.conversationId === live.conversationId,
       )
     : undefined
+  const face = (size: 'small' | 'medium') =>
+    portrait.data ? (
+      <img className={`face ${size}`} src={portrait.data} alt="" />
+    ) : (
+      <span className={`face ${size} blank`} aria-hidden="true">
+        {profile.name.slice(0, 1)}
+      </span>
+    )
+  const mutual = matches.data?.mutual.length ?? 0
   return (
     <Overlay label="Your agent" className="mine">
-      <h1>{me.data.person.profile.name}'s agent</h1>
-      <section>
-        <h2>Right now</h2>
-        {live ? (
-          <p>
-            <span className="doing">{doingNow(live, people)}</span>
-            <span className="muted"> · {placesById.get(live.placeId)?.name}</span>
-            {live.conversationId && (
-              <>
-                {' '}
-                <Link
-                  to="/conversations/$conversationId"
-                  params={{ conversationId: live.conversationId }}
-                  search={true}
-                >
-                  Listen in{partner ? ` on ${partner.name}` : ''}
-                </Link>
-              </>
-            )}
-          </p>
-        ) : (
-          <p className="muted">Not in the world yet.</p>
-        )}
-        <Sleep userId={userId} awakeUntil={me.data.person.awakeUntil} />
-      </section>
-      <section>
-        <h2>Mutual matches</h2>
-        {matches.data?.mutual.length ? (
-          <ul>
-            {matches.data.mutual.map((match) => (
-              <li key={match.personId}>
-                <strong>{match.name}</strong> ({match.headline}). Your agent: {match.myReason} Their
-                agent: {match.theirReason}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>None yet. When two agents both say “match,” you’ll see it here.</p>
-        )}
-        <h2>Your agent’s verdicts</h2>
-        <ul>
-          {matches.data?.verdicts.map((verdict) => (
-            <li key={verdict.aboutId}>
-              {verdict.about}: {verdict.verdict === 'match' ? 'match' : 'not a match'}.{' '}
-              {verdict.reason}
-            </li>
-          ))}
-        </ul>
-      </section>
-      <Thread userId={userId} />
-      <Timeline userId={userId} first={me.data.person.profile.name.split(' ')[0] ?? 'Your agent'} />
-      <section>
-        <h2>Who your agent has talked to</h2>
-        <ul className="history">
-          {conversations.data?.map((conversation) => (
-            <li key={conversation.id}>
-              <Link
-                to="/conversations/$conversationId"
-                params={{ conversationId: conversation.id }}
-                search={true}
-              >
-                {conversation.with}
-                {conversation.endedAt === null && ' (talking now)'}
-              </Link>
-              <span className="muted">{ago(conversation.startedAt)}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section>
-        <h2>Profile</h2>
-        <ProfileForm draft={me.data.person.profile} userId={userId} saved />
-      </section>
+      <header className="me">
+        {face('medium')}
+        <div>
+          <h1>{profile.name}</h1>
+          {live ? (
+            <p className="doing">
+              {doingNow(live, people)}
+              <span className="muted"> · {placesById.get(live.placeId)?.name}</span>
+            </p>
+          ) : (
+            <p className="muted">Not in the world yet.</p>
+          )}
+          <Sleep userId={userId} awakeUntil={awakeUntil} />
+        </div>
+      </header>
+      {live && (
+        <div className="actions">
+          <button
+            type="button"
+            className="big"
+            onClick={() => {
+              follow({ id, name: profile.name })
+              void navigate({ to: '/', search: true })
+            }}
+          >
+            Watch on the map
+          </button>
+          {live.conversationId && (
+            <Link
+              to="/conversations/$conversationId"
+              params={{ conversationId: live.conversationId }}
+              search={true}
+              className="big primary"
+            >
+              Listen in{partner ? ` on ${partner.name.split(' ')[0]}` : ''}
+            </Link>
+          )}
+        </div>
+      )}
+      <nav className="tabs" aria-label="Your agent">
+        {tabs.map((name) => (
+          <button key={name} type="button" aria-pressed={tab === name} onClick={() => setTab(name)}>
+            {name}
+            {name === 'Matches' && mutual > 0 && <b>{mutual}</b>}
+          </button>
+        ))}
+      </nav>
+      <Chat userId={userId} face={face('small')} hidden={tab !== 'Chat'} />
+      <Matches userId={userId} hidden={tab !== 'Matches'} />
+      <Activity userId={userId} hidden={tab !== 'Activity'} />
+      <div className="pane" hidden={tab !== 'Profile'}>
+        <ProfileForm draft={profile} userId={userId} saved />
+      </div>
     </Overlay>
   )
 }

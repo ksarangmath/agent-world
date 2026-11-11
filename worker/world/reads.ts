@@ -63,6 +63,21 @@ export async function transcript(
   }
 }
 
+async function facesOf(db: Database | Transaction, ids: string[]) {
+  if (ids.length === 0)
+    return new Map<string, { name: string; headline: string; portrait: boolean }>()
+  const rows = await db
+    .select({
+      id: people.id,
+      name: sql<string>`${people.profile}->>'name'`,
+      headline: sql<string>`${people.profile}->>'headline'`,
+      portrait: sql<boolean>`${people.portrait} is not null`,
+    })
+    .from(people)
+    .where(inArray(people.id, ids))
+  return new Map(rows.map(({ id, ...face }) => [id, face]))
+}
+
 export async function myConversations(db: Database, personId: string): Promise<MyConversation[]> {
   const rows = await db
     .select()
@@ -71,19 +86,12 @@ export async function myConversations(db: Database, personId: string): Promise<M
     .orderBy(desc(conversations.startedAt))
     .limit(100)
   const others = rows.map((row) => (row.personA === personId ? row.personB : row.personA))
-  const names = new Map(
-    others.length === 0
-      ? []
-      : (
-          await db
-            .select({ id: people.id, profile: people.profile })
-            .from(people)
-            .where(inArray(people.id, others))
-        ).map((p) => [p.id, p.profile.name]),
-  )
+  const faces = await facesOf(db, others)
   return rows.map((row, i) => ({
     id: row.id,
-    with: names.get(others[i]!) ?? 'Someone',
+    with: faces.get(others[i]!)?.name ?? 'Someone',
+    withId: others[i]!,
+    portrait: faces.get(others[i]!)?.portrait ?? false,
     startedAt: row.startedAt.toISOString(),
     endedAt: row.endedAt?.toISOString() ?? null,
   }))
@@ -105,17 +113,7 @@ async function matchesInSnapshot(db: Transaction, personId: string): Promise<Mat
   const latest = new Map<string, (typeof mine)[number]>()
   for (const impression of mine)
     if (!latest.has(impression.aboutId)) latest.set(impression.aboutId, impression)
-  const about = [...latest.keys()]
-  const profiles = new Map(
-    about.length === 0
-      ? []
-      : (
-          await db
-            .select({ id: people.id, profile: people.profile })
-            .from(people)
-            .where(inArray(people.id, about))
-        ).map((p) => [p.id, p.profile]),
-  )
+  const faces = await facesOf(db, [...latest.keys()])
   const matchedIds = [...latest.values()].filter((i) => i.verdict === 'match').map((i) => i.aboutId)
   const theirs =
     matchedIds.length === 0
@@ -131,8 +129,10 @@ async function matchesInSnapshot(db: Transaction, personId: string): Promise<Mat
   }
   return {
     verdicts: [...latest.values()].map((i) => ({
-      about: profiles.get(i.aboutId)?.name ?? 'Someone',
+      about: faces.get(i.aboutId)?.name ?? 'Someone',
       aboutId: i.aboutId,
+      portrait: faces.get(i.aboutId)?.portrait ?? false,
+      conversationId: i.conversationId,
       verdict: i.verdict,
       reason: i.reason,
       at: i.createdAt.toISOString(),
@@ -141,8 +141,10 @@ async function matchesInSnapshot(db: Transaction, personId: string): Promise<Mat
       .filter((id) => theirLatest.get(id)?.verdict === 'match')
       .map((id) => ({
         personId: id,
-        name: profiles.get(id)?.name ?? 'Someone',
-        headline: profiles.get(id)?.headline ?? '',
+        name: faces.get(id)?.name ?? 'Someone',
+        headline: faces.get(id)?.headline ?? '',
+        portrait: faces.get(id)?.portrait ?? false,
+        conversationId: latest.get(id)!.conversationId,
         myReason: latest.get(id)!.reason,
         theirReason: theirLatest.get(id)!.reason,
       })),
@@ -211,6 +213,7 @@ export async function timeline(
       placeId: worldEvents.placeId,
       otherId: others.id,
       otherName: sql<string | null>`${others.profile}->>'name'`,
+      otherPortrait: sql<boolean>`${others.portrait} is not null`,
       note: worldEvents.note,
       at: worldEvents.createdAt,
     })
@@ -223,7 +226,9 @@ export async function timeline(
     id: row.id,
     kind: row.kind,
     placeId: row.placeId,
-    other: row.otherId ? { id: row.otherId, name: row.otherName ?? '' } : null,
+    other: row.otherId
+      ? { id: row.otherId, name: row.otherName ?? '', portrait: row.otherPortrait }
+      : null,
     note: row.note,
     at: row.at.toISOString(),
   }))

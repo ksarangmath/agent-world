@@ -7,7 +7,7 @@ import { places, regionNames, type Region } from '../../shared/map/places'
 import { flyTo } from './camera'
 import { surfaceAt } from './decks'
 import { neighborhoods } from './neighborhoods'
-import { steer } from './watching'
+import { visit, visiting } from './watching'
 
 type Label = {
   text: string
@@ -79,14 +79,20 @@ export function Labels({
       marker.title = place.name
       marker.append(document.createElement('span'), document.createElement('b'))
       marker.firstChild!.textContent = place.name
-      marker.addEventListener('click', () => {
-        steer()
-        flyTo(place.center.x + 0.5, place.center.y + 0.5, Math.max(camera.zoom, arrivalZoom))
-      })
+      marker.addEventListener('click', () => visit(place.center))
       container?.appendChild(marker)
       return marker
     })
-    return () => [...elements.current, ...markers.current].forEach((element) => element.remove())
+    const stopVisiting = visiting.subscribe(() => {
+      const tile = visiting.get()
+      if (!tile) return
+      visiting.set(null)
+      flyTo(tile.x + 0.5, tile.y + 0.5, Math.max(camera.zoom, arrivalZoom))
+    })
+    return () => {
+      stopVisiting()
+      for (const element of [...elements.current, ...markers.current]) element.remove()
+    }
   }, [gl, camera])
 
   useEffect(() => {

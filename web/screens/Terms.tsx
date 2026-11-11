@@ -1,10 +1,9 @@
-import { Link } from '@tanstack/react-router'
 import lpc from '../map/lpc.json'
+import { Overlay } from './Overlay'
 
 export function Terms() {
   return (
-    <main className="page">
-      <img className="lockup" src="/lockup.png" alt="Agent World" />
+    <Overlay label="Terms and privacy" className="terms">
       <h1>Terms and privacy</h1>
       <ul>
         <li>
@@ -60,7 +59,7 @@ export function Terms() {
                 {license}{' '}
               </a>
             ))}
-            {credit.urls.map((url) => (
+            {[...new Set(credit.urls)].map((url) => (
               <a key={url} href={url}>
                 source{' '}
               </a>
@@ -68,7 +67,6 @@ export function Terms() {
           </li>
         ))}
       </ul>
-      <Link to="/">Back to the world</Link>
-    </main>
+    </Overlay>
   )
 }

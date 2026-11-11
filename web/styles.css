@@ -43,21 +43,80 @@ canvas {
   width: min(420px, calc(100vw - 64px));
 }
 
-.panel .create[hidden] {
-  display: none;
-}
-
 .lockup {
   width: min(60vw, 320px);
   height: auto;
 }
 
-.page {
-  max-width: 640px;
-  margin: 32px auto;
-  padding: 16px;
-  background: rgb(16 21 34 / 92%);
-  border: 3px solid #101522;
+[hidden] {
+  display: none !important;
+}
+
+.muted {
+  color: #b9bfcc;
+}
+
+:where(.panel, .overlay) button {
+  padding: 6px 12px;
+  font:
+    600 14px system-ui,
+    sans-serif;
+  color: #f7f1e3;
+  cursor: pointer;
+  background: #26314d;
+  border: 2px solid #101522;
+  border-radius: 4px;
+  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 30%);
+}
+
+:where(.panel, .overlay) button:hover:not(:disabled) {
+  background: #34436a;
+}
+
+:where(.panel, .overlay) button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.you {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 6px;
+  box-sizing: border-box;
+  color: inherit;
+  text-decoration: none;
+  background: #1b2338;
+  border: 2px solid #101522;
+}
+
+.you:hover {
+  border-color: #ffd166;
+}
+
+.you .face {
+  width: 56px;
+  height: 56px;
+}
+
+.you > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.you .open {
+  margin-left: auto;
+  padding: 0 6px;
+  font-weight: 700;
+  color: #ffd166;
+}
+
+.account {
+  margin: 0;
+  font-size: 13px;
 }
 
 .overlay {
@@ -75,6 +134,15 @@ canvas {
   overscroll-behavior: contain;
   background: rgb(16 21 34 / 92%);
   border: 3px solid #101522;
+  box-shadow: 6px 6px 0 rgb(0 0 0 / 30%);
+  animation: slide 0.2s steps(5, jump-none);
+}
+
+@keyframes slide {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
 }
 
 .sr-only {
@@ -193,8 +261,358 @@ canvas {
   animation: hop 1.2s steps(2, jump-none) infinite;
 }
 
-.overlay.conversation {
+.overlay.conversation,
+.overlay.mine {
   overflow: hidden;
+}
+
+.me {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-right: 24px;
+}
+
+.me .face {
+  width: 80px;
+  height: 80px;
+}
+
+.me p {
+  font-size: 14px;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 3px solid #101522;
+}
+
+.overlay .tabs button {
+  flex: 1;
+  padding: 8px 2px;
+  margin-bottom: -3px;
+  font-weight: 700;
+  color: #b9bfcc;
+  background: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.overlay .tabs button[aria-pressed='true'] {
+  color: #ffd166;
+  border-bottom-color: #ffd166;
+}
+
+.tabs b {
+  padding: 0 6px;
+  margin-left: 6px;
+  font-size: 12px;
+  color: #101522;
+  background: #7ed38a;
+  border-radius: 999px;
+}
+
+.pane,
+.overlay .thread {
+  flex: 1;
+  min-height: 0;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-right: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.overlay .thread {
+  gap: 8px;
+}
+
+.starters {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  padding-bottom: 4px;
+  overflow-x: auto;
+}
+
+.overlay .starters button {
+  flex: none;
+  padding: 4px 10px;
+  font-size: 13px;
+  border-radius: 999px;
+}
+
+.compose {
+  display: flex;
+  gap: 8px;
+}
+
+.compose textarea {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  font: inherit;
+  resize: none;
+}
+
+.said {
+  display: block;
+  padding: 8px 10px;
+  font-size: 14px;
+  quotes: none;
+  background: #1b2338;
+  border: 2px solid #101522;
+  border-radius: 8px 8px 8px 2px;
+}
+
+.said.mine {
+  background: #253a2b;
+  border-radius: 8px 8px 2px;
+}
+
+.pixel {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.meet,
+.verdicts,
+.faces,
+.feed {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.meet,
+.verdicts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.meet li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgb(126 211 138 / 10%);
+  border: 2px solid #3a7d44;
+}
+
+.meet .who {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+.meet .who span,
+.verdicts a > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.meet .face {
+  border-color: #7ed38a;
+}
+
+.meet small {
+  font-size: 12px;
+  font-weight: 700;
+  color: #b9bfcc;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.verdicts a {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px;
+  color: inherit;
+  text-decoration: none;
+  background: #1b2338;
+  border: 2px solid #101522;
+}
+
+.verdicts a:hover {
+  border-color: #ffd166;
+}
+
+.verdicts .face {
+  width: 56px;
+  height: 56px;
+}
+
+.verdicts .match .face {
+  border-color: #7ed38a;
+}
+
+.verdicts .mark {
+  display: flex;
+  flex-direction: row;
+  gap: 5px;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #b9bfcc;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.verdicts .match .mark {
+  color: #7ed38a;
+}
+
+.verdicts .why {
+  font-size: 14px;
+  color: #d8d2c4;
+}
+
+.faces {
+  display: flex;
+  gap: 10px;
+  padding-bottom: 6px;
+  overflow-x: auto;
+}
+
+.faces a {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  width: 64px;
+  font-size: 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.faces .face {
+  width: 56px;
+  height: 56px;
+}
+
+.feed li {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  padding-bottom: 14px;
+}
+
+.feed li:not(:last-child)::before {
+  position: absolute;
+  top: 36px;
+  bottom: 0;
+  left: 17px;
+  width: 2px;
+  content: '';
+  background: #26314d;
+}
+
+.feed .node {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: #b9bfcc;
+  background: #26314d;
+  border: 2px solid #101522;
+  border-radius: 6px;
+}
+
+.feed .node .face {
+  position: absolute;
+  inset: -2px;
+}
+
+.feed .node .face + .pixel {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  width: 14px;
+  height: 14px;
+  padding: 2px;
+  background: #101522;
+  border-radius: 3px;
+}
+
+.feed li > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.feed p {
+  font-size: 14px;
+}
+
+.feed a,
+.overlay .feed .place {
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  text-decoration: none;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.feed a:hover,
+.overlay .feed .place:hover {
+  text-decoration: underline;
+}
+
+.feed .muted {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.feed :is(.departed, .arrived) .node {
+  color: #6cb4ff;
+}
+
+.feed :is(.accepted, .conversation_started, .judged_match) .node {
+  color: #7ed38a;
+}
+
+.feed .mutual_match .node {
+  color: #ffd166;
+}
+
+.feed .mutual_match p {
+  font-weight: 700;
+  color: #ffd166;
+}
+
+.feed :is(.looked_around, .request_expired) {
+  opacity: 0.7;
+}
+
+.overlay.terms ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 20px;
+  margin: 0;
 }
 
 .chat {
@@ -298,39 +716,6 @@ canvas {
 
 .actions .big {
   flex: 1;
-}
-
-.timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-.timeline li {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.timeline li a {
-  color: inherit;
-}
-
-.timeline li .muted {
-  flex: none;
-}
-
-.timeline .judged_match,
-.timeline .mutual_match {
-  color: #7ed38a;
-}
-
-.timeline .looked_around,
-.timeline .request_expired {
-  color: #c9c2b2;
 }
 
 .history {
@@ -510,19 +895,6 @@ canvas {
 }
 
 a {
-  color: #ffd166;
-}
-
-.thread {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.thread .to_agent {
-  align-self: flex-end;
   color: #ffd166;
 }
 
@@ -811,7 +1183,11 @@ a {
   font-size: 13px;
 }
 
-.hover-card .muted {
+.hover-card [hidden] {
+  display: none !important;
+}
+
+.muted {
   color: #b9bfcc;
 }
 
@@ -843,7 +1219,8 @@ a {
   .snore i,
   .place-label.talking b::after,
   .chat .typing i,
-  .live::before {
+  .live::before,
+  .overlay {
     animation: none;
   }
 }

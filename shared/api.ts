@@ -35,14 +35,31 @@ export type Transcript = {
   typing: string | null
 }
 
-export type MyConversation = { id: string; with: string; startedAt: string; endedAt: string | null }
+export type MyConversation = {
+  id: string
+  with: string
+  withId: string
+  portrait: boolean
+  startedAt: string
+  endedAt: string | null
+}
 
 export type Matches = {
-  verdicts: { about: string; aboutId: string; verdict: Verdict; reason: string; at: string }[]
+  verdicts: {
+    about: string
+    aboutId: string
+    portrait: boolean
+    conversationId: string
+    verdict: Verdict
+    reason: string
+    at: string
+  }[]
   mutual: {
     personId: string
     name: string
     headline: string
+    portrait: boolean
+    conversationId: string
     myReason: string
     theirReason: string
   }[]
@@ -54,7 +71,7 @@ export type TimelineEvent = {
   id: number
   kind: WorldEventKind
   placeId: string | null
-  other: { id: string; name: string } | null
+  other: { id: string; name: string; portrait: boolean } | null
   note: string | null
   at: string
 }
