@@ -179,7 +179,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
               id: person.id,
               name: person.name,
               placeId: person.placeId,
-              doing: doingNow(person, shown, Date.now() + serverOffsetMs),
+              doing: doingNow(person, shown),
               x: event.clientX,
               y: event.clientY,
             }
