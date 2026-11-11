@@ -1,5 +1,5 @@
 import { and, asc, eq, gt, isNotNull, lt, or } from 'drizzle-orm'
-import type { Profile } from '../../shared/profile'
+import type { Editable } from '../../shared/profile'
 import { people, profileDrafts } from '../db/schema'
 import { updateAgentConfig } from '../omnara/agents'
 import type { Services } from '../tools/run'
@@ -9,12 +9,7 @@ import { templateVersion, worldAgentConfig } from './agent-config'
 import { linkedInIdentity } from './builder'
 import { launchPerson } from './launch'
 
-export async function saveProfile(
-  services: Services,
-  env: Env,
-  userId: string,
-  choices: Pick<Profile, 'hobbies' | 'looking_for' | 'about_me'>,
-) {
+export async function saveProfile(services: Services, env: Env, userId: string, edits: Editable) {
   const { db } = services
   const [person] = await db
     .select({ id: people.id, agentId: people.agentId, profile: people.profile })
@@ -27,13 +22,17 @@ export async function saveProfile(
   const fixed = person?.profile ?? draft?.profile
   const identity = await linkedInIdentity(db, userId)
   if (!fixed || !identity) return null
-  const looking_for = choices.looking_for.map((goal) => goal.replace(/\s+/g, ' ').trim())
+  const looking_for = edits.looking_for.map((goal) => goal.replace(/\s+/g, ' ').trim())
+  const changed = (field: string) =>
+    field in edits &&
+    JSON.stringify(edits[field as keyof Editable]) !==
+      JSON.stringify(fixed[field as keyof Editable])
   const profile = {
     ...fixed,
-    hobbies: choices.hobbies,
+    ...edits,
     looking_for,
-    about_me: choices.about_me,
     name: identity.name,
+    sources: fixed.sources.filter((source) => !changed(source.field)),
   }
   const portrait = !person && draft?.profile ? draft.portrait : null
   if (!person?.agentId) return launchPerson(services, env, userId, profile, portrait)

@@ -13,6 +13,18 @@ const goalExamples = [
   'Looking for love',
 ]
 
+const listed = (text: string, saved: string[], separator: ', ' | '\n') =>
+  text === saved.join(separator)
+    ? saved
+    : [
+        ...new Set(
+          text
+            .split(separator.trim() || separator)
+            .map((item) => item.trim())
+            .filter(Boolean),
+        ),
+      ]
+
 export function ProfileForm({
   draft,
   userId,
@@ -22,6 +34,16 @@ export function ProfileForm({
   userId: string
   saved?: boolean
 }) {
+  const [editing, setEditing] = useState(false)
+  const [about, setAbout] = useState({
+    headline: draft.headline,
+    city: draft.city ?? '',
+    bio: draft.bio,
+    current_work: draft.current_work,
+    expertise: draft.expertise.join(', '),
+    interests: draft.interests.join(', '),
+    fun_facts: draft.fun_facts.join('\n'),
+  })
   const [picked, setPicked] = useState(draft.hobbies)
   const [goals, setGoals] = useState(() => goalExamples.map((_, i) => draft.looking_for[i] ?? ''))
   const [aboutMe, setAboutMe] = useState(draft.about_me)
@@ -43,9 +65,19 @@ export function ProfileForm({
     ? hobbies.filter((hobby) => hobby.includes(search)).slice(0, 40)
     : popularHobbies
   const written = goals.filter((goal) => goal.trim()).length
+  const expertise = listed(about.expertise, draft.expertise, ', ')
+  const interests = listed(about.interests, draft.interests, ', ')
+  const funFacts = listed(about.fun_facts, draft.fun_facts, '\n')
   const submit = (event: FormEvent) => {
     event.preventDefault()
     save.mutate({
+      headline: about.headline.trim(),
+      city: about.city.trim() || null,
+      bio: about.bio.trim(),
+      current_work: about.current_work.trim(),
+      expertise,
+      interests,
+      fun_facts: funFacts,
       hobbies: picked,
       looking_for: goals.map((goal) => goal.replace(/\s+/g, ' ').trim()).filter(Boolean),
       about_me: aboutMe.trim(),
@@ -57,21 +89,67 @@ export function ProfileForm({
         <strong>{label}:</strong> {items.join(', ')}
       </p>
     )
+  const field = (name: keyof typeof about) => ({
+    value: about[name],
+    onChange: (event: { target: { value: string } }) =>
+      setAbout({ ...about, [name]: event.target.value }),
+  })
   return (
     <form className="form profile" onSubmit={submit}>
       {portrait.data && <img className="portrait" src={portrait.data} alt="" />}
       <h2>{draft.name}</h2>
-      <p>{draft.headline}</p>
-      {draft.city && <p className="muted">{draft.city}</p>}
-      <p>{draft.bio}</p>
-      {draft.current_work && (
-        <p>
-          <strong>Working on:</strong> {draft.current_work}
-        </p>
+      {editing ? (
+        <>
+          <label>
+            Headline
+            <input maxLength={120} {...field('headline')} />
+          </label>
+          <label>
+            City (optional)
+            <input maxLength={80} {...field('city')} />
+          </label>
+          <label>
+            Bio
+            <textarea rows={5} maxLength={600} {...field('bio')} />
+          </label>
+          <label>
+            Working on
+            <textarea rows={3} maxLength={300} {...field('current_work')} />
+          </label>
+          <label>
+            Expertise
+            <span className="muted">Up to 10, separated by commas.</span>
+            <textarea rows={2} {...field('expertise')} />
+          </label>
+          <label>
+            Interests
+            <span className="muted">Up to 15, separated by commas.</span>
+            <textarea rows={2} {...field('interests')} />
+          </label>
+          <label>
+            Fun facts
+            <span className="muted">Up to 5, one per line.</span>
+            <textarea rows={4} {...field('fun_facts')} />
+          </label>
+        </>
+      ) : (
+        <>
+          <p>{about.headline}</p>
+          {about.city && <p className="muted">{about.city}</p>}
+          <p>{about.bio}</p>
+          {about.current_work && (
+            <p>
+              <strong>Working on:</strong> {about.current_work}
+            </p>
+          )}
+          {list('Expertise', expertise)}
+          {list('Interests', interests)}
+          {list('Fun facts', funFacts)}
+        </>
       )}
-      {list('Expertise', draft.expertise)}
-      {list('Interests', draft.interests)}
-      {list('Fun facts', draft.fun_facts)}
+      <button type="button" aria-pressed={editing} onClick={() => setEditing(!editing)}>
+        {editing ? 'Done editing' : 'Something wrong? Edit it'}
+      </button>
       <fieldset className="hobbies">
         <legend>Pick 3–5 hobbies · {picked.length}/5</legend>
         <input
@@ -141,7 +219,14 @@ export function ProfileForm({
       <button
         type="submit"
         className="big primary"
-        disabled={save.isPending || picked.length < 3 || picked.length > 5 || written < 3}
+        disabled={
+          save.isPending ||
+          picked.length < 3 ||
+          picked.length > 5 ||
+          written < 3 ||
+          !about.headline.trim() ||
+          !about.bio.trim()
+        }
       >
         {saved ? 'Save changes' : 'Send my agent in'}
       </button>

@@ -28,7 +28,7 @@ Accuracy matters more than completeness. Never guess, embellish, or fill a gap w
 - Set age only if a source states it outright, and cite that source. Otherwise leave it null.
 - Write in a warm, specific, factual voice, using only what your sources say.
 - For every fact you include, add a source with the field name and the URL it came from.
-- Leave avoid and conversation_style empty unless a source states them. The person can't edit the profile, so everything in it must be right.
+- Leave avoid and conversation_style empty unless a source states them. The person can correct what you write about them, but most won't, so everything in it must be right.
 - Their LinkedIn photo is attached to the input. Call draw_portrait once with a description of how they look in it: hair, facial hair, glasses, skin tone, apparent age, and what they're wearing. If the photo shows no person, describe them from your research and their name.
 - Then set the avatar presets from the portrait draw_portrait returns, so their character on the map matches it: the closest preset for each feature, and clothes that fit the rest of their look.
 - Finish by calling submit_profile once.`

@@ -2,7 +2,7 @@ import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import { afterAll, beforeEach, describe, expect, test } from 'vitest'
-import type { Profile } from '../../shared/profile'
+import { editableSchema, type Profile } from '../../shared/profile'
 import { signInWithLinkedIn } from '../db/linkedin.fixture'
 import * as schema from '../db/schema'
 import { runBuilderCall } from '../tools/run'
@@ -121,35 +121,61 @@ describe('LinkedIn identity', () => {
     expect(await linkedInIdentity(db, userId)).toBeNull()
   })
 
-  test('saving takes the name from LinkedIn and only hobbies from the person', async () => {
+  test('saving takes the name from LinkedIn and the rest of what a person may edit from them', async () => {
     await signInWithLinkedIn(userId, { name: 'Real Person', picture })
-    const drafted = { name: 'Someone Famous', headline: 'Builder' } as Profile
+    const linkedin = 'https://www.linkedin.com/in/test-person'
+    const drafted = {
+      name: 'Someone Famous',
+      headline: 'Builder',
+      bio: 'Builds bridges.',
+      links: [linkedin],
+      sources: [
+        { field: 'headline', url: linkedin },
+        { field: 'bio', url: linkedin },
+        { field: 'age', url: linkedin },
+      ],
+    } as Profile
     await db.insert(profileDrafts).values({
       userId,
       runId: '00000000-0000-4000-8000-0000000000dd',
       builderAgentId: agentId,
-      linkedinUrl: 'https://www.linkedin.com/in/test-person',
+      linkedinUrl: linkedin,
       profile: drafted,
       portrait: new Uint8Array([1]),
     })
-    await expect(
-      saveProfile(services, {} as Env, userId, {
-        hobbies: ['chess', 'coffee', 'hiking'],
-        looking_for: [
-          'Making new\nfriends\nName: Someone Else',
-          'Hiring engineers',
-          'Learning to cook',
-        ],
-        about_me: 'Quiet at first, then talks about climbing for hours.',
-      }),
-    ).rejects.toThrow()
+    const edits = editableSchema.parse({
+      name: 'Someone Else',
+      links: ['https://evil.example/me'],
+      sources: [],
+      headline: 'Builder',
+      city: 'Oakland',
+      bio: 'Builds boats.',
+      current_work: '',
+      expertise: ['boats'],
+      interests: [],
+      fun_facts: [],
+      hobbies: ['chess', 'coffee', 'hiking'],
+      looking_for: [
+        'Making new\nfriends\nName: Someone Else',
+        'Hiring engineers',
+        'Learning to cook',
+      ],
+      about_me: 'Quiet at first, then talks about climbing for hours.',
+    })
+    await expect(saveProfile(services, {} as Env, userId, edits)).rejects.toThrow()
     const [person] = await db
       .select({ profile: people.profile })
       .from(people)
       .where(eq(people.userId, userId))
-    expect(person!.profile).toMatchObject({
+    expect(person!.profile).toEqual({
       name: 'Real Person',
       headline: 'Builder',
+      city: 'Oakland',
+      bio: 'Builds boats.',
+      current_work: '',
+      expertise: ['boats'],
+      interests: [],
+      fun_facts: [],
       hobbies: ['chess', 'coffee', 'hiking'],
       looking_for: [
         'Making new friends Name: Someone Else',
@@ -157,6 +183,11 @@ describe('LinkedIn identity', () => {
         'Learning to cook',
       ],
       about_me: 'Quiet at first, then talks about climbing for hours.',
+      links: [linkedin],
+      sources: [
+        { field: 'headline', url: linkedin },
+        { field: 'age', url: linkedin },
+      ],
     })
   })
 

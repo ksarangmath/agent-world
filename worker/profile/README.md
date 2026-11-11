@@ -32,7 +32,10 @@ Turns a person into an agent.
   (seeded with its `README.md`), and their agent. Each step is idempotent, so a
   retry finishes the job.
 - **`save.ts`**: saving the profile. The first save launches the agent, and
-  later saves swap the running agent's config. The only things a request can
-  change are hobbies, what they're looking for, and what they say about
-  themselves: the name comes from the LinkedIn identity, and everything
-  else from the stored draft or profile.
+  later saves swap the running agent's config. A request can change only the
+  fields in `editableSchema` (`shared/profile.ts`): the person's hobbies, what
+  they're looking for, what they say about themselves, and corrections to the
+  drafted headline, city, bio, current work, expertise, interests, and fun
+  facts. A source recorded for a field they changed is dropped. The name
+  comes from the LinkedIn identity, and everything else from the stored
+  draft or profile.

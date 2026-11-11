@@ -2,7 +2,7 @@ import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import { afterAll, beforeEach, describe, expect, test } from 'vitest'
-import type { Profile } from '../../shared/profile'
+import type { Editable, Profile } from '../../shared/profile'
 import { signInWithLinkedIn } from '../db/linkedin.fixture'
 import * as schema from '../db/schema'
 import { claimPortrait, finishPortrait } from '../tools/run'
@@ -26,7 +26,19 @@ const call = (id: string) => ({
   input: {},
 })
 const image = new Uint8Array([1, 2, 3])
-const profile = { name: 'Test Person' } as Profile
+const profile = { name: 'Test Person', sources: [] as Profile['sources'] } as Profile
+const edits: Editable = {
+  headline: 'Tester',
+  city: null,
+  bio: 'Tests things.',
+  current_work: '',
+  expertise: [],
+  interests: [],
+  fun_facts: [],
+  hobbies: ['chess', 'coffee', 'hiking'],
+  looking_for: ['Making new friends', 'Finding a climbing partner', 'Learning to cook'],
+  about_me: '',
+}
 
 beforeEach(async () => {
   await db.execute(sql`truncate handled_tool_calls, profile_drafts, people cascade`)
@@ -116,13 +128,7 @@ describe('portrait lifecycle', () => {
       .update(profileDrafts)
       .set({ profile, portrait: new Uint8Array([7]) })
       .where(eq(profileDrafts.userId, userId))
-    await expect(
-      saveProfile(services, env, userId, {
-        hobbies: ['chess', 'coffee', 'hiking'],
-        looking_for: ['Making new friends', 'Finding a climbing partner', 'Learning to cook'],
-        about_me: '',
-      }),
-    ).rejects.toThrow()
+    await expect(saveProfile(services, env, userId, edits)).rejects.toThrow()
     const portraitOf = async () =>
       (
         await db.select({ portrait: people.portrait }).from(people).where(eq(people.userId, userId))
@@ -133,11 +139,7 @@ describe('portrait lifecycle', () => {
       .update(profileDrafts)
       .set({ profile: null, portrait: new Uint8Array([9]) })
       .where(eq(profileDrafts.userId, userId))
-    await saveProfile(services, env, userId, {
-      hobbies: ['chess', 'coffee', 'hiking'],
-      looking_for: [],
-      about_me: '',
-    })
+    await saveProfile(services, env, userId, edits)
     expect([...(await portraitOf())!]).toEqual([7])
   })
 })

@@ -68,3 +68,17 @@ export const profileSchema = z.object({
   sources: z.array(z.object({ field: z.string().max(40), url: link })).max(60),
 })
 export type Profile = z.infer<typeof profileSchema>
+
+export const editableSchema = profileSchema.pick({
+  headline: true,
+  city: true,
+  bio: true,
+  current_work: true,
+  expertise: true,
+  interests: true,
+  fun_facts: true,
+  hobbies: true,
+  looking_for: true,
+  about_me: true,
+})
+export type Editable = z.infer<typeof editableSchema>
