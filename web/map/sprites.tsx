@@ -19,11 +19,13 @@ import {
   materialOf,
   paletteRows,
   paletteTexture,
+  sheetsWithout,
   type Layer,
 } from './lpc'
 
 export type Facing = 0 | 1 | 2 | 3
-export type Motion = 'walk' | 'idle' | 'sit' | 'talk' | 'perform' | 'work'
+export type Motion =
+  'walk' | 'idle' | 'sit' | 'talk' | 'perform' | 'work' | 'swing' | 'hop' | 'climb'
 export type Placement = {
   x: number
   y: number
@@ -35,9 +37,15 @@ export type Placement = {
 
 const size = 1.4
 const columns = 9
-const rows = 16
+const rows = 20
 const frame = 64
 const walkFrames = 8
+const swingFrames = 6
+const hopFrames = 5
+const climbFrames = 6
+const hopCell = (step: number, facing: number): [number, number] =>
+  step < 3 ? [6 + step, 4 + facing] : [4 + step, 8 + facing]
+const climbCell = (step: number): [number, number] => [6 + (step % 3), 16 + Math.floor(step / 3)]
 export const body = {
   width: (size * 30) / frame,
   height: (size * 56) / frame,
@@ -65,21 +73,46 @@ function texture(canvas: HTMLCanvasElement) {
 function loadSheet(sheet: string) {
   let loading = sheets.get(sheet)
   if (!loading) {
-    loading = Promise.all(
-      ['walk', 'idle', 'sit', 'emote', 'spellcast', 'thrust'].map((name) =>
+    const frames = (name: 'jump' | 'climb') =>
+      sheetsWithout[name].has(sheet) ? null : image(`/lpc/${sheet}${name}.png`)
+    loading = Promise.all([
+      ...['walk', 'idle', 'sit', 'emote', 'spellcast', 'thrust', 'slash'].map((name) =>
         image(`/lpc/${sheet}${name}.png`),
       ),
-    ).then(([walk, idle, sit, emote, spellcast, thrust]) => {
+      frames('jump'),
+      frames('climb'),
+    ]).then(([walk, idle, sit, emote, spellcast, thrust, slash, jump, climb]) => {
       const canvas = document.createElement('canvas')
       canvas.width = columns * frame
       canvas.height = rows * frame
       const context = canvas.getContext('2d')!
+      const copy = (from: ImageBitmap, column: number, row: number, to: [number, number]) =>
+        context.drawImage(
+          from,
+          column * frame,
+          row * frame,
+          frame,
+          frame,
+          to[0] * frame,
+          to[1] * frame,
+          frame,
+          frame,
+        )
       context.drawImage(walk!, 0, 0)
       context.drawImage(idle!, 0, 4 * frame)
       context.drawImage(sit!, 2 * frame, 4 * frame)
       context.drawImage(emote!, 3 * frame, 4 * frame)
       context.drawImage(spellcast!, 0, 8 * frame)
       context.drawImage(thrust!, 0, 12 * frame)
+      context.drawImage(slash!, 0, 16 * frame)
+      for (let step = 0; step < hopFrames; step++) {
+        for (let facing = 0; facing < 4; facing++) {
+          if (jump) copy(jump, step, facing, hopCell(step, facing))
+        }
+      }
+      for (let step = 0; step < climbFrames; step++) {
+        if (climb) copy(climb, step, 0, climbCell(step))
+      }
       return texture(canvas)
     })
     sheets.set(
@@ -168,7 +201,7 @@ function material(sheet: string, map: Texture, z: number) {
   })
 }
 
-type Entry = { person: number; ramp: number; eyes: number }
+type Entry = { person: number; ramp: number; eyes: number; hops: boolean }
 type Group = { sheet: string; z: number; entries: Entry[] }
 
 function SheetMesh({
@@ -229,7 +262,7 @@ function SheetMesh({
       const place = placements.current[entry.person]
       if (!place) continue
       offset.setXYZ(count, place.x, place.ground, place.y)
-      const [column, row] = cellOf(place)
+      const [column, row] = cellOf(place, entry.hops)
       cell.setXY(count, column, row)
       ramps.setXY(count, entry.ramp, entry.eyes)
       count++
@@ -244,10 +277,16 @@ function SheetMesh({
   ) : null
 }
 
-function cellOf({ facing, motion, seconds }: Placement): [number, number] {
-  switch (motion) {
+function cellOf({ facing, motion, seconds }: Placement, hops: boolean): [number, number] {
+  switch (hops || motion !== 'hop' ? motion : 'perform') {
     case 'walk':
       return [1 + (Math.floor(seconds * 10) % walkFrames), facing]
+    case 'swing':
+      return [Math.floor(seconds * 9) % swingFrames, 16 + facing]
+    case 'hop':
+      return hopCell(Math.floor(seconds * 8) % hopFrames, facing)
+    case 'climb':
+      return climbCell(Math.floor(seconds * 5) % climbFrames)
     case 'sit':
       return [2, 4 + facing]
     case 'talk':
@@ -270,13 +309,15 @@ export function Sprites({
 }) {
   const groups = useMemo(() => {
     const bySheet = new Map<string, Group>()
-    const add = (layer: Layer, person: number) => {
+    const add = (layer: Layer, person: number, hops: boolean) => {
       const group = bySheet.get(layer.sheet) ?? { sheet: layer.sheet, z: layer.z, entries: [] }
-      group.entries.push({ person, ramp: layer.ramp, eyes: layer.eyes })
+      group.entries.push({ person, ramp: layer.ramp, eyes: layer.eyes, hops })
       bySheet.set(layer.sheet, group)
     }
     avatars.forEach((avatar, person) => {
-      for (const layer of layersOf(avatar)) add(layer, person)
+      const layers = layersOf(avatar)
+      const hops = layers.every((layer) => !sheetsWithout.jump.has(layer.sheet))
+      for (const layer of layers) add(layer, person, hops)
     })
     return [...bySheet.values()]
   }, [avatars])

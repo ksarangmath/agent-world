@@ -93,6 +93,10 @@ const eyeRamps: Record<Avatar['eye_color'], string> = {
 }
 
 const materials = Object.keys(lpc.palettes) as Material[]
+export const sheetsWithout = {
+  jump: new Set<string>(lpc.without.jump),
+  climb: new Set<string>(lpc.without.climb),
+}
 const rows = new Map<string, number>()
 materials.forEach((material) =>
   Object.keys(lpc.palettes[material]).forEach((name) => rows.set(`${material}:${name}`, rows.size)),

@@ -2,10 +2,11 @@ import { useLayoutEffect, useMemo, useRef } from 'react'
 import { BoxGeometry, Color, Object3D, type InstancedMesh } from 'three'
 import { places, type Place } from '../../shared/map/places'
 import { spots } from '../../shared/map/spots'
-import { useDetail } from './clock'
+import { useDetail, viewFrom } from './clock'
 import { surfaceAt } from './decks'
 import { hash } from './elevation'
-import { toonRamp } from './paint'
+import { toon } from './paint'
+import { seeThrough } from './sightlines'
 
 type Prop = {
   x: number
@@ -17,8 +18,12 @@ type Prop = {
 }
 
 const box = new BoxGeometry(1, 1, 1).translate(0, 0.5, 0)
+const material = toon()
+seeThrough(material)
 const propScale = 1.7
 const bright = ['#e8524a', '#f2b632', '#4aa3df', '#5fbf6b', '#b06ad9', '#f28c38']
+const across = Math.hypot(viewFrom.x, viewFrom.z)
+const awayFromCamera = [-viewFrom.x / across, -viewFrom.z / across] as const
 
 export function propsOf(place: Place): Prop[] {
   const props: Prop[] = []
@@ -26,7 +31,12 @@ export function propsOf(place: Place): Prop[] {
     const [cx, cz] = [spot.x + 0.5, spot.y + 0.5]
     const [dx, dz] = [place.center.x - spot.x, place.center.y - spot.y]
     const length = Math.sqrt(dx * dx + dz * dz)
-    const [ux, uz] = length > 0.5 ? [dx / length, dz / length] : [0, 1]
+    const [ux, uz] =
+      place.activity === 'climbing'
+        ? awayFromCamera
+        : length > 0.5
+          ? [dx / length, dz / length]
+          : [0, 1]
     const yaw = Math.atan2(ux, uz)
     const ground = surfaceAt(cx, cz)
     const seed = hash(spot.x * 3, spot.y * 7)
@@ -104,11 +114,11 @@ export function propsOf(place: Place): Prop[] {
         add(0.3, 0.22, [0.34, 0.27, 0.03], color)
         break
       case 'climbing':
-        add(0.45, 0, [0.95, 1.8, 0.12], '#8a9aa8')
+        add(0.45, 0, [0.95, 1.3, 0.12], '#8a9aa8')
         for (let hold = 0; hold < 4; hold++) {
           add(
             0.38,
-            0.25 + hold * 0.38,
+            0.2 + hold * 0.28,
             [0.08, 0.08, 0.05],
             bright[(i + hold) % bright.length]!,
             hold % 2 ? 0.2 : -0.2,
@@ -293,11 +303,9 @@ export function Places() {
   return (
     <instancedMesh
       ref={mesh}
-      args={[box, undefined, props.length]}
+      args={[box, material, props.length]}
       castShadow={useDetail()}
       receiveShadow
-    >
-      <meshToonMaterial gradientMap={toonRamp} />
-    </instancedMesh>
+    />
   )
 }

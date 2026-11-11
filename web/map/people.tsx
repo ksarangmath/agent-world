@@ -10,6 +10,7 @@ import { doingNow } from './doing'
 import { surfaceAt } from './decks'
 import { hash } from './elevation'
 import { closeIn, stopFlight, track } from './camera'
+import { revealWalkers } from './sightlines'
 import { hovered, watched } from './watching'
 import { carriers, rideAt, Rides, type Seat } from './rides'
 import type { RouteReply, RouteRequest } from './routing.worker'
@@ -77,6 +78,8 @@ export const sleepers = {
 }
 const bubbleLift = 1.7
 const seat: Seat = { x: 0, y: 0, height: 0, heading: 0, walking: false }
+const mostWalkers = 64
+const walkers = new Float32Array(mostWalkers * 3)
 const rise = viewFrom.y / across
 const tripKey = (person: WorldPerson) =>
   person.trip && `${person.trip.from.x},${person.trip.from.y}>${person.tile.x},${person.tile.y}`
@@ -283,6 +286,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
     const hoverable = camera.zoom >= hoverZoom
     placements.current.length = shown.length
     carriers.count = 0
+    let walking = 0
     shown.forEach((person, i) => {
       let [x, y] = [person.tile.x + 0.5, person.tile.y + 0.5]
       const t = now / 1000 + hash(person.tile.x, person.tile.y) * 50
@@ -297,6 +301,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
       const trip = trips[i]
       const partner = partners[i] === undefined ? undefined : shown[partners[i]!]
       let hide = false
+      const travelling = Boolean(trip && now < trip.arrives)
       if (trip && now < trip.arrives) {
         const path = routes.current.get(trip.key)
         if (path) {
@@ -350,11 +355,21 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
           lift = 0.12 * Math.sin(t * 3)
         } else if (activity === 'climbing') {
           heading = Math.atan2(ahead.x, ahead.y)
-          lift = 0.6 + 0.6 * Math.sin(t * 0.7)
+          x += ahead.x * 0.5
+          y += ahead.y * 0.5
+          lift = 0.55 + 0.45 * Math.sin(t * 0.7)
+          motion = 'climb'
         } else if (staged.has(activity)) {
           const [stage] = spots(spot!)
           const onStage = stage!.x === person.tile.x && stage!.y === person.tile.y
-          motion = onStage ? 'perform' : Math.floor(t / 5) % 5 === 0 ? 'talk' : 'sit'
+          const cheering = Math.floor(t / 4) % 6 === 2
+          motion = onStage
+            ? 'perform'
+            : cheering
+              ? 'hop'
+              : Math.floor(t / 5) % 5 === 0
+                ? 'talk'
+                : 'sit'
           if (onStage) x += 0.1 * Math.sin(t * 1.8)
         } else if (activity === 'skating') {
           const lap = t * 2.1
@@ -365,7 +380,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         } else if (activity === 'dogs') {
           x += 0.45 * Math.sin(t * 0.6)
           heading = Math.cos(t * 0.6) > 0 ? Math.PI / 2 : -Math.PI / 2
-          motion = Math.abs(Math.cos(t * 0.6)) > 0.25 ? 'walk' : 'idle'
+          motion = Math.abs(Math.cos(t * 0.6)) > 0.25 ? 'walk' : 'swing'
         } else if (activity === 'swimming') {
           y += 0.32 * Math.sin(t * 0.9)
           heading = Math.cos(t * 0.9) > 0 ? 0 : Math.PI
@@ -381,10 +396,21 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         } else if (activity === 'dancing') {
           x += 0.22 * Math.sin(t * 2.4)
           y += 0.12 * Math.cos(t * 1.2)
-          heading += t * 1.5
+          heading += Math.floor(t / 1.6) * (Math.PI / 2)
+          motion = Math.floor(t / 3.2) % 3 === 0 ? 'perform' : 'hop'
+        } else if (activity === 'music') {
+          motion = Math.floor(t / 4) % 3 === 0 ? 'hop' : 'perform'
         } else if (activity === 'rallying') {
           x += 0.3 * Math.sin(t * 2)
-        } else if (activity === 'birding' || activity === 'fishing') {
+          heading = Math.atan2(spot!.center.x - x, spot!.center.y - y)
+          motion = Math.abs(Math.cos(t * 2)) < 0.45 ? 'swing' : 'walk'
+        } else if (activity === 'gardening' || activity === 'cooking') {
+          motion = Math.floor(t / 3) % 2 === 0 ? 'swing' : 'work'
+        } else if (activity === 'yoga') {
+          motion = Math.floor(t / 7) % 2 === 0 ? 'perform' : 'sit'
+        } else if (activity === 'fishing') {
+          motion = Math.floor(t / 9) % 4 === 0 ? 'swing' : 'idle'
+        } else if (activity === 'birding') {
           motion = Math.floor(t / 6) % 6 === 0 ? 'talk' : 'idle'
         }
       }
@@ -403,6 +429,9 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         return
       }
       const ground = deck ?? surfaceAt(x, y) + lift
+      if (travelling && walking < mostWalkers) {
+        walkers.set([x, y, ground], walking++ * 3)
+      }
       placements.current[i] = {
         x,
         y,
@@ -418,6 +447,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         screen.current[i * 3 + 2] = projected.z
       }
     })
+    revealWalkers(walkers, walking)
     sleepers.count = 0
     shown.forEach((person, i) => {
       if (!person.asleep || !placements.current[i]) return

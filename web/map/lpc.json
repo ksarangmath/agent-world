@@ -417,6 +417,21 @@
       ]
     }
   },
+  "without": {
+    "jump": ["legs/skirts/plain/male/", "legs/skirts/plain/thin/"],
+    "climb": [
+      "hair/wavy/adult/bg/",
+      "hair/extensions/ponytails/topknot_long/adult/bg/",
+      "beards/beard/5oclock_shadow/",
+      "beards/beard/trimmed/",
+      "beards/beard/basic/",
+      "beards/mustache/basic/",
+      "beards/mustache/french/",
+      "facial/glasses/round/adult/",
+      "facial/glasses/nerd/adult/",
+      "facial/glasses/sunglasses/adult/"
+    ]
+  },
   "palettes": {
     "body": {
       "light": ["#271920", "#99423c", "#cc8665", "#E4A47C", "#F9D5BA", "#FAECE7"],

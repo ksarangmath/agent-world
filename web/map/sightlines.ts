@@ -24,33 +24,57 @@ export function revealAt(zoom: number) {
   reveal.value = Math.min(1, Math.max(0, (zoom - 12) / 2))
 }
 
+const across = Math.hypot(viewFrom.x, viewFrom.z)
+const [stepX, stepY, rise] = [viewFrom.x / across, viewFrom.z / across, viewFrom.y / across]
+const everyMs = 120
+let fixed: Float32Array | undefined
+let walking = false
+let updatedAt = 0
+
+function clear(heights: Float32Array, fromX: number, fromY: number, feet: number) {
+  for (let k = 0; k <= reach; k++) {
+    const [x, y] = [Math.round(fromX + stepX * k), Math.round(fromY + stepY * k)]
+    if (y < 0 || y >= mapHeight) break
+    const spread = k ? 1 : 0
+    for (let side = Math.max(0, x - spread); side <= Math.min(mapWidth - 1, x + spread); side++) {
+      const i = y * mapWidth + side
+      heights[i] = Math.min(heights[i]!, feet + rise * k)
+    }
+  }
+}
+
 function sightlineCeilings(): DataTexture {
-  const across = Math.hypot(viewFrom.x, viewFrom.z)
-  const [stepX, stepY, rise] = [viewFrom.x / across, viewFrom.z / across, viewFrom.y / across]
   const heights = new Float32Array(mapWidth * mapHeight).fill(open)
   for (const place of places) {
     for (const spot of spots(place)) {
-      const feet = surfaceAt(spot.x + 0.5, spot.y + 0.5)
-      for (let k = 0; k <= reach; k++) {
-        const [x, y] = [Math.round(spot.x + stepX * k), Math.round(spot.y + stepY * k)]
-        if (y >= mapHeight) break
-        const spread = k ? 1 : 0
-        for (
-          let side = Math.max(0, x - spread);
-          side <= Math.min(mapWidth - 1, x + spread);
-          side++
-        ) {
-          const i = y * mapWidth + side
-          heights[i] = Math.min(heights[i]!, feet + rise * k)
-        }
-      }
+      clear(heights, spot.x, spot.y, surfaceAt(spot.x + 0.5, spot.y + 0.5))
     }
   }
+  fixed = heights.slice()
   const texture = new DataTexture(heights, mapWidth, mapHeight, RedFormat, FloatType)
   texture.minFilter = NearestFilter
   texture.magFilter = NearestFilter
   texture.needsUpdate = true
   return texture
+}
+
+export function revealWalkers(walkers: Float32Array, count: number) {
+  const shown = reveal.value > 0 ? count : 0
+  const now = performance.now()
+  if (!ceilings || !fixed || (shown === 0 && !walking) || now - updatedAt < everyMs) return
+  const heights = ceilings.image.data as Float32Array
+  heights.set(fixed)
+  for (let n = 0; n < shown; n++) {
+    clear(
+      heights,
+      Math.floor(walkers[n * 3]!),
+      Math.floor(walkers[n * 3 + 1]!),
+      walkers[n * 3 + 2]!,
+    )
+  }
+  walking = shown > 0
+  updatedAt = now
+  ceilings.needsUpdate = true
 }
 
 export function seeThrough(

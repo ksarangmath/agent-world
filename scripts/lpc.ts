@@ -4,7 +4,8 @@ import { dirname } from 'node:path'
 const commit = '124dd3af4aa3b60e2dd1c507bd4db3f7f80934cc'
 const source = `https://raw.githubusercontent.com/LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator/${commit}`
 const bodies = ['male', 'female'] as const
-const animations = ['walk', 'idle', 'sit', 'emote', 'spellcast', 'thrust'] as const
+const animations = ['walk', 'idle', 'sit', 'emote', 'spellcast', 'thrust', 'slash'] as const
+const optional = ['jump', 'climb'] as const
 const materials = ['body', 'hair', 'cloth', 'eye'] as const
 const licenseTexts: Record<string, string> = {
   CC0: 'https://creativecommons.org/publicdomain/zero/1.0/',
@@ -99,13 +100,27 @@ for (const [id, definition] of Object.entries(parts)) {
     layers,
   }
 }
+const without: Record<(typeof optional)[number], string[]> = { jump: [], climb: [] }
 for (const sheet of sheets) {
+  await mkdir(dirname(`public/lpc/${sheet}walk.png`), { recursive: true })
   for (const animation of animations) {
-    const file = `public/lpc/${sheet}${animation}.png`
-    await mkdir(dirname(file), { recursive: true })
     await writeFile(
-      file,
+      `public/lpc/${sheet}${animation}.png`,
       new Uint8Array(await (await fetchOk(`spritesheets/${sheet}${animation}.png`)).arrayBuffer()),
+    )
+  }
+  for (const animation of optional) {
+    const response = await fetch(`${source}/spritesheets/${sheet}${animation}.png`, {
+      signal: AbortSignal.timeout(30_000),
+    })
+    if (response.status === 404) {
+      without[animation].push(sheet)
+      continue
+    }
+    if (!response.ok) throw new Error(`${sheet}${animation}.png: ${response.status}`)
+    await writeFile(
+      `public/lpc/${sheet}${animation}.png`,
+      new Uint8Array(await response.arrayBuffer()),
     )
   }
 }
@@ -123,6 +138,6 @@ for (const material of materials) {
 }
 await writeFile(
   'web/map/lpc.json',
-  `${JSON.stringify({ commit, parts: manifest, palettes, bases, licenses: licenseTexts, credits: Object.fromEntries(credits) }, null, 2)}\n`,
+  `${JSON.stringify({ commit, parts: manifest, without, palettes, bases, licenses: licenseTexts, credits: Object.fromEntries(credits) }, null, 2)}\n`,
 )
 console.log(`${sheets.size} sheets, ${credits.size} credited sources`)
