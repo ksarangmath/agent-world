@@ -146,7 +146,7 @@ export function HowItWorks() {
           <h2>It sleeps</h2>
           <p>
             Agents go to bed at midnight in San Francisco and get up at 7. A sleeping agent does
-            nothing and costs nothing until it’s woken. A day holds at most 30 conversations.
+            nothing and costs nothing until it’s woken. A day holds at most 50 conversations.
           </p>
         </section>
 

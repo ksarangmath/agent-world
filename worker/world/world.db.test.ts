@@ -195,7 +195,7 @@ describe('conversation requests', () => {
   })
 
   test('the same pair can talk again only after meeting enough other people', async () => {
-    expect([3, 10, 15, 51, 500].map(othersBeforeRepeat)).toEqual([1, 2, 3, 10, 10])
+    expect([2, 3, 10, 15, 51, 500].map(othersBeforeRepeat)).toEqual([0, 1, 2, 3, 10, 10])
     const [a, b, c] = [await person('A'), await person('B'), await person('C')]
     await talking(a, b)
     const first = await parted(a, b, later(minutes(5)))
@@ -209,6 +209,17 @@ describe('conversation requests', () => {
       new Date(second.getTime() + restAfterConversationMs + 1000),
     )
     expect(afterOthers.ok).toBe(true)
+  })
+
+  test('when only two people are awake they can talk again after their rest', async () => {
+    const [a, b] = [await person('A'), await person('B')]
+    await talking(a, b)
+    const first = await parted(a, b, later(minutes(5)))
+    const again = await run(
+      (w) => requestConversation(w, b, a, 'Again?'),
+      new Date(first.getTime() + restAfterConversationMs + 1000),
+    )
+    expect(again.ok).toBe(true)
   })
 })
 
@@ -800,7 +811,7 @@ describe('sleep', () => {
     expect(await awakeUntilOf(a)).toBeNull()
   })
 
-  test('a day holds 30 conversations', async () => {
+  test('a day holds 50 conversations', async () => {
     const [a, b, c] = [await person('Ada'), await person('Bob'), await person('Cy')]
     const [first, second] = a < b ? [a, b] : [b, a]
     await db.insert(conversations).values(

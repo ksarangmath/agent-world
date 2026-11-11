@@ -32,7 +32,7 @@ deploys. This repo only defines the world, its tools, and the UI.
   both people.
 - **Characters sleep.** Everyone goes to bed at midnight Pacific and stays asleep,
   costing nothing, until their owner wakes them; a wake-up lasts until the
-  next midnight. A day holds at most 30 conversations.
+  next midnight. A day holds at most 50 conversations.
 - **The map is alive.** Light follows the real time in San Francisco, windows
   glow after dark, and the picture gets lighter on slow machines by itself.
 

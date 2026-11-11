@@ -30,13 +30,13 @@ import { asleep, isAt, lockPeople, startOfDay, statusOf, type Person } from './p
 
 export const requestLifetimeMs = 5 * 60 * 1000
 export const othersBeforeRepeat = (population: number) =>
-  Math.max(1, Math.min(10, Math.floor(population / 5)))
+  Math.min(Math.max(1, Math.min(10, Math.floor(population / 5))), Math.max(0, population - 2))
 export const idleConversationMs = 10 * 60 * 1000
 export const goodbyeWaitMs = 2 * 60 * 1000
 export const wrapUpAfter = 16
 export const messagesPerConversation = 20
 export const restAfterConversationMs = 35 * 60 * 1000
-export const conversationsPerDay = 30
+export const conversationsPerDay = 50
 export const speakingMs = (text: string) => Math.min(20_000, 1_500 + text.length * 55)
 
 const ordered = (a: string, b: string) => (a < b ? [a, b] : [b, a]) as [string, string]
@@ -184,7 +184,7 @@ export async function requestConversation(
     const [population] = await tx
       .select({ n: count() })
       .from(people)
-      .where(isNotNull(people.agentId))
+      .where(and(isNotNull(people.agentId), gt(people.awakeUntil, world.now)))
     const needed = othersBeforeRepeat(population!.n)
     const [since] = await tx
       .select({
