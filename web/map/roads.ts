@@ -1,6 +1,5 @@
-import geography from '../../shared/map/geography.json'
 import { mapHeight, mapWidth } from '../../shared/map/grid'
-import { roadClasses, type RoadClass } from '../../shared/map/route'
+import { roadClasses, roadLines, type RoadClass } from '../../shared/map/route'
 import { hash } from './elevation'
 import { chains, reversed } from './lines'
 
@@ -12,6 +11,8 @@ const cornerRadius = 0.5
 const cornerSteps = 5
 const reach = 0.95
 const junctionReach = 2
+const besideRoad = 0.2
+const smallestIsland = 48
 
 export function direct(path: ArrayLike<number>): number[] {
   const line: number[] = []
@@ -77,7 +78,7 @@ function nearSegment(px: number, py: number, line: number[], i: number) {
 }
 
 const edges = roadClasses.flatMap((roadClass) =>
-  geography.roads[roadClass].map((line) => ({ line, roadClass })),
+  roadLines[roadClass].map((line) => ({ line, roadClass })),
 )
 const nodeOf = (x: number, y: number) => y * mapWidth + x
 const meeting = new Map<number, number[]>()
@@ -124,7 +125,7 @@ export function journey(start: number, seed: number, tiles: number): number[] {
 }
 
 function junctions(): number[] {
-  const lines = roadClasses.flatMap((roadClass) => geography.roads[roadClass])
+  const lines = roadClasses.flatMap((roadClass) => roadLines[roadClass])
   const key = (x: number, y: number) => y * mapWidth + x
   const degree = new Map<number, number>()
   for (const line of lines) {
@@ -134,9 +135,13 @@ function junctions(): number[] {
       degree.set(k, (degree.get(k) ?? 0) + (i === 0 || i === last ? 1 : 2))
     }
   }
+  const onFreeway = new Set<number>()
+  for (const line of roadLines.freeway) {
+    for (let i = 0; i < line.length; i += 2) onFreeway.add(key(line[i]!, line[i + 1]!))
+  }
   const nodes: number[] = []
   for (const [k, count] of degree)
-    if (count >= 3) nodes.push(k % mapWidth, Math.floor(k / mapWidth))
+    if (count >= 3 && !onFreeway.has(k)) nodes.push(k % mapWidth, Math.floor(k / mapWidth))
   for (const line of lines) {
     for (const end of [0, line.length - 2]) {
       const [x, y] = [line[end]!, line[end + 1]!]
@@ -148,7 +153,7 @@ function junctions(): number[] {
         }
         return false
       })
-      if (meets) nodes.push(x, y)
+      if (meets && !onFreeway.has(key(x, y))) nodes.push(x, y)
     }
   }
   return nodes
@@ -157,9 +162,14 @@ function junctions(): number[] {
 export function roadField(): { data: Uint8Array; width: number; height: number } {
   const [width, height] = [mapWidth * fieldScale, mapHeight * fieldScale]
   const data = new Uint8Array(width * height * 4).fill(255)
+  const freeway = new Uint8Array(width * height)
+  const first = new Uint16Array(width * height)
+  const shared = new Uint8Array(width * height)
+  let road = 0
   for (const roadClass of roadClasses) {
     const half = halfWidths[roadClass]
-    for (const chain of chains(geography.roads[roadClass])) {
+    for (const chain of chains(roadLines[roadClass])) {
+      road++
       const line = rounded(chain).map((value) => value + 0.5)
       let travelled = 0
       for (let i = 0; i + 3 < line.length; i += 2) {
@@ -178,7 +188,13 @@ export function roadField(): { data: Uint8Array; width: number; height: number }
             const near = nearSegment((column + 0.5) / fieldScale, (row + 0.5) / fieldScale, line, i)
             const edge = Math.round(Math.min(1, Math.max(0, near.distance - half + 0.5)) * 255)
             const texel = (row * width + column) * 4
-            if (edge >= data[texel + 1]!) continue
+            if (near.distance <= half + besideRoad) {
+              if (first[texel / 4] === 0) first[texel / 4] = road
+              else if (first[texel / 4] !== road) shared[texel / 4] = 1
+            }
+            const over = roadClass === 'freeway' && near.distance <= half
+            if (edge >= data[texel + 1]! && !(over && !freeway[texel / 4])) continue
+            if (over) freeway[texel / 4] = 1
             const wave = Math.cos(((travelled + near.t * length) / dashEvery) * Math.PI * 2)
             data[texel] = Math.round((0.5 + (near.side * Math.min(1, near.distance)) / 2) * 255)
             data[texel + 1] = edge
@@ -187,6 +203,45 @@ export function roadField(): { data: Uint8Array; width: number; height: number }
         }
         travelled += length
       }
+    }
+  }
+  const paved = Math.round(0.5 * 255) - 1
+  shared.forEach((between, texel) => {
+    if (!between) return
+    data[texel * 4 + 1] = Math.min(data[texel * 4 + 1]!, paved)
+    data[texel * 4 + 3] = 0
+  })
+  const asphalt = (texel: number) => data[texel * 4 + 1]! <= paved
+  const [unseen, island, open] = [0, 1, 2]
+  const state = new Uint8Array(width * height)
+  for (let start = 0; start < state.length; start++) {
+    if (state[start] !== unseen || asphalt(start) || data[start * 4 + 1] === 255) continue
+    const texels = [start]
+    state[start] = island
+    let enclosed = true
+    for (let n = 0; n < texels.length && enclosed; n++) {
+      const texel = texels[n]!
+      const column = texel % width
+      for (const next of [texel - width, texel + width, texel - 1, texel + 1]) {
+        const wraps =
+          (next === texel - 1 && column === 0) || (next === texel + 1 && column === width - 1)
+        if (next < 0 || next >= state.length || wraps) continue
+        if (asphalt(next) || state[next] === island) continue
+        if (state[next] === open || data[next * 4 + 1] === 255 || texels.length >= smallestIsland) {
+          enclosed = false
+          break
+        }
+        state[next] = island
+        texels.push(next)
+      }
+    }
+    for (const texel of texels) {
+      if (!enclosed) {
+        state[texel] = open
+        continue
+      }
+      data[texel * 4 + 1] = paved
+      data[texel * 4 + 3] = 0
     }
   }
   const nodes = junctions()
@@ -202,6 +257,7 @@ export function roadField(): { data: Uint8Array; width: number; height: number }
       ) {
         const distance = Math.hypot((column + 0.5) / fieldScale - x, (row + 0.5) / fieldScale - y)
         const texel = (row * width + column) * 4 + 2
+        if (freeway[(texel - 2) / 4]) continue
         data[texel] = Math.min(
           data[texel]!,
           Math.round(Math.min(1, distance / junctionReach) * 255),

@@ -74,7 +74,7 @@ describe('route', () => {
   test('a trip that once differed between JavaScript engines stays pinned', () => {
     const from = spots(places.find((place) => place.id === 'mountain-summit-trail')!)[0]!
     const to = spots(places.find((place) => place.id === 'dogpatch-robotics')!)[0]!
-    expect(route(from, to).seconds).toMatchInlineSnapshot(`181.77777326691302`)
+    expect(route(from, to).seconds).toMatchInlineSnapshot(`180.90241456844137`)
   })
 
   test('crossing the bay rides instead of walking, and trips take minutes', () => {

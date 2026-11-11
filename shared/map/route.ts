@@ -47,15 +47,56 @@ function line(
   }
 }
 
+const spurTiles = 5
+
+function cellsOf(road: number[]) {
+  const cells = new Set<number>()
+  for (let p = 0; p + 3 < road.length; p += 2) {
+    line(road[p]!, road[p + 1]!, road[p + 2]!, road[p + 3]!, (x, y) => {
+      if (inside(x, y)) cells.add(index(x, y))
+    })
+  }
+  return cells
+}
+
+const tilesAlong = (road: number[]) => {
+  let tiles = 0
+  for (let p = 0; p + 3 < road.length; p += 2) {
+    tiles += Math.hypot(road[p + 2]! - road[p]!, road[p + 3]! - road[p + 1]!)
+  }
+  return tiles
+}
+
+function withoutSpurs(): Record<RoadClass, number[][]> {
+  let kept = roadClasses.flatMap((roadClass) =>
+    geography.roads[roadClass].map((road) => ({ roadClass, road, cells: cellsOf(road) })),
+  )
+  for (;;) {
+    const covered = new Map<number, number>()
+    for (const { cells } of kept) {
+      for (const cell of cells) covered.set(cell, (covered.get(cell) ?? 0) + 1)
+    }
+    const loose = (x: number, y: number) => covered.get(index(x, y)) === 1
+    const joined = kept.filter(
+      ({ road }) =>
+        tilesAlong(road) >= spurTiles ||
+        !(loose(road[0]!, road[1]!) || loose(road.at(-2)!, road.at(-1)!)),
+    )
+    if (joined.length === kept.length) break
+    kept = joined
+  }
+  const of = (roadClass: RoadClass) =>
+    kept.filter((entry) => entry.roadClass === roadClass).map((entry) => entry.road)
+  return { local: of('local'), street: of('street'), freeway: of('freeway') }
+}
+
+export const roadLines = withoutSpurs()
+
 function rasterize(): Uint8Array {
   const grid = new Uint8Array(mapWidth * mapHeight)
   roadClasses.forEach((roadClass, i) => {
-    for (const road of geography.roads[roadClass]) {
-      for (let p = 0; p + 3 < road.length; p += 2) {
-        line(road[p]!, road[p + 1]!, road[p + 2]!, road[p + 3]!, (x, y) => {
-          if (inside(x, y)) grid[index(x, y)] = i + 1
-        })
-      }
+    for (const road of roadLines[roadClass]) {
+      for (const cell of cellsOf(road)) grid[cell] = i + 1
     }
   })
   return grid

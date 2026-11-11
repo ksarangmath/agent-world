@@ -60,9 +60,7 @@ void markGround(inout vec4 color) {
   vec3 line = here > 2.5 ? vec3(0.9) : vec3(0.95, 0.74, 0.2);
   float dash = step(1.5, here) * (1.0 - step(0.045, middle)) * step(0.5, road.a) * open;
   float shoulder = step(2.5, here) * step(-0.09, edge) * (1.0 - step(-0.05, edge)) * open;
-  float zebra = step(0.6, junction) * (1.0 - step(0.85, junction)) * step(edge, -0.05) * step(0.5, fract(middle * 8.0 + 0.25));
   paint = mix(paint, line, asphalt * max(dash, shoulder));
-  paint = mix(paint, vec3(0.88), asphalt * zebra);
   if (here > 0.5 || asphalt > 0.5) {
     vec3 lamp = here > 2.5 ? vec3(0.8, 0.88, 1.0) : mix(vec3(1.0, 0.6, 0.26), lampColor(district(tile).x), 0.45);
     float pool = smoothstep(0.5, 0.85, cloudNoise(vGround.xz * 0.9 + 7.0));

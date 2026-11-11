@@ -1,6 +1,5 @@
-import geography from '../../../shared/map/geography.json'
 import { groundKinds, mapHeight, mapWidth, warp } from '../../../shared/map/grid'
-import { roadClasses } from '../../../shared/map/route'
+import { roadClasses, roadLines } from '../../../shared/map/route'
 import { ground } from '../../../shared/map/terrain'
 import { chains } from '../lines'
 
@@ -116,7 +115,7 @@ function wetRuns(points: { x: number; y: number }[]) {
 
 function buildDecks() {
   const runs = [...roadClasses].reverse().flatMap((roadClass) =>
-    chains(geography.roads[roadClass]).flatMap((line) =>
+    chains(roadLines[roadClass]).flatMap((line) =>
       wetRuns(samples(line)).map((run) => ({
         run,
         roadClass,
