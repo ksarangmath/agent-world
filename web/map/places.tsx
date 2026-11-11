@@ -25,7 +25,7 @@ function propsOf(place: Place): Prop[] {
   spots(place).forEach((spot, i) => {
     const [cx, cz] = [spot.x + 0.5, spot.y + 0.5]
     const [dx, dz] = [place.center.x - spot.x, place.center.y - spot.y]
-    const length = Math.sqrt(dx * dx + dz * dz) || 1
+    const length = Math.sqrt(dx * dx + dz * dz)
     const [ux, uz] = length > 0.5 ? [dx / length, dz / length] : [0, 1]
     const yaw = Math.atan2(ux, uz)
     const ground = surfaceAt(cx, cz)
@@ -79,15 +79,16 @@ function propsOf(place: Place): Prop[] {
         add(0.18, 0.02, [0.12, 0.09, 0.09], '#b5895a', 0.18)
         break
       case 'music':
-        add(0, 0, [1, 0.1, 1], '#4a3a2e')
+        add(0, 0, [1, 0.1, 1], '#a8744a')
+        add(0.46, 0.1, [0.9, 0.03, 0.05], color)
         if (i === 0) {
-          add(0.6, 0.1, [0.25, 0.55, 0.25], '#1d1d22', 0.5)
-          add(0.6, 0.1, [0.25, 0.55, 0.25], '#1d1d22', -0.5)
+          add(0.6, 0.1, [0.25, 0.55, 0.25], '#2a2a33', 0.5)
+          add(0.6, 0.1, [0.25, 0.55, 0.25], '#2a2a33', -0.5)
         }
         break
       case 'pitching':
-        add(0, 0, [1, 0.14, 1], '#2d3a4a')
-        if (i === 0) add(0.8, 0.14, [1.4, 0.8, 0.06], '#6fb3ff')
+        add(0, 0, [1, 0.14, 1], '#4a6aa0')
+        if (i === 0) add(0.8, 0.14, [1.4, 0.8, 0.06], '#8fd0ff')
         break
       case 'art':
         add(0.3, 0, [0.04, 0.5, 0.04], '#8a6a46')
