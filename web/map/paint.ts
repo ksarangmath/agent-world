@@ -37,6 +37,20 @@ vec3 neonColor(float pick) {
     : pick < 0.85 ? vec3(0.55, 0.25, 1.0)
     : vec3(1.0, 0.15, 0.12);
 }
+float districtHash(vec2 p) { return fract(sin(dot(p, vec2(269.5, 183.3))) * 43758.5453); }
+float districtNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(districtHash(i), districtHash(i + vec2(1.0, 0.0)), u.x), mix(districtHash(i + vec2(0.0, 1.0)), districtHash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+vec2 district(vec2 at) {
+  vec2 wobble = 7.0 * vec2(districtNoise(at * 0.09), districtNoise(at * 0.09 + 31.0));
+  vec2 cell = floor((at + wobble) / 22.0);
+  float pick = districtHash(cell);
+  float tone = pick < 0.34 ? 0.25 : pick < 0.5 ? 0.6 : pick < 0.64 ? 0.76 : pick < 0.78 ? 0.87 : pick < 0.9 ? 0.93 : 0.98;
+  return vec2(tone, districtHash(cell + 17.0));
+}
 `
 
 export const toonRamp = (() => {

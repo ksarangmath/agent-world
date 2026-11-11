@@ -13,6 +13,7 @@ import { toon } from './paint'
 import { bridges } from './landmarks/bridgeworks'
 import { icons, windmillSite } from './landmarks/icons'
 import { shapes, type Light, type Part, type Shape } from './landmarks/shapes'
+import { skyloopTiles } from './skyloop'
 
 const bridgework = bridges()
 const landmarks = icons()
@@ -22,6 +23,7 @@ const lights = [...bridgework.lights, ...landmarks.lights]
 export const reservedTiles: ReadonlySet<number> = new Set([
   ...landmarks.reserved,
   ...bridgework.reserved,
+  ...skyloopTiles,
 ])
 
 const solidMaterial = toon()

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useSyncExternalStore } from 'react'
 import { usePersonCard } from '../api'
 import { placesById } from '../../shared/map/places'
-import { hovered, type Hover } from './hover'
+import { hovered, type Hover } from './watching'
 
 const gap = 14
 

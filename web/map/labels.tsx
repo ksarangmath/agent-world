@@ -7,6 +7,7 @@ import { places, regionNames, type Region } from '../../shared/map/places'
 import { flyTo } from './camera'
 import { surfaceAt } from './decks'
 import { neighborhoods } from './neighborhoods'
+import { steer } from './watching'
 
 type Label = {
   text: string
@@ -78,9 +79,10 @@ export function Labels({
       marker.title = place.name
       marker.append(document.createElement('span'), document.createElement('b'))
       marker.firstChild!.textContent = place.name
-      marker.addEventListener('click', () =>
-        flyTo(place.center.x + 0.5, place.center.y + 0.5, Math.max(camera.zoom, arrivalZoom)),
-      )
+      marker.addEventListener('click', () => {
+        steer()
+        flyTo(place.center.x + 0.5, place.center.y + 0.5, Math.max(camera.zoom, arrivalZoom))
+      })
       container?.appendChild(marker)
       return marker
     })

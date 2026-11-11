@@ -142,7 +142,7 @@ void main() {
   } else if (vRamps.y >= 0.0) {
     for (int i = 0; i < 3; i++) if (same(texel.rgb, eyeBase[i])) color = ramp(vRamps.y, i);
   }
-  color = linear(color) * mix(vec3(0.42, 0.46, 0.72), vec3(1.0), daylight);
+  color = linear(color) * mix(vec3(0.66, 0.7, 0.95), vec3(1.0), daylight);
   gl_FragColor = vec4(color, 1.0);
 }
 `

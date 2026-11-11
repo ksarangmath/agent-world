@@ -673,10 +673,18 @@ a {
   animation-delay: 0.4s;
 }
 
-.controls {
+.dock {
   position: fixed;
   right: 16px;
   bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  max-width: calc(100vw - 32px);
+}
+
+.controls {
   display: flex;
   gap: 14px;
   padding: 10px 12px;
@@ -685,14 +693,17 @@ a {
 }
 
 .controls .move,
-.controls .zoom {
+.controls .zoom,
+.controls .extras {
   display: grid;
   grid-template-columns: repeat(3, 32px);
   gap: 4px;
 }
 
-.controls .zoom {
+.controls .zoom,
+.controls .extras {
   grid-template-columns: auto;
+  align-content: end;
   justify-items: center;
 }
 
@@ -722,7 +733,35 @@ a {
   cursor: pointer;
 }
 
-.controls button:hover {
+.controls button:hover,
+.controls button[aria-pressed='true'] {
+  background: #ffd166;
+}
+
+.controls button.off {
+  color: #8d8778;
+  text-decoration: line-through;
+  background: #c9c2b2;
+}
+
+.following {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  font:
+    700 13px system-ui,
+    sans-serif;
+  color: #f7f1e3;
+  cursor: pointer;
+  background: rgb(16 21 34 / 92%);
+  border: 3px solid #101522;
+}
+
+.following b {
+  flex: none;
+  padding: 2px 8px;
+  color: #101522;
   background: #ffd166;
 }
 

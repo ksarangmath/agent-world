@@ -1,7 +1,8 @@
-import { Link, useParams } from '@tanstack/react-router'
+import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { placesById } from '../../shared/map/places'
 import { usePersonCard, useWorld } from '../api'
 import { doingNow } from '../map/doing'
+import { follow } from '../map/watching'
 import { ago, Overlay, Portrait } from './Overlay'
 
 export function PersonOverlay() {
@@ -10,6 +11,7 @@ export function PersonOverlay() {
   const world = useWorld()
   const people = world.data?.snapshot.people ?? []
   const live = people.find((person) => person.id === personId)
+  const navigate = useNavigate()
   if (!card.data) {
     return (
       <Overlay label="Person">
@@ -39,6 +41,18 @@ export function PersonOverlay() {
           </ul>
         )}
         <div className="actions">
+          {live && (
+            <button
+              type="button"
+              className="big"
+              onClick={() => {
+                follow({ id: live.id, name: person.name })
+                void navigate({ to: '/', search: true })
+              }}
+            >
+              Follow
+            </button>
+          )}
           {person.conversationId && (
             <Link
               to="/conversations/$conversationId"

@@ -23,8 +23,8 @@ const frameBudgetMs = 25
 const settleMs = 5000
 const sampleEveryMs = 1000
 const probe = new Uint8Array(4)
-const miniature = { blur: 7, sharp: 0.18, from: 8, full: 40 }
-const glow = { strength: 0.4, radius: 0.6, threshold: 0.82 }
+const miniature = { blur: 5, sharp: 0.3, from: 8, full: 40 }
+const glow = { strength: 0.32, radius: 0.5, threshold: 0.82 }
 const [right, up, shift] = [new Vector3(), new Vector3(), new Vector3()]
 
 const grade = {

@@ -1,8 +1,9 @@
 import { Canvas } from '@react-three/fiber'
 import { useNavigate } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { Mesh, type Object3D } from 'three'
 import { useWorld } from '../api'
+import { useMusic } from '../music'
 import { Ambient } from './ambient'
 import { Buildings } from './buildings'
 import { Camera, VisibleArea, zoomBy, type Focus } from './camera'
@@ -16,10 +17,13 @@ import { People } from './people'
 import { PersonHover } from './PersonHover'
 import { Places } from './places'
 import { Sky } from './sky'
+import { Skyloop } from './skyloop'
 import { Snores, Talks } from './talks'
 import { Traffic } from './traffic'
 import { Trees } from './trees'
+import { following, tour, touring } from './watching'
 import { Water } from './water'
+import { Wonders } from './wonders'
 
 const sanFrancisco: Focus = { x: 205, y: 225, zoom: 4.5 }
 
@@ -35,6 +39,9 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
   const view = { ...sanFrancisco, ...focus }
   const scene = useRef<Object3D | null>(null)
   const navigate = useNavigate()
+  const followed = useSyncExternalStore(following.subscribe, following.get)
+  const onTour = useSyncExternalStore(touring.subscribe, touring.get)
+  const music = useMusic()
   const select = useCallback(
     (personId: string) =>
       void navigate({ to: '/people/$personId', params: { personId }, search: true }),
@@ -70,9 +77,11 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
         <Buildings buildings={city.buildings} />
         <Trees trees={city.trees} />
         <Landmarks />
+        <Skyloop />
         <Decor city={city} />
         <Places />
         <Traffic />
+        <Wonders />
         {world.data && (
           <>
             <People
@@ -93,30 +102,63 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
         <PixelPass />
       </Canvas>
       <PersonHover />
-      <div className="controls">
-        <div className="move">
-          <kbd>↑</kbd>
-          <kbd>←</kbd>
-          <kbd>↓</kbd>
-          <kbd>→</kbd>
-          <span>
-            Move
-            <br />
-            or WASD
-          </span>
-        </div>
-        <div className="zoom">
-          <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1.6)}>
-            +
+      <div className="dock">
+        {followed && (
+          <button type="button" className="following" onClick={() => following.set(null)}>
+            Following {followed.name}
+            <b>Stop</b>
           </button>
-          <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.6)}>
-            −
-          </button>
-          <span>
-            Zoom
-            <br />
-            or scroll
-          </span>
+        )}
+        <div className="controls">
+          <div className="move">
+            <kbd>↑</kbd>
+            <kbd>←</kbd>
+            <kbd>↓</kbd>
+            <kbd>→</kbd>
+            <span>
+              Move
+              <br />
+              or WASD
+            </span>
+          </div>
+          <div className="zoom">
+            <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1.6)}>
+              +
+            </button>
+            <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.6)}>
+              −
+            </button>
+            <span>
+              Zoom
+              <br />
+              or scroll
+            </span>
+          </div>
+          <div className="extras">
+            <button
+              type="button"
+              aria-pressed={onTour}
+              aria-label={onTour ? 'Stop the tour' : 'Start a tour'}
+              title="Glide between conversations and busy places"
+              onClick={() => tour(!onTour)}
+            >
+              {onTour ? '■' : '▶'}
+            </button>
+            <span>Tour</span>
+          </div>
+          <div className="extras">
+            <button
+              type="button"
+              className={music.muted ? 'off' : undefined}
+              aria-pressed={!music.muted}
+              aria-label={music.muted ? 'Turn the music on' : 'Mute the music'}
+              title={music.muted ? 'Turn the music on' : 'Mute the music'}
+              onClick={music.toggle}
+            >
+              ♪
+            </button>
+            <span>Music</span>
+          </div>
         </div>
       </div>
     </div>

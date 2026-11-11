@@ -8,7 +8,8 @@ import { onScreen, viewFrom } from './clock'
 import { doingNow } from './doing'
 import { surfaceAt } from './decks'
 import { hash } from './elevation'
-import { hovered } from './hover'
+import { closeIn, stopFlight, track } from './camera'
+import { following, hovered } from './watching'
 import type { RouteReply, RouteRequest } from './routing.worker'
 import { body, Sprites, type Facing, type Placement } from './sprites'
 
@@ -224,6 +225,19 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
 
   const projected = useMemo(() => new Vector3(), [])
   const placements = useRef<(Placement | null)[]>([])
+  const followed = useRef<string | null>(null)
+  useEffect(
+    () =>
+      following.subscribe(() => {
+        if (followed.current && !following.get()) stopFlight()
+        followed.current = null
+      }),
+    [],
+  )
+  useEffect(() => {
+    const id = following.get()?.id
+    if (id && !shown.some((person) => person.id === id)) following.set(null)
+  }, [shown])
 
   useFrame(() => {
     const now = Date.now() + serverOffsetMs
@@ -295,6 +309,11 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
       }
       crowd.x[i] = x
       crowd.y[i] = y
+      if (person.id === following.get()?.id && !hide) {
+        if (followed.current === person.id) track(x, y)
+        else closeIn(x, y)
+        followed.current = person.id
+      }
       crowd.shown[i] = hide ? 0 : 1
       screen.current[i * 3] = Number.NaN
       if (hide || !onScreen(x, y)) {

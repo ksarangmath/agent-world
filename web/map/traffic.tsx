@@ -13,16 +13,16 @@ import {
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import geography from '../../shared/map/geography.json'
 import { warp } from '../../shared/map/grid'
-import { roadClasses } from '../../shared/map/route'
-import { groundAt, isDry } from '../../shared/map/terrain'
 import { onScreen, sky, useDetail } from './clock'
 import { surfaceAt } from './decks'
 import { hash } from './elevation'
 import { chains } from './lines'
 import { Fog } from './fog'
 import { colored, toon } from './paint'
+import { journey, roadEdges, rounded } from './roads'
+import { skyloop } from './skyloop'
 
-type Pose = {
+export type Pose = {
   x: number
   y: number
   z: number
@@ -31,8 +31,14 @@ type Pose = {
   scale: number
   stretch: number
 }
-type Path = { x: Float64Array; y?: Float64Array; z: Float64Array; at: Float64Array; length: number }
-type Fleet = {
+export type Path = {
+  x: Float64Array
+  y?: Float64Array
+  z: Float64Array
+  at: Float64Array
+  length: number
+}
+export type Fleet = {
   count: number
   model: BufferGeometry
   glow?: BufferGeometry
@@ -47,10 +53,17 @@ const pose: Pose = { x: 0, y: 0, z: 0, heading: 0, pitch: 0, scale: 1, stretch: 
 const dummy = new Object3D()
 const hidden = new Matrix4().makeScale(0, 0, 0)
 
-const box = (w: number, h: number, d: number, x: number, y: number, z: number, hex: string) =>
-  colored(new BoxGeometry(w, h, d).translate(x, y + h / 2, z), hex)
+export const box = (
+  w: number,
+  h: number,
+  d: number,
+  x: number,
+  y: number,
+  z: number,
+  hex: string,
+) => colored(new BoxGeometry(w, h, d).translate(x, y + h / 2, z), hex)
 
-function triangle(points: number[], hex: string) {
+export function triangle(points: number[], hex: string) {
   const geometry = new BufferGeometry()
   const [a, b, c] = [points.slice(0, 3), points.slice(3, 6), points.slice(6, 9)]
   geometry.setAttribute(
@@ -62,18 +75,59 @@ function triangle(points: number[], hex: string) {
   return colored(geometry, hex)
 }
 
-const model = (...parts: BufferGeometry[]) => mergeGeometries(parts)
+export const model = (...parts: BufferGeometry[]) => mergeGeometries(parts)
+
+const glass = '#27313d'
+const wheels = (reach: number, half: number) =>
+  [-1, 1].flatMap((fore) =>
+    [-1, 1].map((side) => box(0.13, 0.09, 0.04, fore * reach, 0, side * half, '#17181c')),
+  )
+const beams = (reach: number, spread: number) =>
+  [-1, 1].flatMap((side) => [
+    box(0.02, 0.04, 0.07, reach, 0.08, side * spread, '#fff3c4'),
+    box(0.02, 0.04, 0.07, -reach, 0.08, side * spread, '#ff3524'),
+  ])
+const sedan = [
+  box(0.62, 0.1, 0.26, 0, 0.045, 0, '#ffffff'),
+  box(0.3, 0.09, 0.22, -0.03, 0.145, 0, glass),
+  box(0.26, 0.02, 0.2, -0.03, 0.235, 0, '#ffffff'),
+  ...wheels(0.19, 0.125),
+  ...beams(0.31, 0.08),
+]
 
 const models = {
-  car: model(
-    box(0.5, 0.12, 0.24, 0, 0.05, 0, '#ffffff'),
-    box(0.26, 0.09, 0.21, -0.03, 0.17, 0, '#b8c4cf'),
-    box(0.1, 0.07, 0.26, 0.15, 0.01, 0, '#1c1c1f'),
-    box(0.1, 0.07, 0.26, -0.15, 0.01, 0, '#1c1c1f'),
+  sedan: model(...sedan),
+  sedanLights: model(...beams(0.315, 0.08)),
+  taxi: model(
+    ...sedan,
+    box(0.5, 0.025, 0.265, 0, 0.085, 0, '#1c1c1f'),
+    box(0.1, 0.045, 0.14, -0.03, 0.255, 0, '#fffbe8'),
   ),
-  carLights: model(
-    box(0.03, 0.045, 0.2, 0.26, 0.09, 0, '#fff1c0'),
-    box(0.03, 0.045, 0.2, -0.26, 0.09, 0, '#ff2a1a'),
+  van: model(
+    box(0.68, 0.2, 0.27, 0, 0.045, 0, '#ffffff'),
+    box(0.03, 0.09, 0.24, 0.33, 0.14, 0, glass),
+    box(0.16, 0.08, 0.275, 0.2, 0.15, 0, glass),
+    ...wheels(0.21, 0.13),
+    ...beams(0.34, 0.09),
+  ),
+  vanLights: model(...beams(0.345, 0.09)),
+  bus: model(
+    box(1.16, 0.21, 0.29, 0, 0.05, 0, '#ffffff'),
+    box(1.06, 0.085, 0.295, 0, 0.15, 0, glass),
+    box(1.1, 0.03, 0.27, 0, 0.26, 0, '#f1ecdf'),
+    ...wheels(0.38, 0.14),
+    ...beams(0.58, 0.1),
+  ),
+  busLights: model(...beams(0.585, 0.1), box(1.06, 0.085, 0.3, 0, 0.15, 0, '#ffd27a')),
+  pod: model(
+    box(0.5, 0.07, 0.26, 0, 0.13, 0, '#ffffff'),
+    box(0.3, 0.08, 0.2, 0.03, 0.2, 0, '#8fe9ff'),
+    box(0.16, 0.03, 0.36, -0.19, 0.15, 0, '#ffffff'),
+    box(0.36, 0.025, 0.16, 0, 0.105, 0, '#35e0ff'),
+  ),
+  podLights: model(
+    box(0.36, 0.025, 0.16, 0, 0.1, 0, '#35e0ff'),
+    box(0.02, 0.03, 0.12, 0.25, 0.15, 0, '#ffffff'),
   ),
   cableCar: model(
     box(0.72, 0.14, 0.3, 0, 0.03, 0, '#7a2a22'),
@@ -112,17 +166,18 @@ const models = {
     box(0.9, 1, 1.1, -3.3, 0.5, 0, '#f2f2ee'),
     box(0.3, 0.4, 0.3, -3.5, 1.5, 0, '#c23a2a'),
   ),
-  caltrain: model(
-    box(1.1, 0.28, 0.3, 0, 0.03, 0, '#c9ccd1'),
-    box(1.11, 0.05, 0.31, 0, 0.12, 0, '#b8322f'),
-    box(1, 0.06, 0.305, 0, 0.2, 0, '#2e3d4d'),
+  maglev: model(
+    box(1.6, 0.3, 0.46, 0, 0.06, 0, '#f4f7fb'),
+    box(0.2, 0.22, 0.38, 0.86, 0.06, 0, '#f4f7fb'),
+    box(0.2, 0.22, 0.38, -0.86, 0.06, 0, '#f4f7fb'),
+    box(1.3, 0.09, 0.47, 0, 0.21, 0, '#1f2b3a'),
+    box(1.62, 0.04, 0.47, 0, 0.12, 0, '#19c6e6'),
+    box(1.2, 0.04, 0.3, 0, 0.36, 0, '#dfe6ee'),
   ),
-  bart: model(
-    box(1.1, 0.26, 0.3, 0, 0.03, 0, '#dfe3e8'),
-    box(1.11, 0.05, 0.31, 0, 0.1, 0, '#2b6cb0'),
-    box(1, 0.06, 0.305, 0, 0.18, 0, '#2e3d4d'),
+  maglevLights: model(
+    box(1.3, 0.09, 0.48, 0, 0.21, 0, '#ffe9a8'),
+    box(1.5, 0.03, 0.3, 0, 0.03, 0, '#49e6ff'),
   ),
-  trainWindows: model(box(1, 0.06, 0.32, 0, 0.19, 0, '#ffe2a0')),
   plane: model(
     box(4, 0.42, 0.42, 0, -0.21, 0, '#f4f4f4'),
     box(0.2, 0.08, 0.3, 1.85, 0.08, 0, '#2e3d4d'),
@@ -139,7 +194,7 @@ const models = {
   ),
 }
 
-function makePath(points: ArrayLike<number>, offset = 0, heights?: ArrayLike<number>): Path {
+export function makePath(points: ArrayLike<number>, offset = 0, heights?: ArrayLike<number>): Path {
   const n = points.length / 2
   const x = Float64Array.from({ length: n }, (_, i) => points[i * 2]! + offset)
   const z = Float64Array.from({ length: n }, (_, i) => points[i * 2 + 1]! + offset)
@@ -151,7 +206,7 @@ function makePath(points: ArrayLike<number>, offset = 0, heights?: ArrayLike<num
 const lonLatPath = (stops: [lat: number, lon: number][]) =>
   makePath(stops.flatMap(([lat, lon]) => warp(lon, lat)))
 
-function sample(path: Path, distance: number, out: Pose) {
+export function sample(path: Path, distance: number, out: Pose) {
   const d = Math.max(0, Math.min(path.length, distance))
   let [low, high] = [0, path.at.length - 1]
   while (high - low > 1) {
@@ -252,40 +307,113 @@ const roadTraffic = {
   street: { density: 0.014, speed: 3.2 },
   freeway: { density: 0.014, speed: 5.5 },
 }
+const journeyTiles = 150
+const laneOffset = 0.19
+const roadScale = 1.3
+const steerSpan = 0.18
+const vehicles = [
+  { share: 0.5, model: 'sedan', glow: 'sedanLights', colors: carColors, pace: 1, hover: 0 },
+  { share: 0.12, model: 'taxi', glow: 'sedanLights', colors: ['#f7c531'], pace: 1.05, hover: 0 },
+  {
+    share: 0.13,
+    model: 'van',
+    glow: 'vanLights',
+    colors: ['#f4f4f0', '#3fb8af', '#ff7a59', '#5b6ee1'],
+    pace: 0.9,
+    hover: 0,
+  },
+  {
+    share: 0.1,
+    model: 'bus',
+    glow: 'busLights',
+    colors: ['#e2483d', '#2f7fd8', '#35a56a', '#f0932b'],
+    pace: 0.75,
+    hover: 0,
+  },
+  {
+    share: 0.15,
+    model: 'pod',
+    glow: 'podLights',
+    colors: ['#ffffff', '#b8f2e6', '#ffa69e', '#cdb4ff'],
+    pace: 1.35,
+    hover: 0.1,
+  },
+] as const
 
-function cars(): Fleet {
-  const lanes: { path: Path; speed: number; phase: number }[] = []
-  for (const roadClass of roadClasses) {
-    const { density, speed } = roadTraffic[roadClass]
-    chains(geography.roads[roadClass]).forEach((line, n) => {
-      const path = makePath(line, 0.5)
-      if (path.length < 6) return
-      const middle = Math.floor(path.x.length / 2)
-      const [mx, mz] = [path.x[middle]!, path.z[middle]!]
+const [behind, ahead]: [Pose, Pose] = [{ ...pose }, { ...pose }]
+
+function circuit(path: Path, lane: number, travelled: number, out: Pose) {
+  const turn = Math.PI * lane
+  const lap = 2 * (path.length + turn)
+  const along = ((travelled % lap) + lap) % lap
+  const returning = along >= path.length + turn
+  const leg = returning ? along - path.length - turn : along
+  if (leg < path.length) {
+    const distance = returning ? path.length - leg : leg
+    sample(path, distance - steerSpan, behind)
+    sample(path, distance + steerSpan, ahead)
+    sample(path, distance, out)
+    out.heading = Math.atan2(behind.z - ahead.z, ahead.x - behind.x) + (returning ? Math.PI : 0)
+    out.x += Math.sin(out.heading) * lane
+    out.z += Math.cos(out.heading) * lane
+  } else {
+    sample(path, returning ? 0 : path.length, out)
+    const facing = out.heading + (returning ? Math.PI : 0)
+    const swing = (leg - path.length) / lane
+    const [sin, cos] = [Math.sin(facing), Math.cos(facing)]
+    out.x += lane * (sin * Math.cos(swing) + cos * Math.sin(swing))
+    out.z += lane * (cos * Math.cos(swing) - sin * Math.sin(swing))
+    out.heading = facing + swing
+  }
+  const [sin, cos] = [Math.sin(out.heading), Math.cos(out.heading)]
+  out.y = surfaceAt(out.x, out.z)
+  const front = surfaceAt(out.x + cos * 0.25, out.z - sin * 0.25)
+  const back = surfaceAt(out.x - cos * 0.25, out.z + sin * 0.25)
+  out.pitch = Math.atan2(front - back, 0.5)
+  out.scale = roadScale
+}
+
+function cars(): Fleet[] {
+  const span = (line: number[]) => makePath(line).length
+  const drivers = roadEdges
+    .flatMap(({ line, roadClass }, n) => {
+      const middle = Math.floor(line.length / 4) * 2
+      const [mx, mz] = [line[middle]!, line[middle + 1]!]
       const downtown = Math.max(0, 1 - Math.hypot(mx - fidiX, mz - fidiZ) / 45)
       const expected =
-        path.length * density * (1 + 3 * downtown) * (insideSanFrancisco(mx, mz) ? 1 : 0.5)
-      const count = Math.floor(expected + hash(n, roadClass.length))
-      for (let i = 0; i < count; i++) {
-        lanes.push({
-          path,
-          speed: speed * (0.8 + 0.4 * hash(n, i + 7)),
-          phase: (2 * path.length * (i + hash(i, n))) / count,
-        })
-      }
+        span(line) *
+        roadTraffic[roadClass].density *
+        (1 + 3 * downtown) *
+        (insideSanFrancisco(mx, mz) ? 1 : 0.5)
+      return Array.from({ length: Math.floor(expected + hash(n, 11)) }, (_, i) => {
+        let pick = hash(n + 5, i + 9)
+        return {
+          path: makePath(journey(n, n * 131 + i, journeyTiles), 0.5),
+          speed: roadTraffic[roadClass].speed * (0.85 + 0.3 * hash(n, i + 7)),
+          phase: hash(i, n),
+          vehicle: vehicles.findIndex(({ share }) => (pick -= share) < 0),
+        }
+      })
     })
-  }
-  return {
-    count: lanes.length,
-    model: models.car,
-    glow: models.carLights,
-    colors: lanes.map((_, i) => carColors[Math.floor(hash(i, 3) * carColors.length)]!),
-    place: (i, seconds, out) => {
-      const lane = lanes[i]!
-      shuttle(seconds * lane.speed + lane.phase, lane.path.length, 1, 0, leg)
-      onRoad(lane.path, leg.distance, leg.forward, 0.22, out)
-    },
-  }
+    .filter((driver) => driver.path.length > 6)
+  return vehicles.map((vehicle, v) => {
+    const mine = drivers.filter((driver) => driver.vehicle === v)
+    return {
+      count: mine.length,
+      model: models[vehicle.model],
+      glow: models[vehicle.glow],
+      colors: mine.map(
+        (_, i) => vehicle.colors[Math.floor(hash(i, v + 3) * vehicle.colors.length)]!,
+      ),
+      place: (i, seconds, out) => {
+        const driver = mine[i]!
+        const travelled =
+          seconds * driver.speed * vehicle.pace + driver.phase * 2 * driver.path.length
+        circuit(driver.path, laneOffset, travelled, out)
+        if (vehicle.hover) out.y += vehicle.hover + 0.025 * Math.sin(seconds * 3 + i)
+      },
+    }
+  })
 }
 
 type Track = { name: keyof typeof geography.named; count: number; eastOf?: number }
@@ -293,7 +421,7 @@ type Track = { name: keyof typeof geography.named; count: number; eastOf?: numbe
 function tracks(names: Track[], speed: number) {
   return names.flatMap(({ name, count, eastOf }) =>
     chains(clipped(geography.named[name], (x) => eastOf === undefined || x >= eastOf))
-      .map((line) => makePath(line, 0.5))
+      .map((line) => makePath(rounded(line), 0.5))
       .filter((path) => path.length > 8)
       .flatMap((path, n) =>
         Array.from({ length: count }, (_, i) => ({
@@ -438,37 +566,50 @@ function boats(): Fleet[] {
   ]
 }
 
-const carSpacing = 1.18
+const express = { trains: 5, cars: 6, spacing: 1.78, cruise: 13, push: 5, dwell: 9, float: 0.1 }
 
-function trains(): Fleet[] {
-  const aboveGround = (x: number, z: number) =>
-    !insideSanFrancisco(x, z) && isDry(groundAt(Math.floor(x), Math.floor(z)))
-  const fleet = (lines: number[][], cars: number, model: BufferGeometry): Fleet => {
-    const train = cars * carSpacing
-    const consists = chains(lines)
-      .map((line) => makePath(line, 0.5))
-      .filter((path) => path.length > train * 4)
-      .flatMap((path, n) =>
-        Array.from({ length: Math.max(1, Math.round(path.length / 260)) }, (_, k) => ({
-          path,
-          phase: k * 97 + n * 31,
-        })),
-      )
-    return {
-      count: consists.length * cars,
-      model,
-      glow: models.trainWindows,
-      place: (i, seconds, out) => {
-        const consist = consists[Math.floor(i / cars)]!
-        shuttle(seconds + consist.phase, consist.path.length - train, 8, 20, leg)
-        onRoad(consist.path, leg.distance + train - (i % cars) * carSpacing, leg.forward, 0, out)
-      },
-    }
+function maglev(): Fleet {
+  const { count, x, y, z, stations } = skyloop
+  const ring = [...Array(count).keys(), 0]
+  const path = makePath(
+    ring.flatMap((i) => [x[i]!, z[i]!]),
+    0,
+    ring.map((i) => y[i]!),
+  )
+  const stops = stations.map((i) => path.at[i]!).sort((a, b) => a - b)
+  let clock = 0
+  const legs = stops.map((from, k) => {
+    const run = (stops[k + 1] ?? stops[0]! + path.length) - from
+    const peak = Math.min(express.cruise, Math.sqrt(express.push * run))
+    const ramp = peak / express.push
+    const leg = { from, run, peak, ramp, takes: run / peak + ramp, departs: clock + express.dwell }
+    clock = leg.departs + leg.takes
+    return leg
+  })
+  const period = clock
+  const reached = (seconds: number) => {
+    const moment = ((seconds % period) + period) % period
+    const leg = legs.findLast((candidate) => moment >= candidate.departs - express.dwell)!
+    const moving = moment - leg.departs
+    if (moving <= 0) return leg.from
+    const coasting = leg.takes - leg.ramp
+    if (moving < leg.ramp) return leg.from + (express.push * moving * moving) / 2
+    if (moving < coasting)
+      return leg.from + (leg.peak * leg.ramp) / 2 + leg.peak * (moving - leg.ramp)
+    return leg.from + leg.run - (express.push * (leg.takes - moving) ** 2) / 2
   }
-  return [
-    fleet(geography.rails.caltrain, 5, models.caltrain),
-    fleet(clipped(geography.rails.bart, aboveGround), 6, models.bart),
-  ]
+  return {
+    count: express.trains * express.cars,
+    model: models.maglev,
+    glow: models.maglevLights,
+    place: (i, seconds, out) => {
+      const train = Math.floor(i / express.cars)
+      const head = reached(seconds + (train * period) / express.trains)
+      const at = head - (i % express.cars) * express.spacing
+      sample(path, ((at % path.length) + path.length) % path.length, out)
+      out.y += express.float
+    },
+  }
 }
 
 function planes(): Fleet {
@@ -539,7 +680,7 @@ function gulls(): Fleet {
   }
 }
 
-function Vehicles({ fleet }: { fleet: Fleet }) {
+export function Vehicles({ fleet }: { fleet: Fleet }) {
   const body = useRef<InstancedMesh>(null)
   const glow = useRef<InstancedMesh>(null)
   useLayoutEffect(() => {
@@ -555,6 +696,7 @@ function Vehicles({ fleet }: { fleet: Fleet }) {
     const mesh = body.current!
     const seconds = (Date.now() - epoch) / 1000
     for (let i = 0; i < fleet.count; i++) {
+      pose.heading = 0
       pose.pitch = 0
       pose.scale = 1
       pose.stretch = 1
@@ -592,7 +734,7 @@ const vintage = ['#e8742c', '#3f7a4a', '#f0c43a', '#c23a3a', '#e9e2cf', '#2f6a8a
 export function Traffic() {
   const fleets = useMemo(
     () => [
-      cars(),
+      ...cars(),
       railCars(
         tracks(
           [
@@ -618,7 +760,7 @@ export function Traffic() {
         vintage,
       ),
       ...boats(),
-      ...trains(),
+      maglev(),
       planes(),
       gulls(),
     ],

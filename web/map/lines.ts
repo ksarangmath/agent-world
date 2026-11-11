@@ -1,4 +1,4 @@
-function reversed(line: number[]) {
+export function reversed(line: number[]) {
   const result: number[] = []
   for (let i = line.length - 2; i >= 0; i -= 2) result.push(line[i]!, line[i + 1]!)
   return result

@@ -94,6 +94,7 @@ varying vec3 vRoof;
 varying vec3 vLocal;
 varying vec3 vScale;
 varying vec3 vBoxNormal;
+varying vec2 vPlot;
 varying float vSeed;`,
       )
       .replace(
@@ -103,6 +104,7 @@ vRoof = roofColor;
 vLocal = position;
 vBoxNormal = normal;
 vScale = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
+vPlot = instanceMatrix[3].xz;
 vSeed = instanceMatrix[3].x * 0.137 + instanceMatrix[3].z * 0.713;`,
       )
     shader.fragmentShader = shader.fragmentShader
@@ -114,6 +116,7 @@ varying vec3 vRoof;
 varying vec3 vLocal;
 varying vec3 vScale;
 varying vec3 vBoxNormal;
+varying vec2 vPlot;
 varying float vSeed;
 float windowHash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
 ${nightLights}`,
@@ -123,7 +126,9 @@ ${nightLights}`,
         `#include <color_fragment>
 vec3 glow = vec3(0.0);
 float trait = windowHash(vec3(vSeed, 3.0, 9.0));
+vec2 quarter = district(vPlot);
 float tone = windowHash(vec3(vSeed, 1.0, 5.0));
+tone = fract(tone * 3.0) < 0.65 ? quarter.x : tone;
 vec3 brand = neonColor(fract(trait * 61.0));
 vec3 glass = vec3(0.2, 0.25, 0.32);
 if (vBoxNormal.y > 0.5) {
@@ -140,7 +145,7 @@ if (vBoxNormal.y > 0.5) {
   float skylight = roomy * step(0.6, trait) * step(middle.x, vScale.x * 0.24) * step(middle.y, vScale.z * 0.16) * (1.0 - seam * tiles);
   float tube = roomy * step(trait, 0.16) * step(0.12, edge) * step(edge, 0.2) * tiles;
   diffuseColor.rgb = mix(diffuseColor.rgb, glass, skylight * 0.5);
-  glow = skylight * lampColor(tone) * 0.4 + tube * brand;
+  glow = skylight * lampColor(tone) * 0.3 + tube * brand * 0.8;
 } else if (vBoxNormal.y > -0.5) {
   float along = abs(vBoxNormal.x) > 0.5 ? (vLocal.z + 0.5) * vScale.z : (vLocal.x + 0.5) * vScale.x;
   float up = vLocal.y * vScale.y;
@@ -151,7 +156,7 @@ if (vBoxNormal.y > 0.5) {
   float banner = shop * step(0.27, up);
   float front = shop * step(0.06, f.x) * step(f.x, 0.94) * step(0.04, up) * step(up, 0.25);
   float pane = front + (1.0 - shop) * step(0.25, f.x) * step(f.x, 0.75) * step(0.3, f.y) * step(f.y, 0.8) * step(0.2, up) * step(up, vScale.y - 0.1);
-  float busy = mix(0.3, 0.8, windowHash(vec3(vSeed, 7.0, 2.0)));
+  float busy = mix(0.18, 0.62, windowHash(vec3(vSeed, 7.0, 2.0))) * (0.6 + 0.8 * quarter.y);
   float lit = max(shop, step(windowHash(vec3(cell, vSeed)), busy));
   float own = windowHash(vec3(cell, vSeed + 4.0));
   float office = vScale.y > 3.0 ? 0.68 + 0.16 * tone : tone;
@@ -160,7 +165,7 @@ if (vBoxNormal.y > 0.5) {
   diffuseColor.rgb = mix(diffuseColor.rgb, glass, pane * 0.6 * detail);
   diffuseColor.rgb = mix(diffuseColor.rgb, brand * 0.7 + 0.08, banner * detail);
   float floors = clamp(1.0 / max(fwidth(up / 0.7), 1e-4) - 1.0, 0.0, 1.0);
-  float distant = mix(0.1 + 0.7 * step(0.62, fract(tone * 7.0)), 0.34 * step(0.5, windowHash(vec3(floor(along * 0.8), floor(up / 0.7), vSeed))), floors);
+  float distant = mix(0.1 + 0.7 * step(0.62, windowHash(vec3(vSeed, 9.0, 4.0))), 0.34 * step(0.5, windowHash(vec3(floor(along * 0.8), floor(up / 0.7), vSeed))), floors);
   vec3 lights = pane * lit * lampColor(own < 0.8 ? office : fract(own * 13.0)) + banner * brand;
   glow = mix(distant * mix(vec3(1.0, 0.6, 0.25), lampColor(office), 0.6), lights, detail);
 }
@@ -169,7 +174,7 @@ glow *= 1.0 - daylight;`,
       .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
-totalEmissiveRadiance += glow * 1.2;`,
+totalEmissiveRadiance += glow;`,
       )
   })
   return material

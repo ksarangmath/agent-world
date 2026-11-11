@@ -84,13 +84,13 @@ float fbm(vec2 p) {
 void main() {
   float shore = texture2D(coast, vec2(0.5, clamp(vTile.y / height, 0.0, 1.0))).r;
   float gate = exp(-pow((vTile.y - gateRow) / 18.0, 2.0));
-  float front = shore + thickness * (45.0 + 115.0 * gate);
+  float front = shore + thickness * (10.0 + 60.0 * gate);
   float reach = smoothstep(front, front - 28.0, vTile.x) * smoothstep(shore - 90.0, shore - 40.0, vTile.x);
   float n = fbm((vTile - vec2(time * 0.4, time * 0.08)) * 0.07);
   float density = smoothstep(0.5 - 0.15 * thickness, 0.75 - 0.1 * thickness, n) * reach * smoothstep(0.25, 0.6, thickness);
   density = floor(density * 4.0 + 0.5) / 4.0;
   vec3 color = mix(vec3(0.16, 0.18, 0.24), vec3(0.96, 0.97, 0.98), daylight);
-  gl_FragColor = vec4(color, density * 0.82 * clear);
+  gl_FragColor = vec4(color, density * 0.6 * clear);
 }
 `
 

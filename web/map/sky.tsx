@@ -13,7 +13,7 @@ const noon = new Color('#ffe2b6')
 const evening = new Color('#ffab52')
 const moon = new Color('#8fa4ff')
 const daySky = new Color('#fff0dc')
-const nightSky = new Color('#6a78c4')
+const nightSky = new Color('#7d88cf')
 const dayGround = new Color('#6c5f8a')
 const nightGround = new Color('#231f48')
 const violet = new Color('#a99cff')
@@ -77,7 +77,7 @@ export function Sky() {
     }
     const hemisphere = ambient.current
     if (hemisphere) {
-      hemisphere.intensity = 0.7 + daylight * 1.4
+      hemisphere.intensity = 0.9 + daylight * 1.2
       hemisphere.color
         .copy(nightSky)
         .lerp(daySky, daylight)

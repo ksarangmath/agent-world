@@ -3,26 +3,21 @@ import { useEffect, useMemo, useRef } from 'react'
 import type { WorldPerson } from '../../shared/api'
 import { placesById } from '../../shared/map/places'
 import { glideTo, stopFlight } from './camera'
+import { touring } from './watching'
 
-const idleBeforeMs = 60_000
 const dwellMs = 12_000
 const closeUp = 34
-const inputs = ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart'] as const
-const calm = matchMedia('(prefers-reduced-motion: reduce)')
 
 export function Ambient({ people }: { people: WorldPerson[] }) {
-  const drift = useRef({ touchedAt: 0, nextAt: 0, stop: 0, gliding: false })
-  useEffect(() => {
-    const state = drift.current
-    state.touchedAt = performance.now()
-    const touch = () => {
-      state.touchedAt = performance.now()
-      if (state.gliding) stopFlight()
-      state.gliding = false
-    }
-    inputs.forEach((type) => window.addEventListener(type, touch, { passive: true }))
-    return () => inputs.forEach((type) => window.removeEventListener(type, touch))
-  }, [])
+  const drift = useRef({ nextAt: 0, stop: 0, gliding: false })
+  useEffect(
+    () =>
+      touring.subscribe(() => {
+        if (drift.current.gliding) stopFlight()
+        Object.assign(drift.current, { nextAt: 0, gliding: false })
+      }),
+    [],
+  )
   const stops = useMemo(() => {
     const talks = new Map<string, WorldPerson[]>()
     const crowds = new Map<string, number>()
@@ -49,10 +44,10 @@ export function Ambient({ people }: { people: WorldPerson[] }) {
   useFrame(() => {
     const state = drift.current
     const now = performance.now()
-    if (now - state.touchedAt < idleBeforeMs) return
-    if (calm.matches || document.querySelector('.overlay')) {
+    if (!touring.get()) return
+    if (document.querySelector('.overlay')) {
       if (state.gliding) stopFlight()
-      state.gliding = false
+      Object.assign(state, { gliding: false, nextAt: 0 })
       return
     }
     if (now < state.nextAt || stops.length === 0) return
