@@ -7,6 +7,16 @@ export type RequestStatus = (typeof requestStatuses)[number]
 export const ownerMessageDirections = ['to_owner', 'to_agent'] as const
 export type OwnerMessageDirection = (typeof ownerMessageDirections)[number]
 
+export const linkedInProblems = [
+  'no-sign-in-photo',
+  'not-a-profile',
+  'not-found',
+  'no-public-photo',
+  'not-yours',
+  'unreachable',
+] as const
+export type LinkedInProblem = (typeof linkedInProblems)[number]
+
 export const deliveryModes = ['queued', 'steering'] as const
 export type DeliveryMode = (typeof deliveryModes)[number]
 

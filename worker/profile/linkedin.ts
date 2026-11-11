@@ -1,13 +1,6 @@
+import type { LinkedInProblem } from '../../shared/world'
 import type { LinkedInIdentity } from './builder'
 import { exaContents, exaFreshContents } from './exa'
-
-export type LinkedInProblem =
-  | 'no-sign-in-photo'
-  | 'not-a-profile'
-  | 'not-found'
-  | 'no-public-photo'
-  | 'not-yours'
-  | 'unreachable'
 
 export const problemMessages: Record<LinkedInProblem, string> = {
   'no-sign-in-photo':

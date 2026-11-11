@@ -8,6 +8,7 @@ import { omnara } from '../omnara/client'
 import {
   claimVerificationAttempt,
   linkedInIdentity,
+  noteVerification,
   onboardingStatus,
   startBuilder,
 } from '../profile/builder'
@@ -46,9 +47,14 @@ export const onboarding = new Hono<SignedIn>()
       return c.json({ error: 'Too many tries today. Try again tomorrow.' }, 429)
     }
     const linkedIn = await verifyLinkedIn(c.env.EXA_API_KEY, identity, linkedinUrl)
-    if (linkedIn === 'unreachable') return c.json({ error: problemMessages.unreachable }, 503)
+    const refused = typeof linkedIn === 'string' ? linkedIn : null
+    await noteVerification(services.db, c.var.userId, refused)
+    if (refused === 'unreachable') return c.json({ error: problemMessages.unreachable }, 503)
     if (typeof linkedIn === 'string') return c.json({ error: problemMessages[linkedIn] }, 422)
     const started = await startBuilder(services, c.env, c.var.userId, identity.name, linkedIn)
-    if (started === 'no photo') return c.json({ error: problemMessages.unreachable }, 503)
+    if (started === 'no photo') {
+      await noteVerification(services.db, c.var.userId, 'unreachable')
+      return c.json({ error: problemMessages.unreachable }, 503)
+    }
     return c.json({ status: 'building' })
   })

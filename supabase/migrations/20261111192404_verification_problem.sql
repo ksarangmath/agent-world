@@ -1,0 +1,2 @@
+CREATE TYPE "public"."linkedin_problem" AS ENUM('no-sign-in-photo', 'not-a-profile', 'not-found', 'no-public-photo', 'not-yours', 'unreachable');--> statement-breakpoint
+ALTER TABLE "verification_attempts" ADD COLUMN "last_problem" "linkedin_problem";

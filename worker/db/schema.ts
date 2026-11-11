@@ -19,6 +19,7 @@ import { authenticatedRole, authUid, authUsers } from 'drizzle-orm/supabase'
 import type { Profile } from '../../shared/profile'
 import {
   deliveryModes,
+  linkedInProblems,
   maxMessageLength,
   maxOpenerLength,
   maxOwnerMessageLength,
@@ -41,6 +42,7 @@ const ownedBy = (personId: AnyPgColumn): SQL =>
 
 export const requestStatus = pgEnum('request_status', requestStatuses)
 export const verdict = pgEnum('verdict', verdicts)
+export const linkedInProblem = pgEnum('linkedin_problem', linkedInProblems)
 export const ownerMessageDirection = pgEnum('owner_message_direction', ownerMessageDirections)
 export const deliveryMode = pgEnum('delivery_mode', deliveryModes)
 export const worldEventKind = pgEnum('world_event_kind', worldEventKinds)
@@ -269,6 +271,7 @@ export const verificationAttempts = pgTable('verification_attempts', {
     .references(() => authUsers.id, { onDelete: 'cascade' }),
   attempts: integer().notNull(),
   since: timestamptz().notNull(),
+  lastProblem: linkedInProblem(),
 }).enableRLS()
 
 export const profileDrafts = pgTable(

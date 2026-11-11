@@ -1,6 +1,7 @@
 import { and, eq, isNotNull, isNull, lt, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import type { OnboardingStatus } from '../../shared/api'
+import type { LinkedInProblem } from '../../shared/world'
 import { profileSchema, type Profile } from '../../shared/profile'
 import type { Database, Transaction } from '../db/client'
 import { profileDrafts, verificationAttempts } from '../db/schema'
@@ -132,6 +133,16 @@ export async function claimVerificationAttempt(db: Database, userId: string, now
     .returning({ attempts: verificationAttempts.attempts })
   return row!.attempts <= verificationAttemptsPerDay
 }
+
+export const noteVerification = (
+  db: Database,
+  userId: string,
+  lastProblem: LinkedInProblem | null,
+) =>
+  db
+    .update(verificationAttempts)
+    .set({ lastProblem })
+    .where(eq(verificationAttempts.userId, userId))
 
 export async function startBuilder(
   services: Services,
