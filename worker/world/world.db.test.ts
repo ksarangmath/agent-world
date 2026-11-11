@@ -375,19 +375,19 @@ describe('conversations', () => {
     expect(closing.ok).toBe(true)
   })
 
-  test('a conversation ends after 5 minutes without a message', async () => {
+  test('a conversation ends after 10 minutes without a message', async () => {
     const [a, b] = [await person('A'), await person('B')]
     const conversationId = await talking(a, b)
     await run((w) => sendMessage(w, a, 'Hello'), later(minutes(2)))
-    await run((w) => endIfIdle(w, conversationId), later(minutes(6)))
+    await run((w) => endIfIdle(w, conversationId), later(minutes(11)))
     expect((await db.select().from(conversations))[0]!.endedAt).toBeNull()
-    await run((w) => endIfIdle(w, conversationId), later(minutes(8)))
+    await run((w) => endIfIdle(w, conversationId), later(minutes(13)))
     const [ended] = await db.select().from(conversations)
     expect(ended!.endedAt).not.toBeNull()
     const both = await db.select({ c: people.conversationId }).from(people)
     expect(both.every((row) => row.c === null)).toBe(true)
     expect(await eventsOf(a)).toContainEqual(
-      expect.objectContaining({ event: 'conversation_ended', ended_by: 'idle for 5 minutes' }),
+      expect.objectContaining({ event: 'conversation_ended', ended_by: 'idle for 10 minutes' }),
     )
   })
 
