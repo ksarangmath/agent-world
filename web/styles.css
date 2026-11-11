@@ -141,22 +141,6 @@ canvas {
   right: -8px;
 }
 
-.talking-dot {
-  display: inline-block;
-  flex: none;
-  width: 10px;
-  height: 10px;
-  background: #7ed38a;
-  border: 2px solid #101522;
-  animation: hop 1.2s steps(2, jump-none) infinite;
-}
-
-.you .talking-dot {
-  position: absolute;
-  right: -6px;
-  bottom: -4px;
-}
-
 .you .alert {
   font-weight: 700;
   color: #ffd166;
@@ -381,7 +365,6 @@ canvas {
   height: 8px;
   margin-right: 6px;
   background: #7ed38a;
-  animation: hop 1.2s steps(2, jump-none) infinite;
 }
 
 .overlay.conversation,
@@ -1062,14 +1045,6 @@ a {
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges' fill='%23101522'%3E%3Crect x='3' width='2' height='3'/%3E%3Crect x='2' y='3' width='4' height='1'/%3E%3Crect x='1' y='4' width='6' height='4'/%3E%3C/svg%3E");
 }
 
-.place-label.talking b::after {
-  content: '';
-  width: 6px;
-  height: 6px;
-  background: #3a9d4a;
-  animation: hop 1.2s steps(2, jump-none) infinite;
-}
-
 .place-label.far {
   padding: 4px 9px 7px;
   font-size: 14px;
@@ -1132,59 +1107,6 @@ a {
   width: calc(var(--size) / 9);
   height: calc(var(--size) / 9);
   background: #101522;
-  animation: hop 1.2s steps(2, jump-none) infinite;
-}
-
-.talk i:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.person-mark {
-  position: absolute;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-  font:
-    800 11px system-ui,
-    sans-serif;
-}
-
-.person-mark::before,
-.person-mark::after {
-  animation: hop 1.6s steps(2, jump-none) infinite;
-}
-
-.person-mark[data-kind='you']::before {
-  display: block;
-  padding: 1px 6px;
-  color: #101522;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  content: 'you';
-  background: #ffd166;
-  border: 2px solid #101522;
-}
-
-.person-mark[data-kind='you']::after {
-  display: block;
-  width: 0;
-  margin: -1px auto 0;
-  content: '';
-  border: 5px solid transparent;
-  border-top-color: #101522;
-  border-bottom: 0;
-}
-
-.person-mark[data-kind='match']::before {
-  display: block;
-  font-size: 16px;
-  color: #ff5c7a;
-  content: '♥';
-  text-shadow:
-    1px 0 #101522,
-    -1px 0 #101522,
-    0 1px #101522,
-    0 -1px #101522;
 }
 
 .snore {
@@ -1207,21 +1129,14 @@ a {
 
 .snore i {
   font-style: normal;
-  animation: hop 2.4s steps(2, jump-none) infinite;
 }
 
 .snore i:nth-child(2) {
   font-size: 11px;
-  animation-delay: 0.4s;
 }
 
 .snore i:nth-child(3) {
   font-size: 9px;
-  animation-delay: 0.8s;
-}
-
-.talk i:nth-child(3) {
-  animation-delay: 0.4s;
 }
 
 .dock {
@@ -1381,15 +1296,8 @@ a {
 
 @media (prefers-reduced-motion: reduce) {
   .working .dots i,
-  .talk i,
-  .snore i,
-  .place-label.talking b::after,
   .chat .typing i,
-  .live::before,
   .overlay,
-  .person-mark::before,
-  .person-mark::after,
-  .talking-dot,
   .notice {
     animation: none;
   }

@@ -179,7 +179,6 @@ export function Labels({
       if (marker.lastChild!.textContent !== count) marker.lastChild!.textContent = count
       if (marker.ariaLabel !== spoken) marker.ariaLabel = spoken
       marker.classList.toggle('far', far)
-      marker.classList.toggle('talking', talking)
     }
   })
   return null

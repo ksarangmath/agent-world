@@ -45,9 +45,6 @@ export function steer() {
   touring.set(false)
 }
 
-export const mine = store<string | null>(null)
-export const matched = store<ReadonlySet<string>>(new Set())
-
 export const visiting = store<{ x: number; y: number } | null>(null)
 
 export function visit(tile: { x: number; y: number }) {

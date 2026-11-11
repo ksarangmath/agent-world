@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { Vector3 } from 'three'
 import { detailZoom } from './clock'
-import { marks, sleepers, talks } from './people'
+import { sleepers, talks } from './people'
 
 const tail = 6
 
@@ -38,39 +38,6 @@ export function Talks({ onOpen }: { onOpen: (conversationId: string) => void }) 
       element.style.display = 'flex'
       element.style.setProperty('--size', `${scale}px`)
       element.style.transform = `translate(${((projected.x + 1) / 2) * size.width}px, ${((1 - projected.y) / 2) * size.height}px) translate(-50%, calc(-100% - ${tail}px))`
-    }
-    for (let i = shown; i < pool.current.length; i++) pool.current[i]!.style.display = 'none'
-  })
-  return null
-}
-
-export function Marks() {
-  const { gl, camera, size } = useThree()
-  const pool = useRef<HTMLSpanElement[]>([])
-  const projected = useMemo(() => new Vector3(), [])
-  useEffect(() => {
-    const current = pool.current
-    return () => current.forEach((element) => element.remove())
-  }, [])
-  useFrame(() => {
-    let shown = 0
-    for (let i = 0; i < marks.count; i++) {
-      if (!marks.mine[i] && camera.zoom < detailZoom) continue
-      let element = pool.current[shown]
-      if (!element) {
-        element = document.createElement('span')
-        element.className = 'person-mark'
-        gl.domElement.parentElement?.appendChild(element)
-        pool.current.push(element)
-      }
-      shown++
-      element.setAttribute('data-kind', marks.mine[i] ? 'you' : 'match')
-      projected.set(marks.x[i]!, marks.height[i]!, marks.y[i]!).project(camera)
-      element.style.setProperty('display', 'block')
-      element.style.setProperty(
-        'transform',
-        `translate(${((projected.x + 1) / 2) * size.width}px, ${((1 - projected.y) / 2) * size.height}px) translate(-50%, -100%)`,
-      )
     }
     for (let i = shown; i < pool.current.length; i++) pool.current[i]!.style.display = 'none'
   })

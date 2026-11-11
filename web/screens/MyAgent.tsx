@@ -442,7 +442,6 @@ export function You({
             <span className="sr-only"> new</span>
           </b>
         )}
-        {live?.conversationId && <i className="talking-dot" title="Talking right now" />}
       </span>
       <span>
         <strong>Your agent</strong>

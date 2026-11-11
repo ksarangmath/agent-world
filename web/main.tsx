@@ -6,15 +6,14 @@ import {
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router'
-import { lazy, StrictMode, Suspense, useEffect } from 'react'
+import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { z } from 'zod'
 import { queryClient, useMe, useWorld } from './api'
 import { signIn, signOut, useSession } from './auth'
 import { ConversationOverlay } from './screens/Conversation'
 import { CreateAgent } from './screens/Onboarding'
-import { matched, mine, tour } from './map/watching'
-import { useNews } from './news'
+import { tour } from './map/watching'
 import { MyAgent, tabs, You } from './screens/MyAgent'
 import { Notices } from './screens/Notices'
 import { PersonOverlay } from './screens/Person'
@@ -85,14 +84,8 @@ function World() {
   const search = worldRoute.useSearch()
   const person = me.data?.person
   const focus = search.x === undefined && person?.tile ? { ...person.tile, zoom: 30 } : search
-  const news = useNews(person ? session?.user.id : undefined)
   const world = useWorld()
   const talking = (world.data?.snapshot.people ?? []).filter((one) => one.conversationId).length / 2
-  const friends = (news.mutual ?? []).map((match) => match.personId).join(' ')
-  useEffect(() => {
-    mine.set(person?.id ?? null)
-    matched.set(new Set(friends ? friends.split(' ') : []))
-  }, [person?.id, friends])
   return (
     <main className="home">
       <Suspense>
@@ -102,7 +95,6 @@ function World() {
         <img className="lockup" src="/lockup.png" alt="Agent World" />
         {talking > 0 && (
           <button type="button" className="pulse" onClick={() => tour(true)}>
-            <i className="talking-dot" />
             {talking === 1 ? '1 conversation' : `${talking} conversations`} happening now
           </button>
         )}
@@ -125,7 +117,7 @@ function World() {
         )}
         {session && me.data && !me.data.person && <CreateAgent userId={session.user.id} />}
       </header>
-      {session && person && <Notices userId={session.user.id} personId={person.id} />}
+      {session && person && <Notices userId={session.user.id} />}
       <Outlet />
     </main>
   )
