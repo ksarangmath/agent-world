@@ -162,14 +162,25 @@ export async function wakeAtDawn(world: World) {
 
 export async function nudgeIdlePeople(world: World) {
   const { tx, now } = world
+  const notNudgedSince = (moment: typeof people.lastActiveAt | typeof people.restingUntil) =>
+    or(isNull(people.lastNudgedAt), lt(people.lastNudgedAt, moment))
   const eligible = and(
     isNotNull(people.agentId),
     gt(people.awakeUntil, now),
     isNull(people.conversationId),
     or(isNull(people.arrivesAt), lte(people.arrivesAt, now)),
     or(isNull(people.restingUntil), lte(people.restingUntil, now)),
-    lte(people.lastActiveAt, new Date(now.getTime() - idleBeforeNudgeMs)),
-    or(isNull(people.lastNudgedAt), lt(people.lastNudgedAt, people.lastActiveAt)),
+    or(
+      and(
+        lte(people.lastActiveAt, new Date(now.getTime() - idleBeforeNudgeMs)),
+        notNudgedSince(people.lastActiveAt),
+      ),
+      and(
+        lte(people.restingUntil, now),
+        lt(people.lastActiveAt, people.restingUntil),
+        notNudgedSince(people.restingUntil),
+      ),
+    ),
     notExists(
       tx
         .select({ id: conversationRequests.id })

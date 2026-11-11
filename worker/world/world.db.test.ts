@@ -727,7 +727,7 @@ describe('nudges', () => {
     expect(await inboxOf(sleeper)).toHaveLength(0)
   })
 
-  test('nobody is nudged during their break after a conversation', async () => {
+  test('a break after a conversation ends with one nudge', async () => {
     const [a, b] = [await person('A'), await person('B')]
     await talking(a, b)
     const over = await parted(a, b, later(minutes(7)))
@@ -738,6 +738,7 @@ describe('nudges', () => {
     expect(await nudged(a)).toBe(0)
     expect(await nudged(b)).toBe(0)
     await run(nudgeIdlePeople, later(rested))
+    await run(nudgeIdlePeople, later(rested + minutes(1)))
     expect(await nudged(a)).toBe(1)
     expect(await nudged(b)).toBe(1)
   })

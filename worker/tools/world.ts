@@ -34,7 +34,7 @@ export const worldTools: Record<string, Tool<WorldCall>> = {
     ({ world, personId: me }, input) => goTo(world, me, input.place_id, input.reason),
   ),
   look_around: tool(
-    'See your place, the people here (person id, name, headline, interests, status), and any conversation request waiting for you.',
+    'See your place, who is here (person id, status, and whether you have met), and any conversation request waiting for you.',
     z.object({}),
     ({ world, personId: me }) => lookAround(world, me),
   ),
