@@ -21,7 +21,7 @@ import {
   useTimeline,
   useWorld,
 } from '../api'
-import type { MeResponse, TimelineEvent } from '../../shared/api'
+import type { Matches as MatchList, MeResponse, TimelineEvent } from '../../shared/api'
 import { useSession } from '../auth'
 import { doingNow } from '../map/doing'
 import { follow, visit } from '../map/watching'
@@ -140,10 +140,44 @@ function Chat({ userId, face, hidden }: { userId: string; face: ReactNode; hidde
   )
 }
 
+function Verdicts({ verdicts }: { verdicts: MatchList['verdicts'] }) {
+  return (
+    <ul className="verdicts">
+      {verdicts.map((verdict) => (
+        <li key={verdict.aboutId} className={verdict.verdict}>
+          <Link
+            to="/conversations/$conversationId"
+            params={{ conversationId: verdict.conversationId }}
+            search={true}
+          >
+            <Portrait
+              person={{ id: verdict.aboutId, name: verdict.about, portrait: verdict.portrait }}
+              size="small"
+            />
+            <span>
+              <strong>{verdict.about}</strong>
+              <span className="mark">
+                <Pixel name={verdict.verdict === 'match' ? 'heart' : 'no'} />
+                {verdict.verdict === 'match' ? 'match' : 'not a match'}
+              </span>
+              <span className="why">{verdict.reason}</span>
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 function Matches({ userId, hidden }: { userId: string; hidden: boolean }) {
   const matches = useMatches(userId)
   const mutual = matches.data?.mutual ?? []
   const verdicts = matches.data?.verdicts ?? []
+  const met = new Set(mutual.map((match) => match.personId))
+  const waiting = verdicts.filter(
+    (verdict) => verdict.verdict === 'match' && !met.has(verdict.aboutId),
+  )
+  const passed = verdicts.filter((verdict) => verdict.verdict === 'not_a_match')
   return (
     <div className="pane" hidden={hidden}>
       <section>
@@ -184,33 +218,17 @@ function Matches({ userId, hidden }: { userId: string; hidden: boolean }) {
           ))}
         </ul>
       </section>
+      {waiting.length > 0 && (
+        <section>
+          <h2>Your agent said yes · {waiting.length}</h2>
+          <p className="muted">It becomes a match only if their agent says so too.</p>
+          <Verdicts verdicts={waiting} />
+        </section>
+      )}
       <section>
-        <h2>Everyone your agent met</h2>
-        {verdicts.length === 0 && <p className="muted">Nobody yet.</p>}
-        <ul className="verdicts">
-          {verdicts.map((verdict) => (
-            <li key={verdict.aboutId} className={verdict.verdict}>
-              <Link
-                to="/conversations/$conversationId"
-                params={{ conversationId: verdict.conversationId }}
-                search={true}
-              >
-                <Portrait
-                  person={{ id: verdict.aboutId, name: verdict.about, portrait: verdict.portrait }}
-                  size="small"
-                />
-                <span>
-                  <strong>{verdict.about}</strong>
-                  <span className="mark">
-                    <Pixel name={verdict.verdict === 'match' ? 'heart' : 'no'} />
-                    {verdict.verdict === 'match' ? 'match' : 'not a match'}
-                  </span>
-                  <span className="why">{verdict.reason}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <h2>Not a match · {passed.length}</h2>
+        {passed.length === 0 && <p className="muted">Nobody yet.</p>}
+        <Verdicts verdicts={passed} />
       </section>
     </div>
   )
