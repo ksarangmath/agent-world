@@ -8,14 +8,30 @@
 html,
 body {
   height: 100%;
+  touch-action: pan-x pan-y;
 }
 
 body {
   margin: 0;
   overflow: hidden;
   overscroll-behavior: none;
-  touch-action: manipulation;
   -webkit-text-size-adjust: 100%;
+}
+
+.map,
+.panel,
+.dock,
+.foot,
+.notices {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.panel :is(input, textarea) {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 img,
@@ -1277,6 +1293,15 @@ a {
 
 .hover-card .doing {
   font-size: 13px;
+}
+
+.hover-card.pinned {
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.hover-card.pinned .big {
+  margin-top: 6px;
 }
 
 .hover-card [hidden] {

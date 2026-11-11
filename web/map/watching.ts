@@ -24,6 +24,7 @@ export type Hover = {
   doing: string
   x: number
   y: number
+  pinned?: boolean
 }
 
 export const hovered = store<Hover | null>(null)

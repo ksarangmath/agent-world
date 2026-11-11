@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { useLayoutEffect, useRef, useSyncExternalStore } from 'react'
 import { usePersonCard } from '../api'
 import { placesById } from '../../shared/map/places'
@@ -18,7 +19,7 @@ function Card({ hover }: { hover: Hover }) {
     box.style.top = `${Math.max(0, top)}px`
   })
   return (
-    <div ref={element} className="hover-card">
+    <div ref={element} className={hover.pinned ? 'hover-card pinned' : 'hover-card'}>
       {card.data?.portrait && (
         <img className="portrait" src={`/api/portraits/${hover.id}`} alt="" />
       )}
@@ -28,6 +29,17 @@ function Card({ hover }: { hover: Hover }) {
       {place && <span className="muted">{place.name}</span>}
       {card.data && card.data.interests.length > 0 && (
         <span className="muted">{card.data.interests.slice(0, 4).join(' · ')}</span>
+      )}
+      {hover.pinned && (
+        <Link
+          to="/people/$personId"
+          params={{ personId: hover.id }}
+          search={true}
+          className="big primary"
+          onClick={() => hovered.set(null)}
+        >
+          See profile
+        </Link>
       )}
     </div>
   )

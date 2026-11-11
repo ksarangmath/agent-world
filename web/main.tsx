@@ -166,6 +166,17 @@ if (screen) {
   fit()
 }
 
+window.addEventListener(
+  'wheel',
+  (event) => {
+    if (event.ctrlKey) event.preventDefault()
+  },
+  { passive: false },
+)
+for (const pinch of ['gesturestart', 'gesturechange']) {
+  window.addEventListener(pinch, (event) => event.preventDefault())
+}
+
 const root = document.getElementById('root')
 if (!root) throw new Error('missing #root')
 

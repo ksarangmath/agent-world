@@ -189,46 +189,59 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
       }
       return shown[best]
     }
+    const fingers = new Set<number>()
+    const cardFor = (person: WorldPerson, event: PointerEvent, pinned: boolean) => ({
+      id: person.id,
+      name: person.name,
+      placeId: person.placeId,
+      doing: doingNow(person, shown),
+      x: event.clientX,
+      y: event.clientY,
+      pinned,
+    })
     const move = (event: PointerEvent) => {
       const pressed = press.current
       if (pressed?.pointer === event.pointerId) {
         const distance = Math.abs(event.clientX - pressed.x) + Math.abs(event.clientY - pressed.y)
         if (distance > 6) pressed.moved = true
       }
+      if (event.pointerType === 'touch') {
+        if (pressed?.moved) hovered.set(null)
+        return
+      }
       const person = nearest(event)
       canvas.style.cursor = person ? 'pointer' : ''
-      hovered.set(
-        person
-          ? {
-              id: person.id,
-              name: person.name,
-              placeId: person.placeId,
-              doing: doingNow(person, shown),
-              x: event.clientX,
-              y: event.clientY,
-            }
-          : null,
-      )
+      hovered.set(person ? cardFor(person, event, false) : null)
     }
     const current = hovered.get()
     if (current && !shown.some((candidate) => candidate.id === current.id)) hovered.set(null)
     const down = (event: PointerEvent) => {
+      if (event.pointerType === 'touch') fingers.add(event.pointerId)
       press.current =
-        event.isPrimary && event.button === 0
+        event.isPrimary && event.button === 0 && fingers.size < 2
           ? { pointer: event.pointerId, x: event.clientX, y: event.clientY, moved: false }
           : null
+      if (fingers.size > 1) hovered.set(null)
     }
     const up = (event: PointerEvent) => {
+      fingers.delete(event.pointerId)
       const pressed = press.current
       const click = pressed?.pointer === event.pointerId && !pressed.moved
       press.current = null
       const person = click ? nearest(event) : undefined
-      if (person) onSelect(person.id)
+      if (event.pointerType !== 'touch') {
+        if (person) onSelect(person.id)
+      } else if (click) {
+        hovered.set(person ? cardFor(person, event, true) : null)
+      }
     }
-    const cancel = () => {
+    const cancel = (event: PointerEvent) => {
+      fingers.delete(event.pointerId)
       press.current = null
     }
-    const leave = () => hovered.set(null)
+    const leave = (event: PointerEvent) => {
+      if (event.pointerType !== 'touch') hovered.set(null)
+    }
     canvas.addEventListener('pointermove', move)
     canvas.addEventListener('pointerdown', down)
     canvas.addEventListener('pointerup', up)
