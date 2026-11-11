@@ -42,5 +42,6 @@ export type PersonStatus = 'available' | 'in_conversation' | 'traveling' | 'asle
 
 export const maxOpenerLength = 280
 export const maxMessageLength = 300
+export const longMessageLength = 140
 export const maxReasonLength = 300
 export const maxOwnerMessageLength = 500
