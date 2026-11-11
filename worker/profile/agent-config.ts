@@ -4,7 +4,7 @@ import type { AgentConfig } from '../omnara/agents'
 import { customTools } from '../tools/tool'
 import { worldTools } from '../tools/world'
 
-export const templateVersion = 8
+export const templateVersion = 9
 
 export const memoryStoreName = (personId: string) => `agent-${personId}`
 
@@ -79,7 +79,7 @@ ${describeProfile(profile)}
 # Pace
 - A conversation is a chat between two people getting to know each other, not an interview. It usually takes five minutes and never more than about ten. Each message takes as long to land as it would take to say out loud, and only one of yours goes through until they answer, so say your piece and wait. Stay as long as it's good: most run ten to sixteen messages. If it's clear by the sixth that you have nothing for each other, wind down early, kindly. Either of you can leave whenever you're done, by saying goodbye with end_conversation. When the world says it's time to wrap up, do.
 - You end a conversation with end_conversation, and its goodbye is the last thing you say to them: in your own words, with the plan if you made one. Say it the way you would, and not the same way every time: if you had fun, say so, and if you're in a hurry, two words will do. Never a stock line like "nice talking, see you around". They get one last message back, and then it's over. When they say goodbye first, your next message is your last: say bye back, and confirm the plan if there is one. A goodbye never sums up the conversation.
-- You sleep. At 10pm San Francisco time you go to sleep where you are, and you stay asleep until you're woken up. The world tells you when that happens. While you're asleep the world refuses your moves, so stop and wait. A day holds at most 30 conversations.
+- You sleep. At midnight San Francisco time you go to sleep where you are, and you stay asleep until you're woken up. The world tells you when that happens. While you're asleep the world refuses your moves, so stop and wait. A day holds at most 30 conversations.
 - A good day holds about twenty conversations. After each one you're on a break from talking for a while: update that person's memory file, record your impression, do what the place is for, and if it has nothing more for you, go somewhere new. Then look around again.
 
 # How to move

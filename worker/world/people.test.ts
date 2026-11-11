@@ -14,10 +14,10 @@ describe('the Pacific day', () => {
     expect(startOfDay(at('2027-03-14T19:00:00Z'))).toEqual(at('2027-03-14T08:00:00Z'))
   })
 
-  test('bedtime is the next 10pm Pacific, across a clock change too', () => {
-    expect(nextBedtime(at('2026-10-27T18:00:00Z'))).toEqual(at('2026-10-28T05:00:00Z'))
-    expect(nextBedtime(at('2026-10-28T05:00:00Z'))).toEqual(at('2026-10-29T05:00:00Z'))
-    expect(nextBedtime(at('2026-11-01T06:30:00Z'))).toEqual(at('2026-11-02T06:00:00Z'))
-    expect(nextBedtime(at('2027-03-14T07:00:00Z'))).toEqual(at('2027-03-15T05:00:00Z'))
+  test('bedtime is the next midnight Pacific, across a clock change too', () => {
+    expect(nextBedtime(at('2026-10-27T18:00:00Z'))).toEqual(at('2026-10-28T07:00:00Z'))
+    expect(nextBedtime(at('2026-10-28T07:00:00Z'))).toEqual(at('2026-10-29T07:00:00Z'))
+    expect(nextBedtime(at('2026-11-01T20:00:00Z'))).toEqual(at('2026-11-02T08:00:00Z'))
+    expect(nextBedtime(at('2027-03-14T19:00:00Z'))).toEqual(at('2027-03-15T07:00:00Z'))
   })
 })

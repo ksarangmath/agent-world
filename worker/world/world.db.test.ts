@@ -768,14 +768,14 @@ describe('sleep', () => {
     expect((await run((w) => sendMessage(w, a, 'one more thing'), later(1000))).ok).toBe(true)
   })
 
-  test('a wake-up lasts until the next 10pm in San Francisco and tells the agent', async () => {
+  test('a wake-up lasts until the next midnight in San Francisco and tells the agent', async () => {
     const a = await person('Ada')
     await asleepAt(a, null)
-    expect(await run((w) => wake(w, a))).toEqual(new Date('2026-10-28T05:00:00Z'))
-    expect(await awakeUntilOf(a)).toEqual(new Date('2026-10-28T05:00:00Z'))
+    expect(await run((w) => wake(w, a))).toEqual(new Date('2026-10-28T07:00:00Z'))
+    expect(await awakeUntilOf(a)).toEqual(new Date('2026-10-28T07:00:00Z'))
     expect((await eventsOf(a)).map((event) => event.event)).toEqual(['woke_up'])
-    expect(await run((w) => wake(w, a), new Date('2026-10-28T06:30:00Z'))).toEqual(
-      new Date('2026-10-29T05:00:00Z'),
+    expect(await run((w) => wake(w, a), new Date('2026-10-28T08:30:00Z'))).toEqual(
+      new Date('2026-10-29T07:00:00Z'),
     )
   })
 
@@ -783,18 +783,18 @@ describe('sleep', () => {
     const a = await person('Ada')
     await asleepAt(a, null)
     const woken = await Promise.all([run((w) => wake(w, a)), run((w) => wake(w, a))])
-    expect(woken).toEqual([new Date('2026-10-28T05:00:00Z'), new Date('2026-10-28T05:00:00Z')])
+    expect(woken).toEqual([new Date('2026-10-28T07:00:00Z'), new Date('2026-10-28T07:00:00Z')])
     await run((w) => wake(w, a), later(minutes(30)))
     expect((await eventsOf(a)).map((event) => event.event)).toEqual(['woke_up'])
   })
 
-  test('until November 22 sleepers get up by themselves at 6am, and never at night', async () => {
+  test('until November 22 sleepers get up by themselves at 7am, and never at night', async () => {
     const a = await person('Ada')
     await asleepAt(a, null)
-    await run(wakeAtDawn, new Date('2026-10-27T12:30:00Z'))
-    expect(await awakeUntilOf(a)).toBeNull()
     await run(wakeAtDawn, new Date('2026-10-27T13:30:00Z'))
-    expect(await awakeUntilOf(a)).toEqual(new Date('2026-10-28T05:00:00Z'))
+    expect(await awakeUntilOf(a)).toBeNull()
+    await run(wakeAtDawn, new Date('2026-10-27T14:30:00Z'))
+    expect(await awakeUntilOf(a)).toEqual(new Date('2026-10-28T07:00:00Z'))
     await asleepAt(a, null)
     await run(wakeAtDawn, new Date('2026-11-23T18:00:00Z'))
     expect(await awakeUntilOf(a)).toBeNull()

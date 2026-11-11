@@ -397,7 +397,7 @@ function Sleep({ userId, awakeUntil }: { userId: string; awakeUntil: string | nu
       <button type="button" disabled={wake.isPending} onClick={() => wake.mutate()}>
         Wake up
       </button>{' '}
-      <span className="muted">Lasts until 10pm in San Francisco.</span>
+      <span className="muted">Lasts until midnight in San Francisco.</span>
       {wake.error && <span className="error"> {wake.error.message}</span>}
     </p>
   )

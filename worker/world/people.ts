@@ -81,7 +81,7 @@ export async function touch({ tx, now }: World, personId: string) {
 }
 
 export const idleBeforeNudgeMs = 15 * 60 * 1000
-export const wakingHours = { from: 6, to: 22 } as const
+export const wakingHours = { from: 7, to: 24 } as const
 export const selfWakingUntil = new Date('2026-11-22T08:00:00Z')
 const batch = 500
 const pacificParts = new Intl.DateTimeFormat('en-US', {
