@@ -94,7 +94,9 @@ export async function requestConversation(
       `You're on a break from conversations until ${clockTime(me.restingUntil!)}. Update your notes, look around, or go somewhere new, and ask again after.`,
     )
   }
-  if (!me.placeId || !isAt(them, me.placeId, now)) return refuse("That person isn't here.")
+  if (!me.placeId || !them.agentId || !isAt(them, me.placeId, now)) {
+    return refuse("That person isn't here.")
+  }
   if (statusOf(them, now) === 'in_conversation') {
     return refuse('That person is busy in another conversation.')
   }
@@ -254,7 +256,7 @@ export async function respondToRequest(
     )
     return done('Declined.')
   }
-  const free = (person: Person) => statusOf(person, now) === 'available'
+  const free = (person: Person) => person.agentId !== null && statusOf(person, now) === 'available'
   if (!free(me) || !free(them) || !me.placeId || !isAt(them, me.placeId, now)) {
     await expire('you are no longer both free in the same place')
     return refuse('That request has expired: one of you is no longer free in the same place.')

@@ -22,7 +22,7 @@ import type { World } from './events'
 import { recordImpression } from './impressions'
 import { messageAgent, messageOwner } from './owner-thread'
 import { nudgeIdlePeople } from './people'
-import { goTo, lookAround } from './travel'
+import { goTo, listPlaces, lookAround } from './travel'
 
 const client = postgres('postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 12 })
 const db = drizzle(client, { schema, casing: 'snake_case' })
@@ -308,6 +308,41 @@ describe('pace', () => {
     const after = await transcript(db, id, spoken)
     expect(after!.messages.map((m) => m.text)).toEqual([text])
     expect(after!.typing).toBeNull()
+  })
+
+  test('someone with no agent stands on the map but is never offered or asked', async () => {
+    const [a, b, away] = [await person('Ada'), await person('Bob'), await person('Cy')]
+    await db.update(people).set({ agentId: null }).where(eq(people.id, away))
+    const look = JSON.parse((await run((w) => lookAround(w, a))).text)
+    expect(look.people_here).toEqual([{ person_id: b, status: 'available', met_before: false }])
+    const here = JSON.parse((await run((w) => listPlaces(w, a))).text).find(
+      (place: { id: string }) => place.id === placeId,
+    )
+    expect(here).toMatchObject({
+      occupancy: 2,
+      free_spots: placesById.get(placeId)!.capacity - 3,
+    })
+    expect(await run((w) => requestConversation(w, a, away, 'hey'))).toMatchObject({
+      ok: false,
+      text: expect.stringContaining("isn't here"),
+    })
+    expect(await pendingFrom(a)).toHaveLength(0)
+  })
+
+  test('a request from someone whose agent has stopped cannot be accepted', async () => {
+    const [a, b] = [await person('Ada'), await person('Bob')]
+    await run((w) => requestConversation(w, a, b, 'hey'))
+    const [request] = await pendingFrom(a)
+    await db.update(people).set({ agentId: null }).where(eq(people.id, a))
+    expect(await run((w) => respondToRequest(w, b, request!.id, true))).toMatchObject({
+      ok: false,
+      text: expect.stringContaining('expired'),
+    })
+    const [row] = await db
+      .select({ conversationId: people.conversationId })
+      .from(people)
+      .where(eq(people.id, b))
+    expect(row!.conversationId).toBeNull()
   })
 
   test('agents meet blind: look_around and requests carry ids, not names', async () => {

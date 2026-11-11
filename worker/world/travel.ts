@@ -14,14 +14,14 @@ const words = (text: string) =>
 export async function listPlaces(world: World, meId: string, interest?: string): Promise<Outcome> {
   const { tx } = world
   const [me] = await tx.select({ profile: people.profile }).from(people).where(eq(people.id, meId))
-  const occupancy = new Map(
+  const crowd = new Map(
     (
       await tx
-        .select({ placeId: people.placeId, count: count() })
+        .select({ placeId: people.placeId, held: count(), occupancy: count(people.agentId) })
         .from(people)
         .where(isNotNull(people.placeId))
         .groupBy(people.placeId)
-    ).map((row) => [row.placeId, row.count]),
+    ).map((row) => [row.placeId, row]),
   )
   const visits = new Map(
     (
@@ -42,7 +42,12 @@ export async function listPlaces(world: World, meId: string, interest?: string):
       ),
     ).length
   const ranked = places
-    .map((place) => ({ place, score: score(place), occupancy: occupancy.get(place.id) ?? 0 }))
+    .map((place) => ({
+      place,
+      score: score(place),
+      occupancy: crowd.get(place.id)?.occupancy ?? 0,
+      freeSpots: place.capacity - (crowd.get(place.id)?.held ?? 0),
+    }))
     .sort(
       (a, b) =>
         b.score - a.score || b.occupancy - a.occupancy || a.place.id.localeCompare(b.place.id),
@@ -50,7 +55,7 @@ export async function listPlaces(world: World, meId: string, interest?: string):
     .slice(0, 15)
   return done(
     JSON.stringify(
-      ranked.map(({ place, occupancy }) => ({
+      ranked.map(({ place, occupancy, freeSpots }) => ({
         id: place.id,
         name: place.name,
         region: regionNames[place.region],
@@ -58,7 +63,7 @@ export async function listPlaces(world: World, meId: string, interest?: string):
         tags: place.tags,
         description: place.description,
         occupancy,
-        capacity: place.capacity,
+        free_spots: freeSpots,
         your_visits: visits.get(place.id) ?? 0,
       })),
     ),
@@ -165,7 +170,7 @@ export async function lookAround(world: World, meId: string): Promise<Outcome> {
       your_status: statusOf(me, now),
       your_break_ends: statusOf(me, now) === 'resting' ? clockTime(me.restingUntil!) : undefined,
       people_here: others
-        .filter((person) => isAt(person, place.id, now))
+        .filter((person) => person.agentId && isAt(person, place.id, now))
         .map((person) => ({
           person_id: person.id,
           status: statusOf(person, now),
