@@ -1,5 +1,5 @@
 import type { LinkedInIdentity } from './builder'
-import { exaRecentContents } from './exa'
+import { exaFreshContents } from './exa'
 
 export type LinkedInProblem =
   | 'no-sign-in-photo'
@@ -36,10 +36,8 @@ export function profileUrl(value: string) {
     : null
 }
 
-// https://www.linkedin.com/help/linkedin/answer/a542685
-const heldFromOthersHours = 6 * 24
-const tries = 5
-const everyMs = 5000
+const tries = 8
+const everyMs = 4000
 const notFoundTwice = 2
 
 const pause = (ms: number, stop: AbortSignal) =>
@@ -70,12 +68,7 @@ export async function verifyLinkedIn(
   const read = async (attempt: number) => {
     await pause(attempt * everyMs, stop.signal)
     try {
-      const { results, errors } = await exaRecentContents(
-        apiKey,
-        [url],
-        heldFromOthersHours,
-        stop.signal,
-      )
+      const { results, errors } = await exaFreshContents(apiKey, [url], stop.signal)
       const profile = results.find((result) => profileUrl(result.url) === url)
       if (profile) return profile
       if (errors.includes('CRAWL_NOT_FOUND') && ++missing >= notFoundTwice) return null

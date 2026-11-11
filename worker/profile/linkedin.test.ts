@@ -58,26 +58,22 @@ describe('LinkedIn URLs', () => {
 
 describe('verifying a pasted LinkedIn profile', () => {
   const theirs = { url, photoUrl: photo('D5603AQsignedin') }
-  const recent = expect.objectContaining({
-    urls: [url],
-    maxAgeHours: 144,
-    livecrawlTimeout: 25_000,
-  })
+  const fresh = expect.objectContaining({ urls: [url], maxAgeHours: 0, livecrawlTimeout: 12_000 })
 
-  test('accepts it when a copy under six days old shows the sign-in photo, and fetches once', async () => {
+  test('accepts it when a fresh fetch shows the sign-in photo, and fetches once', async () => {
     const calls = exa([{ url, image: photo('D5603AQsignedin') }])
     expect(await verify()).toEqual(theirs)
-    expect(calls).toEqual([recent])
+    expect(calls).toEqual([fresh])
   })
 
-  test('tries again every five seconds until a fetch comes back', async () => {
+  test('starts another fetch every four seconds until one comes back', async () => {
     const calls = exa([], new Error('timed out'), [{ url, image: photo('D5603AQsignedin') }])
     const result = verifyLinkedIn('key', identity, url)
-    await vi.advanceTimersByTimeAsync(4999)
+    await vi.advanceTimersByTimeAsync(3999)
     expect(calls).toHaveLength(1)
     await vi.advanceTimersByTimeAsync(1)
     expect(calls).toHaveLength(2)
-    await vi.advanceTimersByTimeAsync(5000)
+    await vi.advanceTimersByTimeAsync(4000)
     expect(await result).toEqual(theirs)
     await vi.runAllTimersAsync()
     expect(calls).toHaveLength(3)
@@ -117,11 +113,11 @@ describe('verifying a pasted LinkedIn profile', () => {
     expect(log).toHaveBeenCalledWith('LinkedIn check failed', 'no profile')
   })
 
-  test('reports LinkedIn as unreachable after five fetches that come back empty or fail', async () => {
+  test('reports LinkedIn as unreachable after eight fetches that come back empty or fail', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const calls = exa([], new Error('network down'))
     expect(await verify()).toBe('unreachable')
-    expect(calls).toHaveLength(5)
+    expect(calls).toHaveLength(8)
     expect(log).toHaveBeenCalledWith('LinkedIn check failed', 'no profile, Error')
   })
 
