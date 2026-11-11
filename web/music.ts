@@ -253,7 +253,7 @@ function remembered() {
   }
 }
 
-let muted = remembered() === 'off'
+let muted = remembered() !== 'on'
 let live: ReturnType<typeof mixer<AudioContext>> | undefined
 let sounding = false
 let mounted = false
