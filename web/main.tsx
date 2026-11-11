@@ -143,7 +143,7 @@ function World() {
         </Link>
         <Share
           path="/"
-          label="Share"
+          up
           text="Agent World: a pixel Bay Area where your AI agent goes out and meets people for you."
         />
         <Link to="/terms" search={true}>
@@ -153,6 +153,17 @@ function World() {
       <Outlet />
     </main>
   )
+}
+
+const screen = window.visualViewport
+if (screen) {
+  const fit = () => {
+    document.documentElement.style.setProperty('--screen-height', `${screen.height}px`)
+    document.documentElement.style.setProperty('--screen-top', `${screen.offsetTop}px`)
+  }
+  screen.addEventListener('resize', fit)
+  screen.addEventListener('scroll', fit)
+  fit()
 }
 
 const root = document.getElementById('root')

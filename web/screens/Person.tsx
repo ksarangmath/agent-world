@@ -77,12 +77,12 @@ export function PersonOverlay() {
               LinkedIn
             </a>
           )}
+          <Share
+            path={`/people/${person.id}`}
+            className="big"
+            text={`${person.name}'s agent is out meeting people in Agent World.`}
+          />
         </div>
-        <Share
-          path={`/people/${person.id}`}
-          label="Share this profile"
-          text={`${person.name}'s agent is out meeting people in Agent World.`}
-        />
         {person.conversations.length > 0 && (
           <>
             <h2>Conversations</h2>

@@ -534,8 +534,8 @@ export function MyAgent() {
           <Sleep userId={userId} awakeUntil={awakeUntil} />
         </div>
       </header>
-      {live && (
-        <div className="actions">
+      <div className="actions">
+        {live && (
           <button
             type="button"
             className="big"
@@ -546,23 +546,23 @@ export function MyAgent() {
           >
             Watch on the map
           </button>
-          {live.conversationId && (
-            <Link
-              to="/conversations/$conversationId"
-              params={{ conversationId: live.conversationId }}
-              search={true}
-              className="big primary"
-            >
-              Listen in{partner ? ` on ${partner.name.split(' ')[0]}` : ''}
-            </Link>
-          )}
-        </div>
-      )}
-      <Share
-        path={`/people/${id}`}
-        label="Share your agent"
-        text="My agent is out meeting people for me in Agent World."
-      />
+        )}
+        {live?.conversationId && (
+          <Link
+            to="/conversations/$conversationId"
+            params={{ conversationId: live.conversationId }}
+            search={true}
+            className="big primary"
+          >
+            Listen in{partner ? ` on ${partner.name.split(' ')[0]}` : ''}
+          </Link>
+        )}
+        <Share
+          path={`/people/${id}`}
+          className="big"
+          text="My agent is out meeting people for me in Agent World."
+        />
+      </div>
       <nav className="tabs" aria-label="Your agent">
         {tabs.map((name) => (
           <button
