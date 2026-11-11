@@ -66,6 +66,10 @@ export function ProfileForm({
     ? hobbies.filter((hobby) => hobby.includes(search))
     : [...popularHobbies, ...hobbies.filter((hobby) => !popularHobbies.includes(hobby))]
   const written = goals.filter((goal) => goal.trim()).length
+  const missing = [
+    picked.length < 3 && `${3 - picked.length} more ${picked.length === 2 ? 'hobby' : 'hobbies'}`,
+    written < 3 && `${3 - written} more ${written === 2 ? 'thing' : 'things'} you’re looking for`,
+  ].filter((need) => need !== false)
   const expertise = listed(about.expertise, draft.expertise, ', ')
   const interests = listed(about.interests, draft.interests, ', ')
   const funFacts = listed(about.fun_facts, draft.fun_facts, '\n')
@@ -99,6 +103,12 @@ export function ProfileForm({
   })
   return (
     <form className="form profile" onSubmit={submit}>
+      {!saved && (
+        <p className="steps">
+          Almost there. Check this is you, then scroll down to pick hobbies and say what you’re
+          looking for.
+        </p>
+      )}
       {portrait.data && <img className="portrait" src={portrait.data} alt="" />}
       <h2>{draft.name}</h2>
       {editing ? (
@@ -243,6 +253,7 @@ export function ProfileForm({
       >
         {saved ? 'Save changes' : 'Send my agent in'}
       </button>
+      {missing.length > 0 && <p className="muted">Still needed: {missing.join(' and ')}.</p>}
       {save.error && <p className="error">{save.error.message}</p>}
     </form>
   )

@@ -878,6 +878,13 @@ canvas {
   gap: 4px;
 }
 
+.form .steps {
+  padding: 8px 10px;
+  font-size: 14px;
+  background: #1b2338;
+  border: 2px solid #3a7d44;
+}
+
 .form .why summary {
   display: inline-flex;
   gap: 8px;
