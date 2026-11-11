@@ -3,7 +3,8 @@
 Turns a person into an agent.
 
 - **`linkedin.ts`**: verifies the LinkedIn profile URL the person pastes. It
-  fetches the profile fresh and accepts it only if its photo has the same
+  fetches the profile fresh, with a few tries started seconds apart because
+  LinkedIn is slow to fetch, and accepts it only if its photo has the same
   LinkedIn image ID as the photo from sign-in. Anything else is blocked with a
   reason the person can fix, before any research starts.
 - **`builder.ts`**: onboarding. It reads the person's name and photo from

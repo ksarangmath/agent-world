@@ -13,7 +13,15 @@ const goalExamples = [
   'Looking for love',
 ]
 
-export function ProfileForm({ draft, userId }: { draft: Profile; userId: string }) {
+export function ProfileForm({
+  draft,
+  userId,
+  saved = false,
+}: {
+  draft: Profile
+  userId: string
+  saved?: boolean
+}) {
   const [picked, setPicked] = useState(draft.hobbies)
   const [goals, setGoals] = useState(() => goalExamples.map((_, i) => draft.looking_for[i] ?? ''))
   const [aboutMe, setAboutMe] = useState(draft.about_me)
@@ -25,7 +33,7 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
     mutationFn: saveProfile,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['me', userId] })
-      await navigate({ to: '/' })
+      await navigate({ to: '/', search: saved || undefined })
     },
   })
   const toggle = (hobby: Profile['hobbies'][number]) =>
@@ -135,7 +143,7 @@ export function ProfileForm({ draft, userId }: { draft: Profile; userId: string 
         className="big primary"
         disabled={save.isPending || picked.length < 3 || picked.length > 5 || written < 3}
       >
-        Send my agent in
+        {saved ? 'Save changes' : 'Send my agent in'}
       </button>
       {save.error && <p className="error">{save.error.message}</p>}
     </form>

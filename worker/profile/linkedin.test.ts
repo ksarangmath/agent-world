@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { photoId, profileUrl, verifyLinkedIn } from './linkedin'
 
 type Result = { url: string; image?: string }
@@ -8,18 +8,35 @@ const photo = (id: string) =>
 const identity = { name: 'Ada Lovelace', picture: photo('D5603AQsignedin') }
 const url = 'https://www.linkedin.com/in/ada'
 
-function exa(...replies: (Result[] | Error)[]) {
+function exa(...replies: (Result[] | Error | Response | 'not found')[]) {
   const calls: Record<string, unknown>[] = []
   vi.stubGlobal('fetch', async (_input: string, init: RequestInit) => {
     const reply = replies[Math.min(calls.length, replies.length - 1)]!
     calls.push(JSON.parse(String(init.body)) as Record<string, unknown>)
     if (reply instanceof Error) throw reply
-    return Response.json({ results: reply })
+    if (reply instanceof Response) return reply.clone()
+    if (reply !== 'not found') return Response.json({ results: reply })
+    return Response.json({
+      results: [],
+      statuses: [{ id: url, status: 'error', error: { tag: 'CRAWL_NOT_FOUND' } }],
+    })
   })
   return calls
 }
 
-afterEach(() => vi.unstubAllGlobals())
+async function verify(who: Parameters<typeof verifyLinkedIn>[1] = identity) {
+  const result = verifyLinkedIn('key', who, url)
+  await vi.runAllTimersAsync()
+  return result
+}
+
+beforeEach(() => void vi.useFakeTimers())
+
+afterEach(() => {
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
 
 describe('LinkedIn URLs', () => {
   test('reads the image ID from LinkedIn photo URLs only', () => {
@@ -41,51 +58,79 @@ describe('LinkedIn URLs', () => {
 
 describe('verifying a pasted LinkedIn profile', () => {
   const theirs = { url, photoUrl: photo('D5603AQsignedin') }
-  const fresh = expect.objectContaining({ urls: [url], maxAgeHours: 0, livecrawlTimeout: 30_000 })
+  const fresh = expect.objectContaining({ urls: [url], maxAgeHours: 0, livecrawlTimeout: 25_000 })
 
-  test('accepts it when a fresh fetch shows the sign-in photo', async () => {
+  test('accepts it when a fresh fetch shows the sign-in photo, and fetches once', async () => {
     const calls = exa([{ url, image: photo('D5603AQsignedin') }])
-    expect(await verifyLinkedIn('key', identity, url)).toEqual(theirs)
-    expect(calls).toEqual([fresh, fresh])
+    expect(await verify()).toEqual(theirs)
+    expect(calls).toEqual([fresh])
   })
 
-  test('needs only one of its two fresh fetches to come back', async () => {
-    exa([], [{ url, image: photo('D5603AQsignedin') }])
-    expect(await verifyLinkedIn('key', identity, url)).toEqual(theirs)
-    exa(new Error('timed out'), [{ url, image: photo('D5603AQsignedin') }])
-    expect(await verifyLinkedIn('key', identity, url)).toEqual(theirs)
+  test('tries again every five seconds until a fetch comes back', async () => {
+    const calls = exa([], new Error('timed out'), [{ url, image: photo('D5603AQsignedin') }])
+    const result = verifyLinkedIn('key', identity, url)
+    await vi.advanceTimersByTimeAsync(4999)
+    expect(calls).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(calls).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(await result).toEqual(theirs)
+    await vi.runAllTimersAsync()
+    expect(calls).toHaveLength(3)
   })
 
   test("rejects a profile with someone else's photo", async () => {
     exa([{ url, image: photo('D5603AQsomeoneelse') }])
-    expect(await verifyLinkedIn('key', identity, url)).toBe('not-yours')
+    expect(await verify()).toBe('not-yours')
   })
 
   test('asks for a public photo when the public profile shows none', async () => {
     exa([{ url }])
-    expect(await verifyLinkedIn('key', identity, url)).toBe('no-public-photo')
+    expect(await verify()).toBe('no-public-photo')
   })
 
   test('blocks a sign-in without a LinkedIn photo before fetching anything', async () => {
     const calls = exa([])
-    expect(await verifyLinkedIn('key', { name: 'Ada Lovelace', picture: null }, url)).toBe(
-      'no-sign-in-photo',
-    )
+    expect(await verify({ name: 'Ada Lovelace', picture: null })).toBe('no-sign-in-photo')
     expect(calls).toHaveLength(0)
   })
 
+  test('says so when LinkedIn has no public profile at that address', async () => {
+    const calls = exa('not found')
+    expect(await verify()).toBe('not-found')
+    expect(calls).toHaveLength(1)
+  })
+
   test('does not trust a fetch that landed on a different profile', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     exa([{ url: 'https://www.linkedin.com/in/someone-else', image: photo('D5603AQsignedin') }])
-    expect(await verifyLinkedIn('key', identity, url)).toBe('unreachable')
+    expect(await verify()).toBe('unreachable')
+    expect(log).toHaveBeenCalledWith('LinkedIn check failed', 'no profile')
   })
 
-  test('reports LinkedIn as unreachable when both fetches come back empty', async () => {
-    exa([])
-    expect(await verifyLinkedIn('key', identity, url)).toBe('unreachable')
+  test('reports LinkedIn as unreachable after four fetches that come back empty or fail', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const calls = exa([], new Error('network down'))
+    expect(await verify()).toBe('unreachable')
+    expect(calls).toHaveLength(4)
+    expect(log).toHaveBeenCalledWith('LinkedIn check failed', 'no profile, Error')
   })
 
-  test('reports LinkedIn as unreachable when both fetches fail', async () => {
-    exa(new Error('network down'))
-    expect(await verifyLinkedIn('key', identity, url)).toBe('unreachable')
+  test('logs what kind of failure it was, never what Exa or the network said', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    exa(
+      new Response('<html>Ada Lovelace, ada@example.com</html>'),
+      new Response('rate limited for key abc', { status: 429 }),
+      Response.json({
+        results: [],
+        statuses: [{ error: { tag: 'CRAWL_LIVECRAWL_TIMEOUT' } }, { error: { tag: 'see ada' } }],
+      }),
+      new TypeError('fetch failed for https://www.linkedin.com/in/ada'),
+    )
+    expect(await verify()).toBe('unreachable')
+    expect(log).toHaveBeenCalledWith(
+      'LinkedIn check failed',
+      'SyntaxError, Error 429, CRAWL_LIVECRAWL_TIMEOUT, TypeError',
+    )
   })
 })

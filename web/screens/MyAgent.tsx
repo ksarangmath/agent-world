@@ -15,7 +15,7 @@ import {
 import type { TimelineEvent } from '../../shared/api'
 import { useSession } from '../auth'
 import { doingNow } from '../map/doing'
-import { ago } from './Overlay'
+import { ago, Overlay } from './Overlay'
 import { ProfileForm } from './ProfileForm'
 
 const placeName = (id: string | null) => (id ? (placesById.get(id)?.name ?? id) : 'somewhere')
@@ -74,7 +74,7 @@ function Timeline({ userId, first }: { userId: string; first: string }) {
           <li key={event.id} className={event.kind}>
             <span>
               {event.other ? (
-                <Link to="/people/$personId" params={{ personId: event.other.id }}>
+                <Link to="/people/$personId" params={{ personId: event.other.id }} search={true}>
                   {sentence(first, event)}
                 </Link>
               ) : (
@@ -167,13 +167,25 @@ export function MyAgent() {
   const conversations = useMyConversations(userId)
   const matches = useMatches(userId)
   const world = useWorld()
-  if (session === null) return <main className="page">Sign in to see your agent.</main>
-  if (!userId || !me.data) return <main className="page">Loading…</main>
+  if (session === null) {
+    return (
+      <Overlay label="Your agent">
+        <p>Sign in to see your agent.</p>
+      </Overlay>
+    )
+  }
+  if (!userId || !me.data) {
+    return (
+      <Overlay label="Your agent">
+        <p className="muted">Loading…</p>
+      </Overlay>
+    )
+  }
   if (!me.data.person) {
     return (
-      <main className="page">
-        <Link to="/">Create your agent</Link>
-      </main>
+      <Overlay label="Your agent">
+        <p>You don't have an agent yet. Create one from the panel on the map.</p>
+      </Overlay>
     )
   }
   const people = world.data?.snapshot.people ?? []
@@ -184,8 +196,7 @@ export function MyAgent() {
       )
     : undefined
   return (
-    <main className="page">
-      <Link to="/">Back to the world</Link>
+    <Overlay label="Your agent" className="mine">
       <h1>{me.data.person.profile.name}'s agent</h1>
       <section>
         <h2>Right now</h2>
@@ -199,6 +210,7 @@ export function MyAgent() {
                 <Link
                   to="/conversations/$conversationId"
                   params={{ conversationId: live.conversationId }}
+                  search={true}
                 >
                   Listen in{partner ? ` on ${partner.name}` : ''}
                 </Link>
@@ -244,6 +256,7 @@ export function MyAgent() {
               <Link
                 to="/conversations/$conversationId"
                 params={{ conversationId: conversation.id }}
+                search={true}
               >
                 {conversation.with}
                 {conversation.endedAt === null && ' (talking now)'}
@@ -255,8 +268,8 @@ export function MyAgent() {
       </section>
       <section>
         <h2>Profile</h2>
-        <ProfileForm draft={me.data.person.profile} userId={userId} />
+        <ProfileForm draft={me.data.person.profile} userId={userId} saved />
       </section>
-    </main>
+    </Overlay>
   )
 }

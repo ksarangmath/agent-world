@@ -2,13 +2,20 @@ import type { LinkedInIdentity } from './builder'
 import { exaFreshContents } from './exa'
 
 export type LinkedInProblem =
-  'no-sign-in-photo' | 'not-a-profile' | 'no-public-photo' | 'not-yours' | 'unreachable'
+  | 'no-sign-in-photo'
+  | 'not-a-profile'
+  | 'not-found'
+  | 'no-public-photo'
+  | 'not-yours'
+  | 'unreachable'
 
 export const problemMessages: Record<LinkedInProblem, string> = {
   'no-sign-in-photo':
     'Add a profile photo on LinkedIn and make it visible to everyone, then sign out and join again.',
   'not-a-profile':
     "That isn't a LinkedIn profile address. It looks like https://www.linkedin.com/in/your-name.",
+  'not-found':
+    'We couldn\'t find a public LinkedIn profile at that address. Check the link. If it\'s right, open "Edit public profile & URL" on LinkedIn, turn on your public profile, then try again.',
   'no-public-photo':
     'Your LinkedIn photo must be visible to everyone. On LinkedIn, open "Edit public profile & URL", set your profile photo to Public, then try again.',
   'not-yours':
@@ -29,6 +36,24 @@ export function profileUrl(value: string) {
     : null
 }
 
+const tries = 4
+const everyMs = 5000
+
+const pause = (ms: number, stop: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, ms)
+    stop.addEventListener('abort', () => {
+      clearTimeout(timer)
+      reject(new Error('stopped'))
+    })
+  })
+
+function failure(error: unknown) {
+  if (!(error instanceof Error)) return 'failed'
+  const { status } = error as { status?: number }
+  return typeof status === 'number' ? `${error.name} ${status}` : error.name
+}
+
 export async function verifyLinkedIn(
   apiKey: string,
   identity: LinkedInIdentity,
@@ -36,17 +61,31 @@ export async function verifyLinkedIn(
 ): Promise<{ url: string; photoUrl: string } | LinkedInProblem> {
   const signedIn = photoId(identity.picture)
   if (!signedIn) return 'no-sign-in-photo'
-  const read = async () => {
-    const [profile] = await exaFreshContents(apiKey, [url])
-    if (!profile || profileUrl(profile.url) !== url) throw new Error('LinkedIn profile not read')
-    return profile
+  const stop = new AbortController()
+  const failures = new Set<string>()
+  const read = async (attempt: number) => {
+    await pause(attempt * everyMs, stop.signal)
+    try {
+      const { results, errors } = await exaFreshContents(apiKey, [url], stop.signal)
+      const profile = results.find((result) => profileUrl(result.url) === url)
+      if (profile) return profile
+      if (errors.includes('CRAWL_NOT_FOUND')) return null
+      for (const error of errors.length > 0 ? errors : ['no profile']) failures.add(error)
+    } catch (error) {
+      failures.add(failure(error))
+    }
+    throw new Error('LinkedIn profile not read')
   }
   try {
-    const photoUrl = (await Promise.any([read(), read()])).image
-    const photo = photoId(photoUrl)
-    if (!photoUrl || !photo) return 'no-public-photo'
-    return photo === signedIn ? { url, photoUrl } : 'not-yours'
+    const profile = await Promise.any(Array.from({ length: tries }, (_, attempt) => read(attempt)))
+    if (!profile) return 'not-found'
+    const photo = photoId(profile.image)
+    if (!profile.image || !photo) return 'no-public-photo'
+    return photo === signedIn ? { url, photoUrl: profile.image } : 'not-yours'
   } catch {
+    console.error('LinkedIn check failed', [...failures].join(', '))
     return 'unreachable'
+  } finally {
+    stop.abort()
   }
 }

@@ -12,7 +12,11 @@ const linkedInAddress = (value: string) => {
   return `https://www.linkedin.com/in/${trimmed}`
 }
 
-const checkingLines = ['Opening your LinkedIn…', 'Matching your photo…']
+const checkingLines = [
+  'Opening your LinkedIn…',
+  'Matching your photo…',
+  'LinkedIn is slow to answer. Still trying…',
+]
 
 const stageCopy: Record<BuildStage, { title: string; lines: string[] }> = {
   researching: {
@@ -121,7 +125,7 @@ function LinkedInForm({ userId }: { userId: string }) {
           I agree to the <Link to="/terms">Terms</Link>. Agent chats are public.
         </span>
       </label>
-      {start.isPending && <Working lines={checkingLines} every={1500} />}
+      {start.isPending && <Working lines={checkingLines} every={6000} />}
       <button
         type="submit"
         className="big primary"

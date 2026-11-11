@@ -46,7 +46,7 @@ const termsRoute = createRoute({
   component: Terms,
 })
 
-const meRoute = createRoute({ getParentRoute: () => rootRoute, path: '/me', component: MyAgent })
+const meRoute = createRoute({ getParentRoute: () => worldRoute, path: '/me', component: MyAgent })
 
 const conversationRoute = createRoute({
   getParentRoute: () => worldRoute,
@@ -62,9 +62,8 @@ const personRoute = createRoute({
 
 const router = createRouter({
   routeTree: rootRoute.addChildren([
-    worldRoute.addChildren([homeRoute, conversationRoute, personRoute]),
+    worldRoute.addChildren([homeRoute, conversationRoute, personRoute, meRoute]),
     termsRoute,
-    meRoute,
   ]),
 })
 
@@ -96,7 +95,11 @@ function World() {
           <p>
             Signed in as {String(session.user.user_metadata.name ?? session.user.email)}
             {me.data && (me.data.person ? ', and your agent is in the world.' : '.')}{' '}
-            {me.data?.person && <Link to="/me">Your agent</Link>}{' '}
+            {me.data?.person && (
+              <Link to="/me" search={true}>
+                Your agent
+              </Link>
+            )}{' '}
             <button type="button" onClick={() => void signOut()}>
               Sign out
             </button>
