@@ -49,12 +49,15 @@ function Chat({ userId, face, hidden }: { userId: string; face: ReactNode; hidde
   const list = useRef<HTMLOListElement>(null)
   const send = useMutation({
     mutationFn: sendToAgent,
-    onSuccess: (messages) => {
-      queryClient.setQueryData(['/api/me/thread', userId], messages)
-      setText('')
-    },
+    onSuccess: (messages) => queryClient.setQueryData(['/api/me/thread', userId], messages),
+    onError: (_error, words) => setText(words),
   })
-  const messages = thread.data ?? []
+  const messages = [
+    ...(thread.data ?? []),
+    ...(send.isPending
+      ? [{ direction: 'to_agent' as const, text: send.variables, at: 'now' }]
+      : []),
+  ]
   const last = messages.at(-1)
   const waiting =
     send.isPending ||
@@ -63,7 +66,9 @@ function Chat({ userId, face, hidden }: { userId: string; face: ReactNode; hidde
     list.current?.lastElementChild?.scrollIntoView({ block: 'nearest' })
   }, [messages.length, waiting, hidden])
   const say = (words: string) => {
-    if (words.trim() && !send.isPending) send.mutate(words.trim())
+    if (!words.trim() || send.isPending) return
+    send.mutate(words.trim())
+    setText('')
   }
   const submit = (event: FormEvent) => {
     event.preventDefault()
