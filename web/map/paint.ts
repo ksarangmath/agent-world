@@ -20,6 +20,25 @@ export function colored(geometry: BufferGeometry, hex: string): BufferGeometry {
   return flat
 }
 
+export const nightLights = `
+vec3 lampColor(float pick) {
+  return pick < 0.5 ? vec3(1.0, 0.62, 0.25)
+    : pick < 0.68 ? vec3(1.0, 0.4, 0.1)
+    : pick < 0.84 ? vec3(0.55, 0.8, 1.0)
+    : pick < 0.91 ? vec3(0.1, 0.9, 0.75)
+    : pick < 0.96 ? vec3(1.0, 0.22, 0.5)
+    : vec3(0.5, 0.3, 1.0);
+}
+vec3 neonColor(float pick) {
+  return pick < 0.2 ? vec3(1.0, 0.1, 0.45)
+    : pick < 0.4 ? vec3(0.05, 0.85, 1.0)
+    : pick < 0.55 ? vec3(1.0, 0.45, 0.05)
+    : pick < 0.7 ? vec3(0.45, 1.0, 0.2)
+    : pick < 0.85 ? vec3(0.55, 0.25, 1.0)
+    : vec3(1.0, 0.15, 0.12);
+}
+`
+
 export const toonRamp = (() => {
   const shades = Uint8Array.from({ length: 64 }, (_, i) => Math.round(105 + 150 * (i / 63) ** 0.8))
   const texture = new DataTexture(shades, shades.length, 1, RedFormat)

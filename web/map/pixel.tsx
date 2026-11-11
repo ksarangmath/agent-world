@@ -15,17 +15,16 @@ import type { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js'
 import { RenderPixelatedPass } from 'three/examples/jsm/postprocessing/RenderPixelatedPass.js'
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
-import { detailZoom, quality, sky } from './clock'
+import { detailZoom, sky } from './clock'
+import { levels, quality, sample, settle } from './quality'
 import { drawingNormals } from './sightlines'
 
-const pixels = [1, 2, 2] as const
 const frameBudgetMs = 25
 const settleMs = 5000
 const sampleEveryMs = 1000
-const strikes = 3
 const probe = new Uint8Array(4)
-const miniature = { blur: 7, sharp: 0.18, from: 14, full: 55 }
-const glow = { strength: 0.45, radius: 0.6, threshold: 0.82 }
+const miniature = { blur: 7, sharp: 0.18, from: 8, full: 40 }
+const glow = { strength: 0.4, radius: 0.6, threshold: 0.82 }
 const [right, up, shift] = [new Vector3(), new Vector3(), new Vector3()]
 
 const grade = {
@@ -51,6 +50,20 @@ void main() {
   gl_FragColor = vec4(max(color, 0.0), texel.a);
 }`,
 }
+
+const brightest = `
+uniform sampler2D tDiffuse;
+uniform vec3 defaultColor;
+uniform float defaultOpacity;
+uniform float luminosityThreshold;
+uniform float smoothWidth;
+varying vec2 vUv;
+void main() {
+  vec4 texel = texture2D(tDiffuse, vUv);
+  float peak = max(texel.r, max(texel.g, texel.b));
+  float bright = smoothstep(luminosityThreshold, luminosityThreshold + smoothWidth, peak);
+  gl_FragColor = mix(vec4(defaultColor, defaultOpacity), texel, bright);
+}`
 
 const tiltShift = {
   uniforms: { tDiffuse: { value: null }, texel: { value: new Vector2() }, blur: { value: 0 } },
@@ -84,7 +97,8 @@ class OutlinedPixelPass extends RenderPixelatedPass {
     const { _fsQuad, _beautyRenderTarget, _normalRenderTarget, _normalMaterial } =
       this as unknown as PassTargets
     const { uniforms } = _fsQuad.material as ShaderMaterial
-    const detailed = quality.level === 0 && (this.camera as OrthographicCamera).zoom >= detailZoom
+    const detailed =
+      levels[quality.level]!.normals && (this.camera as OrthographicCamera).zoom >= detailZoom
     uniforms.normalEdgeStrength!.value = detailed ? this.normalEdgeStrength : 0
     uniforms.depthEdgeStrength!.value = this.depthEdgeStrength
     renderer.setRenderTarget(_beautyRenderTarget)
@@ -112,12 +126,11 @@ type Passes = {
   bloom: UnrealBloomPass
   tilt: ShaderPass
   sampleAt: number
-  slow: number
 }
 
 function settleSampling(live: Passes) {
   live.sampleAt = performance.now() + settleMs
-  live.slow = 0
+  settle(quality)
 }
 
 export function PixelPass() {
@@ -126,8 +139,9 @@ export function PixelPass() {
   useEffect(() => {
     const effects = new EffectComposer(gl)
     const bloom = new UnrealBloomPass(new Vector2(), 0, glow.radius, glow.threshold)
+    bloom.materialHighPassFilter.fragmentShader = brightest
     const tilt = new ShaderPass(tiltShift)
-    const drawn = new OutlinedPixelPass(pixels[quality.level]!, scene, camera, {
+    const drawn = new OutlinedPixelPass(levels[quality.level]!.pixel, scene, camera, {
       normalEdgeStrength: 0.45,
       depthEdgeStrength: 0.6,
     })
@@ -136,13 +150,13 @@ export function PixelPass() {
     effects.addPass(bloom)
     effects.addPass(tilt)
     effects.addPass(new OutputPass())
-    const live = { effects, scene: drawn, bloom, tilt, sampleAt: 0, slow: 0 }
-    const settle = () => settleSampling(live)
-    settle()
-    document.addEventListener('visibilitychange', settle)
+    const live = { effects, scene: drawn, bloom, tilt, sampleAt: 0 }
+    const resettle = () => settleSampling(live)
+    resettle()
+    document.addEventListener('visibilitychange', resettle)
     passes.current = live
     return () => {
-      document.removeEventListener('visibilitychange', settle)
+      document.removeEventListener('visibilitychange', resettle)
       passes.current = null
       effects.passes.forEach((pass) => pass.dispose())
       effects.dispose()
@@ -159,19 +173,18 @@ export function PixelPass() {
     if (!live) return
     const view = camera as OrthographicCamera
     const night = 1 - sky.daylight.value
-    const full = quality.level === 0
-    live.bloom.enabled = full && night > 0.05
+    const level = levels[quality.level]!
+    live.bloom.enabled = level.glow && night > 0.05
     live.bloom.strength = glow.strength * night
     const near = Math.min(
       1,
       Math.max(0, Math.log(view.zoom / miniature.from) / Math.log(miniature.full / miniature.from)),
     )
-    live.tilt.enabled = full && near > 0
+    live.tilt.enabled = near > 0
     live.tilt.uniforms.blur!.value = miniature.blur * near * near * (3 - 2 * near)
     live.tilt.uniforms.texel!.value.set(1 / size.width, 1 / size.height)
-    const pixel = pixels[quality.level]!
-    const across = (view.right - view.left) / view.zoom / Math.floor(size.width / pixel)
-    const tall = (view.top - view.bottom) / view.zoom / Math.floor(size.height / pixel)
+    const across = (view.right - view.left) / view.zoom / Math.floor(size.width / level.pixel)
+    const tall = (view.top - view.bottom) / view.zoom / Math.floor(size.height / level.pixel)
     right.setFromMatrixColumn(view.matrixWorld, 0)
     up.setFromMatrixColumn(view.matrixWorld, 1)
     const [along, rise] = [view.position.dot(right), view.position.dot(up)]
@@ -183,15 +196,13 @@ export function PixelPass() {
     view.updateMatrixWorld()
     const started = performance.now()
     live.effects.render()
-    if (started >= live.sampleAt && quality.level < pixels.length - 1) {
+    if (started >= live.sampleAt) {
       live.sampleAt = started + sampleEveryMs
       const context = gl.getContext()
       context.readPixels(0, 0, 1, 1, context.RGBA, context.UNSIGNED_BYTE, probe)
-      live.slow = performance.now() - started > frameBudgetMs ? live.slow + 1 : 0
-      if (live.slow === strikes) {
-        quality.level++
-        live.scene.setPixelSize(pixels[quality.level]!)
-        settleSampling(live)
+      if (sample(quality, performance.now() - started > frameBudgetMs, started)) {
+        live.scene.setPixelSize(levels[quality.level]!.pixel)
+        live.sampleAt = started + settleMs
       }
     }
     view.position.sub(shift)

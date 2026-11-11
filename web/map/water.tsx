@@ -57,8 +57,9 @@ void main() {
   color = mix(color, color * vec3(1.2, 0.92, 0.86), golden * 0.7);
   color = mix(color, linear(vec3(0.5, 0.74, 0.92)) * glint, dash * 0.75);
   color = mix(color, linear(vec3(0.95, 0.98, 1.0)) * glint, clamp(surf, 0.0, 1.0) * 0.75);
-  vec3 night = linear(vec3(0.05, 0.09, 0.22));
-  gl_FragColor = vec4(mix(night + color * 0.18, color, daylight), 1.0);
+  vec3 night = linear(vec3(0.05, 0.1, 0.27)) + color * 0.06;
+  night += linear(vec3(0.6, 0.72, 1.0)) * (dash * 0.4 + clamp(surf, 0.0, 1.0) * 0.12);
+  gl_FragColor = vec4(mix(night, color, daylight), 1.0);
 }
 `
 

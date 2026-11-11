@@ -17,8 +17,6 @@ export const chunkSize = 64
 
 export const detailZoom = 10
 
-export const quality = { level: 0 }
-
 let detailed = true
 const detailListeners = new Set<() => void>()
 

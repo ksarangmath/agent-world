@@ -14,7 +14,7 @@ import {
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { Building } from './city'
-import { toon } from './paint'
+import { nightLights, toon } from './paint'
 import { chunked, sky } from './clock'
 import { seeThrough } from './sightlines'
 import type { Crown } from './neighborhoods'
@@ -115,40 +115,61 @@ varying vec3 vLocal;
 varying vec3 vScale;
 varying vec3 vBoxNormal;
 varying float vSeed;
-float windowHash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }`,
+float windowHash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
+${nightLights}`,
       )
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
-float glow = 0.0;
+vec3 glow = vec3(0.0);
+float trait = windowHash(vec3(vSeed, 3.0, 9.0));
+float tone = windowHash(vec3(vSeed, 1.0, 5.0));
+vec3 brand = neonColor(fract(trait * 61.0));
+vec3 glass = vec3(0.2, 0.25, 0.32);
 if (vBoxNormal.y > 0.5) {
   vec2 across = (vLocal.xz + 0.5) * vScale.xz;
-  float rim = 1.0 - step(0.12, min(min(across.x, vScale.x - across.x), min(across.y, vScale.z - across.y)));
+  float edge = min(min(across.x, vScale.x - across.x), min(across.y, vScale.z - across.y));
+  float rim = 1.0 - step(0.12, edge);
   float tiles = clamp(0.5 / max(fwidth(across.x * 6.0), 1e-4) - 1.0, 0.0, 1.0);
   float speck = windowHash(vec3(floor(across * 6.0), vSeed));
   vec2 panel = fract(across * 2.0);
   float seam = step(0.9, max(panel.x, panel.y));
   diffuseColor.rgb = vRoof * mix(1.0, (0.95 + 0.08 * speck) * (1.0 - 0.1 * seam) * (1.0 - 0.2 * rim), tiles);
+  vec2 middle = abs(across - vScale.xz * 0.5);
+  float roomy = step(1.2, min(vScale.x, vScale.z));
+  float skylight = roomy * step(0.6, trait) * step(middle.x, vScale.x * 0.24) * step(middle.y, vScale.z * 0.16) * (1.0 - seam * tiles);
+  float tube = roomy * step(trait, 0.16) * step(0.12, edge) * step(edge, 0.2) * tiles;
+  diffuseColor.rgb = mix(diffuseColor.rgb, glass, skylight * 0.5);
+  glow = skylight * lampColor(tone) * 0.4 + tube * brand;
 } else if (vBoxNormal.y > -0.5) {
   float along = abs(vBoxNormal.x) > 0.5 ? (vLocal.z + 0.5) * vScale.z : (vLocal.x + 0.5) * vScale.x;
   float up = vLocal.y * vScale.y;
   vec2 cell = vec2(floor(along * 1.6), floor(up / 0.36));
   vec2 f = vec2(fract(along * 1.6), fract(up / 0.36));
   float detail = clamp(0.35 / max(fwidth(along * 1.6), 1e-4) - 1.0, 0.0, 1.0);
-  float pane = step(0.25, f.x) * step(f.x, 0.75) * step(0.3, f.y) * step(f.y, 0.8) * step(0.2, up) * step(up, vScale.y - 0.1);
-  float lit = step(0.5, windowHash(vec3(cell, vSeed)));
+  float shop = step(0.16, trait) * step(trait, 0.46) * step(0.8, vScale.y) * step(up, 0.36);
+  float banner = shop * step(0.27, up);
+  float front = shop * step(0.06, f.x) * step(f.x, 0.94) * step(0.04, up) * step(up, 0.25);
+  float pane = front + (1.0 - shop) * step(0.25, f.x) * step(f.x, 0.75) * step(0.3, f.y) * step(f.y, 0.8) * step(0.2, up) * step(up, vScale.y - 0.1);
+  float busy = mix(0.3, 0.8, windowHash(vec3(vSeed, 7.0, 2.0)));
+  float lit = max(shop, step(windowHash(vec3(cell, vSeed)), busy));
+  float own = windowHash(vec3(cell, vSeed + 4.0));
+  float office = vScale.y > 3.0 ? 0.68 + 0.16 * tone : tone;
   float siding = step(0.82, fract(up / 0.09)) * clamp(0.4 / max(fwidth(up / 0.09), 1e-4) - 1.0, 0.0, 1.0);
   diffuseColor.rgb *= 1.0 - 0.07 * siding;
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2, 0.25, 0.32), pane * 0.6 * detail);
+  diffuseColor.rgb = mix(diffuseColor.rgb, glass, pane * 0.6 * detail);
+  diffuseColor.rgb = mix(diffuseColor.rgb, brand * 0.7 + 0.08, banner * detail);
   float floors = clamp(1.0 / max(fwidth(up / 0.7), 1e-4) - 1.0, 0.0, 1.0);
-  float distant = mix(0.17, 0.34 * step(0.5, windowHash(vec3(floor(along * 0.8), floor(up / 0.7), vSeed))), floors);
-  glow = mix(distant, pane * lit, detail) * (1.0 - daylight);
-}`,
+  float distant = mix(0.1 + 0.7 * step(0.62, fract(tone * 7.0)), 0.34 * step(0.5, windowHash(vec3(floor(along * 0.8), floor(up / 0.7), vSeed))), floors);
+  vec3 lights = pane * lit * lampColor(own < 0.8 ? office : fract(own * 13.0)) + banner * brand;
+  glow = mix(distant * mix(vec3(1.0, 0.6, 0.25), lampColor(office), 0.6), lights, detail);
+}
+glow *= 1.0 - daylight;`,
       )
       .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
-totalEmissiveRadiance += glow * vec3(1.0, 0.72, 0.38) * 1.4;`,
+totalEmissiveRadiance += glow * 1.2;`,
       )
   })
   return material

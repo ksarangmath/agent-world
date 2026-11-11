@@ -9,13 +9,16 @@ import {
 } from 'three'
 import { mapHeight, mapWidth } from '../../shared/map/grid'
 import { chunkSize, sky } from './clock'
-import { toon } from './paint'
+import { nightLights, toon } from './paint'
 import { columns, heights, rows, vertexStep } from './elevation'
 
 const markings = `
 uniform vec2 mapSize;
 uniform float time;
+uniform float daylight;
 varying vec3 vGround;
+vec3 streetGlow = vec3(0.0);
+${nightLights}
 float roadClass(vec2 tile) {
   return floor((1.0 - texture2D(map, (tile + 0.5) / mapSize).a) * 12.75 + 0.5);
 }
@@ -43,10 +46,22 @@ void markGround(inout vec4 color) {
     float dashZ = step(abs(f.x - 0.5), 0.05) * step(fract(vGround.z * 0.5), 0.5) * alongZ;
     vec3 line = here > 2.5 ? vec3(0.92) : vec3(0.95, 0.78, 0.25);
     paint = mix(paint, line, step(1.5, here) * max(dashX, dashZ));
+    vec3 lamp = here > 2.5 ? vec3(0.8, 0.88, 1.0) : vec3(1.0, 0.6, 0.26);
+    float pool = smoothstep(0.5, 0.85, cloudNoise(vGround.xz * 0.9 + 7.0));
+    float door = min(
+      min(east + length(f - vec2(1.0, 0.5)), west + length(f - vec2(0.0, 0.5))),
+      min(south + length(f - vec2(0.5, 1.0)), north + length(f - vec2(0.5, 0.0)))
+    );
+    float shop = grainHash(tile + 91.0);
+    vec3 neon = neonColor(fract(shop * 17.0)) * step(shop, 0.3) * (1.0 - smoothstep(0.1, 0.55, door));
+    streetGlow = lamp * (0.14 - 0.1 * detail + 0.1 * pool * detail) + neon * 0.16 * detail;
   } else {
     float curb = max(max(east * step(0.86, f.x), west * step(f.x, 0.14)), max(south * step(0.86, f.y), north * step(f.y, 0.14)));
     paint = mix(paint, vec3(0.86, 0.84, 0.8), curb * 0.55);
+    float spill = max(max(east * f.x, west * (1.0 - f.x)), max(south * f.y, north * (1.0 - f.y)));
+    streetGlow = vec3(1.0, 0.6, 0.26) * 0.08 * smoothstep(0.4, 1.0, spill);
   }
+  streetGlow *= 1.0 - daylight;
   float texels = clamp(0.8 / max(fwidth(vGround.x * 12.0), 1e-4) - 1.0, 0.0, 1.0);
   vec2 texel = floor(vGround.xz * 12.0);
   float speck = grainHash(texel);
@@ -137,6 +152,7 @@ export function Ground({ pixels }: { pixels: Uint8Array }) {
     material.onBeforeCompile = (shader) => {
       shader.uniforms.mapSize = { value: [mapWidth, mapHeight] }
       shader.uniforms.time = sky.time
+      shader.uniforms.daylight = sky.daylight
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec3 vGround;')
         .replace(
@@ -146,6 +162,10 @@ export function Ground({ pixels }: { pixels: Uint8Array }) {
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <map_pars_fragment>', `#include <map_pars_fragment>\n${markings}`)
         .replace('#include <map_fragment>', '#include <map_fragment>\nmarkGround(diffuseColor);')
+        .replace(
+          '#include <emissivemap_fragment>',
+          '#include <emissivemap_fragment>\ntotalEmissiveRadiance += streetGlow;',
+        )
     }
     return material
   }, [pixels])

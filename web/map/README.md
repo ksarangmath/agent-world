@@ -2,8 +2,8 @@
 
 A toon-shaded three.js scene, rendered in fine pixels with
 `RenderPixelatedPass` (`pixel.tsx`, which also quantizes and grades color,
-blurs the top and bottom of the screen more the closer you zoom, and makes
-lights glow after dark) and seen from the south-southwest through an
+blurs the edges of the screen more the closer you zoom, and makes
+lights glow after dark, each in its own color) and seen from the south-southwest through an
 orthographic camera. One world unit is one tile. Nothing here talks to the server except
 the world snapshot that `People` and `Labels` draw.
 
@@ -24,8 +24,9 @@ the world snapshot that `People` and `Labels` draw.
 - **`ground.tsx`**, **`water.tsx`**, **`buildings.tsx`**, **`trees.tsx`**: draw it.
   The ground, buildings, and trees come in 64-tile chunks so off-screen chunks
   are culled. A ground shader paints lane lines and curbs up close and
-  drifting cloud shadows; windows come from the wall shader and light up at
-  night.
+  drifting cloud shadows, and lights the streets after dark; windows,
+  shopfronts, and roof lights come from the wall shader and light up at night
+  in the colors `paint.ts` shares (`nightLights`).
 - **`landmarks.tsx`**: bridges and the Bay Area's icons. Its `reservedTiles`
   keep procedural buildings off their footprints.
 - **`traffic.tsx`**, **`fog.tsx`**: cars, cable cars, streetcars, boats,
@@ -61,7 +62,9 @@ the world snapshot that `People` and `Labels` draw.
   display's full rate while the camera moves.
 - **`ambient.tsx`**: after a minute without input, glides the camera between
   live conversations and busy places until someone touches anything.
-- **Quality levels** (`quality` in `clock.ts`): `pixel.tsx` times one whole
-  frame a second and, after three slow ones in a row, steps down for the rest
-  of the visit: first to art pixels twice as big with no normals pass, blur,
-  or glow, then to no shadows (`sky.tsx`). Fast machines never step.
+- **`quality.ts`**: the quality levels and when to move between them.
+  `pixel.tsx` times one whole frame a second. Three slow ones in a row step
+  down a level: no normals pass, then art pixels twice as big, then no shadows
+  (`sky.tsx`), then no glow. The blur stays at every level. Five good seconds
+  step back up, after a wait that doubles each time a step up doesn't hold, so
+  a machine that was busy for a moment gets the full picture back.
