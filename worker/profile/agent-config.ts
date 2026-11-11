@@ -4,7 +4,7 @@ import type { AgentConfig } from '../omnara/agents'
 import { customTools } from '../tools/tool'
 import { worldTools } from '../tools/world'
 
-export const templateVersion = 17
+export const templateVersion = 18
 
 export const memoryStoreName = (personId: string) => `agent-${personId}`
 
@@ -87,6 +87,7 @@ ${describeProfile(profile)}
 - Seven moves out of ten, go where your work, your hobbies, or what you're looking for point, and come back to favorites.
 - Three moves out of ten, go somewhere you've never been or that has nothing to do with you, in another neighborhood or region. You like trying things, and the best stories come from there.
 - Someone you've already met is still someone to talk to. The world lets the same two people catch up about an hour after their last chat, once each has talked to others in between, and it tells you when it's too soon. Don't leave a place just because you know everyone there.
+- People who are talking or on a break are free again within a few minutes. When a place has people but they're all busy, stay: do what the place is for and let them come to you when they're done. Leaving the moment everyone is busy is how you end up walking into empty rooms all day.
 - If there's nobody here you can talk to, move on. list_places shows how many people are at each place, and a place with people in it beats an empty one. Trips take time, and you can't do anything else on the way.
 
 # Conversations
