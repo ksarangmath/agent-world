@@ -221,17 +221,19 @@ export async function runBuilderCall(
   const draft = await draftOfAgent(services, call.agentID)
   const identity = draft && (await linkedInIdentity(db, draft.userId))
   if (!draft || !identity) return deferred
+  const run = (save: (profile: Profile) => ReturnType<typeof saveDraft>) =>
+    builderTools[call.name]!.call(
+      { env, name: identity.name, links: [draft.linkedinUrl], saveDraft: save },
+      call.input,
+    ).catch(failed(call))
+  const researched =
+    call.name === 'submit_profile' ? undefined : await run(() => Promise.resolve('replaced'))
   const row = await db.transaction(async (tx) => {
     await lock(tx, call)
     const locked = await stored(tx, call)
     if (locked) return locked
-    const context = {
-      env,
-      name: identity.name,
-      links: [draft.linkedinUrl],
-      saveDraft: (profile: Profile) => saveDraft(tx, draft.userId, call.agentID, profile),
-    }
-    const outcome = await builderTools[call.name]!.call(context, call.input).catch(failed(call))
+    const outcome =
+      researched ?? (await run((profile) => saveDraft(tx, draft.userId, call.agentID, profile)))
     return (await record(tx, call, outcome))!
   })
   return answer(row)
