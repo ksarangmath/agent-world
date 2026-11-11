@@ -57,7 +57,7 @@ canvas {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 12px;
-  background: rgb(16 21 34 / 85%);
+  background: rgb(16 21 34 / 94%);
   border: 3px solid #101522;
 }
 
@@ -876,6 +876,35 @@ canvas {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.form .why summary {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 32px;
+  font-size: 13px;
+  color: #b9bfcc;
+  cursor: pointer;
+}
+
+.form .why summary::before {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  font-weight: 700;
+  color: #101522;
+  content: '?';
+  background: #b9bfcc;
+  border-radius: 50%;
+}
+
+.form .why p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .form label.check {

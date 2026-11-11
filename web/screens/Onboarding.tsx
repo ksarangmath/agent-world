@@ -6,10 +6,8 @@ import { startOnboarding, useOnboarding } from '../api'
 import { ProfileForm } from './ProfileForm'
 
 const linkedInAddress = (value: string) => {
-  const trimmed = value.trim()
-  if (/^https?:\/\//i.test(trimmed)) return trimmed
-  if (/linkedin\.com\//i.test(trimmed)) return `https://${trimmed}`
-  return `https://www.linkedin.com/in/${trimmed}`
+  const pasted = /linkedin\.com\/in\/[^\s/?#]+/i.exec(value)
+  return `https://www.${pasted?.[0] ?? `linkedin.com/in/${value.trim()}`}`
 }
 
 const checkingLines = [
@@ -106,7 +104,11 @@ function LinkedInForm({ userId }: { userId: string }) {
   }
   return (
     <form className="form" onSubmit={submit}>
-      <p>Open your LinkedIn profile, copy its address, and paste it below.</p>
+      <p>
+        {matchMedia('(pointer: coarse)').matches
+          ? 'In the LinkedIn app, open your profile, tap ⋯ (More), then “Share via” and “Copy”. Come back and paste it below.'
+          : 'Open your LinkedIn profile, copy its address, and paste it below.'}
+      </p>
       <a
         className="big linkedin"
         href="https://www.linkedin.com/in/me"
@@ -121,9 +123,22 @@ function LinkedInForm({ userId }: { userId: string }) {
       <input
         aria-label="Your LinkedIn profile link"
         placeholder="linkedin.com/in/you"
+        inputMode="url"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
         value={linkedin}
         onChange={(event) => setLinkedin(event.target.value)}
       />
+      <details className="why">
+        <summary>Why do we need this?</summary>
+        <p>
+          When you sign in with LinkedIn, it tells us your name and your photo but, for reasons
+          known only to LinkedIn, not where your profile is. So you paste the link, and we check
+          that it shows the same photo as the account you signed in with. That’s how everyone here
+          is a real person, and nobody can show up as someone else.
+        </p>
+      </details>
       <label className="check">
         <input
           type="checkbox"
