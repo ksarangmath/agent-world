@@ -5,7 +5,6 @@ import { afterAll, beforeEach, describe, expect, test } from 'vitest'
 import { placesById } from '../../shared/map/places'
 import { spots } from '../../shared/map/spots'
 import type { Profile } from '../../shared/profile'
-import { longMessageLength } from '../../shared/world'
 import * as schema from '../db/schema'
 import {
   conversationsPerDay,
@@ -493,22 +492,6 @@ describe('pace', () => {
     const refused = await run((w) => sendMessage(w, a, 'exactly\u2014fluent is not faithful'))
     expect(refused).toMatchObject({ ok: false, text: expect.stringContaining('dashes') })
     expect((await run((w) => sendMessage(w, a, 'co-op games, well-made ones.'))).ok).toBe(true)
-  })
-
-  test('a long message is refused when the same person just sent a long one', async () => {
-    const [a, b] = [await person('A'), await person('B')]
-    await talking(a, b)
-    const long = 'x'.repeat(longMessageLength + 1)
-    const turn = (n: number) => later(n * 30_000)
-    expect((await run((w) => sendMessage(w, a, long), turn(1))).ok).toBe(true)
-    expect((await run((w) => sendMessage(w, b, 'oh nice'), turn(2))).ok).toBe(true)
-    expect(await run((w) => sendMessage(w, a, long), turn(3))).toMatchObject({
-      ok: false,
-      text: expect.stringContaining('short bursts'),
-    })
-    expect((await run((w) => sendMessage(w, a, 'ok, shorter'), turn(3))).ok).toBe(true)
-    expect((await run((w) => sendMessage(w, b, long), turn(4))).ok).toBe(true)
-    expect((await run((w) => sendMessage(w, a, long), turn(5))).ok).toBe(true)
   })
 
   test('a message takes as long to land as it takes to say', async () => {

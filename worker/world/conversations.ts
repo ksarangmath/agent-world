@@ -14,7 +14,6 @@ import {
   sql,
 } from 'drizzle-orm'
 import { placesById } from '../../shared/map/places'
-import { longMessageLength } from '../../shared/world'
 import type { Database } from '../db/client'
 import { conversationRequests, conversations, deliveries, messages, people } from '../db/schema'
 import {
@@ -441,19 +440,6 @@ export async function sendMessage(world: World, meId: string, text: string): Pro
     return refuse("You just sent a message. Wait for their reply; it's their turn.")
   }
   if (talk.leaving) return lastWord(world, talk, text)
-  if (text.length > longMessageLength) {
-    const [mine] = await world.tx
-      .select({ length: sql<number>`length(${messages.text})` })
-      .from(messages)
-      .where(and(eq(messages.conversationId, talk.id), eq(messages.senderId, meId)))
-      .orderBy(desc(messages.id))
-      .limit(1)
-    if (mine && mine.length > longMessageLength) {
-      return refuse(
-        `Your last message was long too, and people text in short bursts. Say this in under ${longMessageLength} characters: just the part that matters.`,
-      )
-    }
-  }
   const [sent] = await world.tx
     .select({ n: count() })
     .from(messages)
