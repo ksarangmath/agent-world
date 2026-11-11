@@ -59,6 +59,8 @@ the world snapshot that `People` and `Labels` draw.
   half the draw calls.
 - **`camera.tsx`** also runs the frame loop: 30 frames a second, and the
   display's full rate while the camera moves.
+- **`ambient.tsx`**: after a minute without input, glides the camera between
+  live conversations and busy places until someone touches anything.
 - **Quality levels** (`quality` in `clock.ts`): `pixel.tsx` times one whole
   frame a second and, after three slow ones in a row, steps down for the rest
   of the visit: first to art pixels twice as big with no normals pass, blur,

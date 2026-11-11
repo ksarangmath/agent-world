@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Mesh, type Object3D } from 'three'
 import { useWorld } from '../api'
+import { Ambient } from './ambient'
 import { Buildings } from './buildings'
 import { Camera, VisibleArea, zoomBy, type Focus } from './camera'
 import { PixelPass } from './pixel'
@@ -80,6 +81,7 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
               onSelect={select}
             />
             <Talks onOpen={read} />
+            <Ambient people={world.data.snapshot.people} />
             <Labels
               people={world.data.snapshot.people}
               serverOffsetMs={world.data.serverOffsetMs}
