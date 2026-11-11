@@ -2,7 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useRef } from 'react'
 import { Color, type DirectionalLight, type HemisphereLight } from 'three'
 import { getPosition } from 'suncalc'
-import { sky, view } from './clock'
+import { quality, sky, view } from './clock'
 
 const sanFrancisco = { latitude: 37.7749, longitude: -122.4194 }
 const day = new Color('#9fd3ee')
@@ -27,7 +27,6 @@ export function Sky() {
   const background = useRef(new Color())
   useLayoutEffect(() => {
     const light = sun.current!
-    light.castShadow = true
     light.shadow.autoUpdate = false
     light.shadow.mapSize.set(2048, 2048)
     light.shadow.bias = -0.00005
@@ -43,6 +42,7 @@ export function Sky() {
     const golden = twilight * daylight
     sky.time.value = state.clock.elapsedTime
     sky.daylight.value = daylight
+    sky.golden.value = golden
     background.current
       .copy(night)
       .lerp(day, daylight)
@@ -50,6 +50,7 @@ export function Sky() {
     state.scene.background = background.current
     const light = sun.current
     if (light) {
+      light.castShadow = quality.level < 2
       const [x, z] = [(view.left + view.right) / 2, (view.top + view.bottom) / 2]
       const half = Math.max(view.right - view.left, view.bottom - view.top) * 0.6
       const rise = Math.max(0.25, Math.min(longestShadows, height))

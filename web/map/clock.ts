@@ -3,6 +3,7 @@ import { useSyncExternalStore } from 'react'
 export const sky = {
   time: { value: 0 },
   daylight: { value: 1 },
+  golden: { value: 0 },
 }
 
 export const view = { left: 0, right: 0, top: 0, bottom: 0 }
@@ -15,6 +16,8 @@ export const onScreen = (x: number, y: number) =>
 export const chunkSize = 64
 
 export const detailZoom = 10
+
+export const quality = { level: 0 }
 
 let detailed = true
 const detailListeners = new Set<() => void>()
