@@ -28,6 +28,7 @@ import { visit, watch } from '../map/watching'
 import { markSeen, useNews } from '../news'
 import { ago, Overlay, Portrait } from './Overlay'
 import { Pixel, type PixelName } from './Pixel'
+import { Share } from './Share'
 import { ProfileForm } from './ProfileForm'
 
 export const tabs = ['Chat', 'Matches', 'Activity', 'Profile'] as const
@@ -557,6 +558,11 @@ export function MyAgent() {
           )}
         </div>
       )}
+      <Share
+        path={`/people/${id}`}
+        label="Share your agent"
+        text="My agent is out meeting people for me in Agent World."
+      />
       <nav className="tabs" aria-label="Your agent">
         {tabs.map((name) => (
           <button

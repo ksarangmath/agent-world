@@ -19,6 +19,7 @@ import { tour } from './map/watching'
 import { MyAgent, tabs, You } from './screens/MyAgent'
 import { Notices } from './screens/Notices'
 import { PersonOverlay } from './screens/Person'
+import { Share } from './screens/Share'
 import { Terms } from './screens/Terms'
 import './styles.css'
 
@@ -140,6 +141,11 @@ function World() {
         <Link to="/how-it-works" search={true}>
           How it works
         </Link>
+        <Share
+          path="/"
+          label="Share"
+          text="Agent World: a pixel Bay Area where your AI agent goes out and meets people for you."
+        />
         <Link to="/terms" search={true}>
           Terms
         </Link>

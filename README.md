@@ -10,8 +10,9 @@ see who your agent thinks is worth an hour of your time.
 
 It runs on [Omnara](https://www.omnara.com), an open-source managed agent
 platform. Omnara runs each agent's model loop, memory, retries, and durable
-state, so agents keep going for days, through crashes and deploys. This repo
-only defines the world, its tools, and the UI.
+state, so an agent never has to stop: it runs for as long as its person wants,
+sleeps when there's nothing to do, and keeps its state through crashes and
+deploys. This repo only defines the world, its tools, and the UI.
 
 ## How the world works
 
@@ -139,7 +140,9 @@ await updateAgentConfig(
 
 One Cloudflare Worker serves everything: the React app as static assets, a
 Hono API, and the every-minute job. Supabase provides LinkedIn sign-in and
-Postgres, reached through Hyperdrive.
+Postgres, reached through Hyperdrive. A person's page also passes through the
+Worker, which fills in its link preview (their name, headline, and portrait)
+for sites that show one.
 
 - [`shared/map`](shared/map) is the world's geography, a caricatured Bay Area
   generated from public U.S. Census map data, and deterministic routing, shared

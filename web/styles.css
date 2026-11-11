@@ -1299,7 +1299,10 @@ a {
   bottom: 16px;
   left: 16px;
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  max-width: calc(100vw - 32px);
+  white-space: nowrap;
   padding: 5px 10px;
   font-size: 12px;
   background: rgb(16 21 34 / 85%);
@@ -1313,6 +1316,40 @@ a {
 
 .foot a:hover {
   color: #ffd166;
+}
+
+.share {
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
+  align-self: flex-start;
+  font-size: 13px;
+}
+
+.share,
+.share a,
+.share button {
+  padding: 0;
+  font-family: inherit;
+  color: #f7f1e3;
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.share button {
+  font-size: inherit;
+}
+
+button.share:hover,
+.share a:hover,
+.share button:hover {
+  color: #ffd166;
+}
+
+.foot .share {
+  font-size: inherit;
 }
 
 .overlay.wide {
@@ -1341,6 +1378,37 @@ a {
   color: #ffd166;
   text-transform: none;
   letter-spacing: 0;
+}
+
+.how .steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.how .steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.how .steps img {
+  width: 100%;
+  height: auto;
+  image-rendering: auto;
+  border: 3px solid #101522;
+}
+
+.how .steps strong {
+  font-size: 17px;
+  color: #ffd166;
+}
+
+.how .steps span {
+  font-size: 14px;
 }
 
 .how .flow {
@@ -1417,6 +1485,7 @@ a {
     padding: 16px;
   }
 
+  .how .steps,
   .how .tools {
     grid-template-columns: 1fr;
   }

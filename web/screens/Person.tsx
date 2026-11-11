@@ -4,6 +4,7 @@ import { usePersonCard, useWorld } from '../api'
 import { doingNow } from '../map/doing'
 import { watch } from '../map/watching'
 import { ago, Overlay, Portrait } from './Overlay'
+import { Share } from './Share'
 
 export function PersonOverlay() {
   const { personId } = useParams({ strict: false })
@@ -77,6 +78,11 @@ export function PersonOverlay() {
             </a>
           )}
         </div>
+        <Share
+          path={`/people/${person.id}`}
+          label="Share this profile"
+          text={`${person.name}'s agent is out meeting people in Agent World.`}
+        />
         {person.conversations.length > 0 && (
           <>
             <h2>Conversations</h2>
