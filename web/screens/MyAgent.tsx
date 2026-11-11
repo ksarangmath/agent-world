@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import {
   useEffect,
   useRef,
@@ -25,11 +25,12 @@ import type { Matches as MatchList, MeResponse, TimelineEvent } from '../../shar
 import { useSession } from '../auth'
 import { doingNow } from '../map/doing'
 import { follow, visit } from '../map/watching'
+import { markSeen, useNews } from '../news'
 import { ago, Overlay, Portrait } from './Overlay'
 import { Pixel, type PixelName } from './Pixel'
 import { ProfileForm } from './ProfileForm'
 
-const tabs = ['Chat', 'Matches', 'Activity', 'Profile'] as const
+export const tabs = ['Chat', 'Matches', 'Activity', 'Profile'] as const
 type Tab = (typeof tabs)[number]
 
 const starters = [
@@ -405,22 +406,52 @@ export function You({
 }) {
   const world = useWorld()
   const portrait = useMyPortrait(userId)
+  const news = useNews(userId)
   const people = world.data?.snapshot.people ?? []
   const live = people.find((other) => other.id === person.id)
+  const [match] = news.matches
+  const count = news.matches.length + news.replies
+  useEffect(() => {
+    document.title = count > 0 ? `(${count}) Agent World` : 'Agent World'
+    return () => {
+      document.title = 'Agent World'
+    }
+  }, [count])
   return (
-    <Link to="/me" search={true} className="you">
-      {portrait.data ? (
-        <img className="face" src={portrait.data} alt="" />
-      ) : (
-        <span className="face blank" aria-hidden="true">
-          {person.profile.name.slice(0, 1)}
-        </span>
-      )}
+    <Link
+      to="/me"
+      search={(previous) => ({ ...previous, tab: match ? 'Matches' : undefined })}
+      className="you"
+    >
+      <span className="who">
+        {portrait.data ? (
+          <img className="face" src={portrait.data} alt="" />
+        ) : (
+          <span className="face blank" aria-hidden="true">
+            {person.profile.name.slice(0, 1)}
+          </span>
+        )}
+        {count > 0 && (
+          <b className="count">
+            {count}
+            <span className="sr-only"> new</span>
+          </b>
+        )}
+        {live?.conversationId && <i className="talking-dot" title="Talking right now" />}
+      </span>
       <span>
         <strong>Your agent</strong>
-        <span className={live ? 'doing' : 'muted'}>
-          {live ? doingNow(live, people) : 'Not in the world yet.'}
-        </span>
+        {match ? (
+          <span className="alert">New match: {match.name}</span>
+        ) : news.replies > 0 ? (
+          <span className="alert">
+            {news.replies === 1 ? 'A new message for you' : `${news.replies} new messages for you`}
+          </span>
+        ) : (
+          <span className={live ? 'doing' : 'muted'}>
+            {live ? doingNow(live, people) : 'Not in the world yet.'}
+          </span>
+        )}
       </span>
       <span className="open" aria-hidden="true">
         ›
@@ -435,9 +466,15 @@ export function MyAgent() {
   const me = useMe(userId)
   const world = useWorld()
   const portrait = useMyPortrait(userId)
-  const matches = useMatches(userId)
   const navigate = useNavigate()
-  const [tab, setTab] = useState<Tab>('Chat')
+  const search: { tab?: string } = useSearch({ strict: false })
+  const tab: Tab = tabs.find((name) => name === search.tab) ?? 'Chat'
+  const news = useNews(userId)
+  useEffect(() => {
+    if (!userId) return
+    if (tab === 'Matches' && news.latestMatch) markSeen(userId, 'matches', news.latestMatch)
+    if (tab === 'Chat' && news.latestReply) markSeen(userId, 'chat', news.latestReply)
+  }, [userId, tab, news.latestMatch, news.latestReply])
   if (session === null) {
     return (
       <Overlay label="Your agent">
@@ -475,7 +512,6 @@ export function MyAgent() {
         {profile.name.slice(0, 1)}
       </span>
     )
-  const mutual = matches.data?.mutual.length ?? 0
   return (
     <Overlay label="Your agent" className="mine">
       <header className="me">
@@ -519,9 +555,21 @@ export function MyAgent() {
       )}
       <nav className="tabs" aria-label="Your agent">
         {tabs.map((name) => (
-          <button key={name} type="button" aria-pressed={tab === name} onClick={() => setTab(name)}>
+          <button
+            key={name}
+            type="button"
+            aria-pressed={tab === name}
+            onClick={() =>
+              void navigate({
+                to: '/me',
+                search: (previous) => ({ ...previous, tab: name }),
+                replace: true,
+              })
+            }
+          >
             {name}
-            {name === 'Matches' && mutual > 0 && <b>{mutual}</b>}
+            {name === 'Matches' && news.matches.length > 0 && <b>{news.matches.length}</b>}
+            {name === 'Chat' && news.replies > 0 && <b>{news.replies}</b>}
           </button>
         ))}
       </nav>

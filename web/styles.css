@@ -119,6 +119,129 @@ canvas {
   font-size: 13px;
 }
 
+.you .who {
+  position: relative;
+  flex: none;
+}
+
+.you .count,
+.tabs b {
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #101522;
+  background: #ffd166;
+  border: 2px solid #101522;
+  border-radius: 999px;
+}
+
+.you .count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+}
+
+.talking-dot {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  background: #7ed38a;
+  border: 2px solid #101522;
+  animation: hop 1.2s steps(2, jump-none) infinite;
+}
+
+.you .talking-dot {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+}
+
+.you .alert {
+  font-weight: 700;
+  color: #ffd166;
+}
+
+.panel .pulse {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 13px;
+  border-radius: 999px;
+}
+
+.notices {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(420px, calc(100vw - 32px));
+  transform: translateX(-50%);
+}
+
+.notice {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: rgb(16 21 34 / 94%);
+  border: 3px solid #101522;
+  box-shadow: 6px 6px 0 rgb(0 0 0 / 30%);
+  animation: drop 0.2s steps(4, jump-none);
+}
+
+.notice.match {
+  border-color: #3a7d44;
+}
+
+.notice > span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.notice strong {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.notice .pixel {
+  color: #ff5c7a;
+}
+
+.notice button {
+  padding: 0 6px;
+  font-size: 18px;
+  line-height: 1;
+  color: #f7f1e3;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+}
+
+@media (max-width: 760px) {
+  .notices {
+    top: auto;
+    bottom: 132px;
+    left: 16px;
+    transform: none;
+  }
+}
+
 .overlay {
   position: fixed;
   top: 16px;
@@ -306,12 +429,7 @@ canvas {
 }
 
 .tabs b {
-  padding: 0 6px;
   margin-left: 6px;
-  font-size: 12px;
-  color: #101522;
-  background: #7ed38a;
-  border-radius: 999px;
 }
 
 .pane,
@@ -1021,6 +1139,54 @@ a {
   animation-delay: 0.2s;
 }
 
+.person-mark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  font:
+    800 11px system-ui,
+    sans-serif;
+}
+
+.person-mark::before,
+.person-mark::after {
+  animation: hop 1.6s steps(2, jump-none) infinite;
+}
+
+.person-mark[data-kind='you']::before {
+  display: block;
+  padding: 1px 6px;
+  color: #101522;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  content: 'you';
+  background: #ffd166;
+  border: 2px solid #101522;
+}
+
+.person-mark[data-kind='you']::after {
+  display: block;
+  width: 0;
+  margin: -1px auto 0;
+  content: '';
+  border: 5px solid transparent;
+  border-top-color: #101522;
+  border-bottom: 0;
+}
+
+.person-mark[data-kind='match']::before {
+  display: block;
+  font-size: 16px;
+  color: #ff5c7a;
+  content: '♥';
+  text-shadow:
+    1px 0 #101522,
+    -1px 0 #101522,
+    0 1px #101522,
+    0 -1px #101522;
+}
+
 .snore {
   position: absolute;
   top: 0;
@@ -1220,7 +1386,11 @@ a {
   .place-label.talking b::after,
   .chat .typing i,
   .live::before,
-  .overlay {
+  .overlay,
+  .person-mark::before,
+  .person-mark::after,
+  .talking-dot,
+  .notice {
     animation: none;
   }
 }

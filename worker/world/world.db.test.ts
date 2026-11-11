@@ -424,6 +424,9 @@ describe('conversations', () => {
     expect(mine.mutual).toMatchObject([
       { personId: b, name: 'B', portrait: true, conversationId: id },
     ])
+    const [theirs] = (await myMatches(db, b)).mutual
+    expect(mine.mutual[0]!.at).toBe(theirs!.at)
+    expect(Date.parse(mine.mutual[0]!.at)).toBeGreaterThanOrEqual(Date.parse(mine.verdicts[0]!.at))
     expect((await myMatches(db, b)).mutual).toMatchObject([{ personId: a, portrait: false }])
     expect(await myConversations(db, a)).toMatchObject([
       { id, with: 'B', withId: b, portrait: true },

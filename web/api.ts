@@ -85,12 +85,12 @@ export const usePrivate = <T>(path: string, userId: string | undefined, refetchI
 
 export const useMyConversations = (userId: string | undefined) =>
   usePrivate<MyConversation[]>('/api/me/conversations', userId)
-export const useMatches = (userId: string | undefined) =>
-  usePrivate<Matches>('/api/me/matches', userId)
+export const useMatches = (userId: string | undefined, every?: number) =>
+  usePrivate<Matches>('/api/me/matches', userId, every)
 export const useTimeline = (userId: string | undefined) =>
   usePrivate<TimelineEvent[]>('/api/me/timeline', userId)
-export const useThread = (userId: string | undefined) =>
-  usePrivate<ThreadMessage[]>('/api/me/thread', userId)
+export const useThread = (userId: string | undefined, every?: number) =>
+  usePrivate<ThreadMessage[]>('/api/me/thread', userId, every)
 
 export const wakeUp = () => send<{ awakeUntil: string }>('/api/me/wake', 'POST', {})
 

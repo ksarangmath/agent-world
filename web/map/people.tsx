@@ -10,7 +10,7 @@ import { doingNow } from './doing'
 import { surfaceAt } from './decks'
 import { hash } from './elevation'
 import { closeIn, stopFlight, track } from './camera'
-import { following, hovered } from './watching'
+import { following, hovered, matched, mine } from './watching'
 import type { RouteReply, RouteRequest } from './routing.worker'
 import { body, Sprites, type Facing, type Placement } from './sprites'
 import { Wings } from './wings'
@@ -64,6 +64,13 @@ const crowd = {
 export const talks = {
   count: 0,
   id: Array.from({ length: capacity }, () => ''),
+  x: new Float32Array(capacity),
+  y: new Float32Array(capacity),
+  height: new Float32Array(capacity),
+}
+export const marks = {
+  count: 0,
+  mine: new Uint8Array(capacity),
   x: new Float32Array(capacity),
   y: new Float32Array(capacity),
   height: new Float32Array(capacity),
@@ -403,6 +410,20 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
       sleepers.x[k] = crowd.x[i]!
       sleepers.y[k] = crowd.y[i]!
       sleepers.height[k] = placements.current[i]!.ground + bubbleLift
+    })
+    marks.count = 0
+    const [me, friends] = [mine.get(), matched.get()]
+    shown.forEach((person, i) => {
+      const own = person.id === me
+      if ((!own && !friends.has(person.id)) || !placements.current[i]) return
+      const k = marks.count++
+      marks.mine[k] = own ? 1 : 0
+      marks.x[k] = crowd.x[i]!
+      marks.y[k] = crowd.y[i]!
+      marks.height[k] =
+        placements.current[i]!.ground +
+        bubbleLift +
+        (person.conversationId || person.asleep ? 0.9 : 0.2)
     })
     talks.count = 0
     shown.forEach((person, i) => {

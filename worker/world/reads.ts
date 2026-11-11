@@ -147,6 +147,9 @@ async function matchesInSnapshot(db: Transaction, personId: string): Promise<Mat
         conversationId: latest.get(id)!.conversationId,
         myReason: latest.get(id)!.reason,
         theirReason: theirLatest.get(id)!.reason,
+        at: new Date(
+          Math.max(latest.get(id)!.createdAt.getTime(), theirLatest.get(id)!.createdAt.getTime()),
+        ).toISOString(),
       })),
   }
 }
