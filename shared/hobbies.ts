@@ -208,6 +208,7 @@ export const hobbies = [
   'languages',
   'larp',
   'latte art',
+  'league of legends',
   'leatherworking',
   'lego',
   'line dancing',
