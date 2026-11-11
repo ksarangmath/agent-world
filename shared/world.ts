@@ -28,7 +28,7 @@ export const worldEventKinds = [
 ] as const
 export type WorldEventKind = (typeof worldEventKinds)[number]
 
-export type PersonStatus = 'available' | 'in_conversation' | 'traveling' | 'resting'
+export type PersonStatus = 'available' | 'in_conversation' | 'traveling' | 'asleep' | 'resting'
 
 export const maxOpenerLength = 280
 export const maxMessageLength = 220

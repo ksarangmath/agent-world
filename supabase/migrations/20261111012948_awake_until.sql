@@ -1,0 +1,1 @@
+ALTER TABLE "people" ADD COLUMN "awake_until" timestamp with time zone;

@@ -11,6 +11,7 @@ const at = (placeId: string): WorldPerson => ({
   tile: { x: 0, y: 0 },
   trip: null,
   conversationId: null,
+  asleep: false,
 })
 
 test('every place has a line for what people are doing there', () => {
@@ -28,4 +29,8 @@ test('travel and conversations take over the line', () => {
   expect(
     doingNow({ ...person, trip: { from: { x: 0, y: 0 }, departedAt: '', arrivesAt: '' } }, []),
   ).toBe('on the way to Silicon Downtown Arcade')
+})
+
+test('someone asleep is asleep, whatever the place is for', () => {
+  expect(doingNow({ ...at('arcade'), asleep: true }, [])).toBe('fast asleep')
 })

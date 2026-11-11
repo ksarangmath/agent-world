@@ -2,7 +2,9 @@ import type { Tile } from './map/route'
 import type { Avatar, Profile } from './profile'
 import type { OwnerMessageDirection, Verdict, WorldEventKind } from './world'
 
-export type MeResponse = { person: { id: string; profile: Profile; tile: Tile | null } | null }
+export type MeResponse = {
+  person: { id: string; profile: Profile; tile: Tile | null; awakeUntil: string | null } | null
+}
 
 export type WorldPerson = {
   id: string
@@ -12,6 +14,7 @@ export type WorldPerson = {
   tile: Tile
   trip: { from: Tile; departedAt: string; arrivesAt: string } | null
   conversationId: string | null
+  asleep: boolean
 }
 
 export type WorldSnapshot = { now: string; people: WorldPerson[] }

@@ -8,7 +8,7 @@ import { syncAllAgentConfigs } from './profile/save'
 import { sendPendingDeliveries, toolWorkers, type Services } from './tools/run'
 import { endIfIdle, expireRequests, idleConversations } from './world/conversations'
 import type { World } from './world/events'
-import { nudgeIdlePeople } from './world/people'
+import { nudgeIdlePeople, wakeAtDawn } from './world/people'
 
 const launchGraceMs = 2 * 60 * 1000
 const worldPageSize = 50
@@ -59,6 +59,7 @@ export async function scheduled(_controller: ScheduledController, env: Env) {
         }
       },
     ],
+    ['wake people at dawn', () => inTransaction(db, now, wakeAtDawn)],
     ['nudge idle people', () => inTransaction(db, now, nudgeIdlePeople)],
     ['send pending deliveries', () => sendPendingDeliveries(services)],
     ['recover tool calls', () => recoverToolCalls(services, env)],

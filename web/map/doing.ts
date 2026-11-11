@@ -44,6 +44,7 @@ const doing: Record<string, string> = {
 export function doingNow(person: WorldPerson, people: WorldPerson[]) {
   const place = placesById.get(person.placeId)
   if (person.trip) return `on the way to ${place?.name ?? 'somewhere'}`
+  if (person.asleep) return 'fast asleep'
   if (person.conversationId) {
     const partner = people.find(
       (other) => other.id !== person.id && other.conversationId === person.conversationId,

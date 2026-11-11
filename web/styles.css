@@ -636,6 +636,39 @@ a {
   animation-delay: 0.2s;
 }
 
+.snore {
+  position: absolute;
+  top: 0;
+  left: 0;
+  align-items: flex-end;
+  gap: 1px;
+  pointer-events: none;
+  font:
+    800 13px system-ui,
+    sans-serif;
+  color: #f7f1e3;
+  text-shadow:
+    1px 0 #101522,
+    -1px 0 #101522,
+    0 1px #101522,
+    0 -1px #101522;
+}
+
+.snore i {
+  font-style: normal;
+  animation: hop 2.4s steps(2, jump-none) infinite;
+}
+
+.snore i:nth-child(2) {
+  font-size: 11px;
+  animation-delay: 0.4s;
+}
+
+.snore i:nth-child(3) {
+  font-size: 9px;
+  animation-delay: 0.8s;
+}
+
 .talk i:nth-child(3) {
   animation-delay: 0.4s;
 }
@@ -755,6 +788,7 @@ a {
 @media (prefers-reduced-motion: reduce) {
   .working .dots i,
   .talk i,
+  .snore i,
   .place-label.talking b::after,
   .chat .typing i,
   .live::before {

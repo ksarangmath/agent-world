@@ -45,6 +45,12 @@ export const talks = {
   y: new Float32Array(capacity),
   height: new Float32Array(capacity),
 }
+export const sleepers = {
+  count: 0,
+  x: new Float32Array(capacity),
+  y: new Float32Array(capacity),
+  height: new Float32Array(capacity),
+}
 const bubbleLift = 1.7
 const rise = viewFrom.y / across
 const tripKey = (person: WorldPerson) =>
@@ -248,6 +254,8 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         heading = Math.atan2(partner.tile.x - person.tile.x, partner.tile.y - person.tile.y)
         const myTurn = Math.floor(now / 3000) % 2 === (i < partners[i]! ? 0 : 1)
         if (myTurn) motion = 'talk'
+      } else if (person.asleep) {
+        motion = 'idle'
       } else if (t % strollEvery < strollFor && !afloat.has(spot?.activity ?? 'chatting')) {
         const along = (t % strollEvery) / strollFor
         const direction = hash(person.tile.y, person.tile.x) * Math.PI * 2
@@ -308,6 +316,14 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         screen.current[i * 3 + 1] = ((1 - projected.y) / 2) * size.height
         screen.current[i * 3 + 2] = projected.z
       }
+    })
+    sleepers.count = 0
+    shown.forEach((person, i) => {
+      if (!person.asleep || !placements.current[i]) return
+      const k = sleepers.count++
+      sleepers.x[k] = crowd.x[i]!
+      sleepers.y[k] = crowd.y[i]!
+      sleepers.height[k] = placements.current[i]!.ground + bubbleLift
     })
     talks.count = 0
     shown.forEach((person, i) => {

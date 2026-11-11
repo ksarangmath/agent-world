@@ -5,6 +5,7 @@ import {
   desc,
   eq,
   gt,
+  gte,
   inArray,
   isNotNull,
   isNull,
@@ -25,16 +26,30 @@ import {
   type Outcome,
   type World,
 } from './events'
-import { isAt, lockPeople, statusOf, type Person } from './people'
+import { asleep, isAt, lockPeople, startOfDay, statusOf, type Person } from './people'
 
 export const requestLifetimeMs = 5 * 60 * 1000
 export const othersBeforeRepeat = (population: number) =>
   Math.max(1, Math.min(10, Math.floor(population / 5)))
 export const idleConversationMs = 10 * 60 * 1000
 export const restAfterConversationMs = 35 * 60 * 1000
+export const conversationsPerDay = 30
 export const speakingMs = (text: string) => Math.min(20_000, 1_500 + text.length * 55)
 
 const ordered = (a: string, b: string) => (a < b ? [a, b] : [b, a]) as [string, string]
+
+async function talkedToday({ tx, now }: World, personId: string) {
+  const [today] = await tx
+    .select({ n: count() })
+    .from(conversations)
+    .where(
+      and(
+        or(eq(conversations.personA, personId), eq(conversations.personB, personId)),
+        gte(conversations.startedAt, startOfDay(now)),
+      ),
+    )
+  return today!.n
+}
 
 const afterConversation = (restingUntil: Date) =>
   `The conversation is over, so no more messages to them. Update your memory file for them, then call record_impression. You're on a break from conversations until ${clockTime(restingUntil)}; you can still look around or go somewhere new.`
@@ -89,14 +104,14 @@ export async function requestConversation(
   if (myStatus === 'in_conversation')
     return refuse("You're busy: you're already in a conversation.")
   if (myStatus === 'traveling') return refuse("You're still on your way somewhere.")
+  if (myStatus === 'asleep') return asleep
   if (myStatus === 'resting') {
     return refuse(
       `You're on a break from conversations until ${clockTime(me.restingUntil!)}. Update your notes, look around, or go somewhere new, and ask again after.`,
     )
   }
-  if (!me.placeId || !them.agentId || !isAt(them, me.placeId, now)) {
-    return refuse("That person isn't here.")
-  }
+  if (!me.placeId || !isAt(them, me.placeId, now)) return refuse("That person isn't here.")
+  if (statusOf(them, now) === 'asleep') return refuse('That person is asleep.')
   if (statusOf(them, now) === 'in_conversation') {
     return refuse('That person is busy in another conversation.')
   }
@@ -104,6 +119,15 @@ export async function requestConversation(
     return refuse(
       'That person just finished a conversation and is taking a break. Ask someone else.',
     )
+  }
+
+  if ((await talkedToday(world, meId)) >= conversationsPerDay) {
+    return refuse(
+      `You've had ${conversationsPerDay} conversations today, which is the limit. No more until tomorrow; you can still look around and visit places.`,
+    )
+  }
+  if ((await talkedToday(world, personId)) >= conversationsPerDay) {
+    return refuse('That person has had a full day of conversations. Ask someone else.')
   }
 
   await tx
@@ -256,10 +280,15 @@ export async function respondToRequest(
     )
     return done('Declined.')
   }
-  const free = (person: Person) => person.agentId !== null && statusOf(person, now) === 'available'
+  const free = (person: Person) => statusOf(person, now) === 'available'
   if (!free(me) || !free(them) || !me.placeId || !isAt(them, me.placeId, now)) {
     await expire('you are no longer both free in the same place')
     return refuse('That request has expired: one of you is no longer free in the same place.')
+  }
+  for (const person of [me, them]) {
+    if ((await talkedToday(world, person.id)) < conversationsPerDay) continue
+    await expire('one of you has had a full day of conversations')
+    return refuse('That request has expired: one of you has had a full day of conversations.')
   }
 
   const [a, b] = ordered(me.id, them.id)

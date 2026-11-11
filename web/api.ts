@@ -33,6 +33,7 @@ export const useMe = (userId: string | undefined) =>
     queryKey: ['me', userId],
     queryFn: () => getJson<MeResponse>('/api/me'),
     enabled: userId !== undefined,
+    refetchInterval: 60_000,
   })
 
 export const useWorld = () =>
@@ -91,6 +92,8 @@ export const useTimeline = (userId: string | undefined) =>
   usePrivate<TimelineEvent[]>('/api/me/timeline', userId)
 export const useThread = (userId: string | undefined) =>
   usePrivate<ThreadMessage[]>('/api/me/thread', userId)
+
+export const wakeUp = () => send<{ awakeUntil: string }>('/api/me/wake', 'POST', {})
 
 export const sendToAgent = (text: string) =>
   send<ThreadMessage[]>('/api/me/thread', 'POST', { text })

@@ -12,6 +12,7 @@ import { omnara } from '../omnara/client'
 import { saveProfile } from '../profile/save'
 import { sendDeliveries } from '../tools/run'
 import { messageAgent } from '../world/owner-thread'
+import { isAwake, wake } from '../world/people'
 import { myConversations, myMatches, thread, timeline } from '../world/reads'
 
 const choicesSchema = profileSchema.pick({ hobbies: true, looking_for: true, about_me: true })
@@ -23,13 +24,21 @@ export const me = new Hono<SignedIn>()
   .use(requireUser)
   .get('/', async (c) => {
     const [row] = await database(c.env)
-      .select({ id: people.id, profile: people.profile, x: people.tileX, y: people.tileY })
+      .select({
+        id: people.id,
+        profile: people.profile,
+        x: people.tileX,
+        y: people.tileY,
+        agentId: people.agentId,
+        awakeUntil: people.awakeUntil,
+      })
       .from(people)
       .where(eq(people.userId, c.var.userId))
     const person = row && {
       id: row.id,
       profile: row.profile,
       tile: row.x === null || row.y === null ? null : { x: row.x, y: row.y },
+      awakeUntil: isAwake(row, new Date()) ? row.awakeUntil!.toISOString() : null,
     }
     return c.json<MeResponse>({ person: person ?? null })
   })
@@ -72,6 +81,20 @@ export const me = new Hono<SignedIn>()
     const db = database(c.env)
     const person = await personOf(db, c.var.userId)
     return c.json(person ? await timeline(db, person.id) : [])
+  })
+  .post('/wake', async (c) => {
+    const services = { db: database(c.env), omnara: omnara(c.env) }
+    const [person] = await services.db
+      .select({ id: people.id, agentId: people.agentId })
+      .from(people)
+      .where(eq(people.userId, c.var.userId))
+    if (!person?.agentId) return c.json({ error: 'Create your agent first.' }, 409)
+    const woken = await services.db.transaction(async (tx) => {
+      const world = { tx, now: new Date(), deliveries: [] as string[] }
+      return { awakeUntil: await wake(world, person.id), deliveries: world.deliveries }
+    })
+    await sendDeliveries(services, woken.deliveries)
+    return c.json({ awakeUntil: woken.awakeUntil.toISOString() })
   })
   .get('/thread', async (c) => {
     const db = database(c.env)

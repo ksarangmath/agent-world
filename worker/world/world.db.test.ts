@@ -7,6 +7,7 @@ import { spots } from '../../shared/map/spots'
 import type { Profile } from '../../shared/profile'
 import * as schema from '../db/schema'
 import {
+  conversationsPerDay,
   endConversation,
   endIfIdle,
   expireRequests,
@@ -21,7 +22,7 @@ import { timeline, transcript } from './reads'
 import type { World } from './events'
 import { recordImpression } from './impressions'
 import { messageAgent, messageOwner } from './owner-thread'
-import { nudgeIdlePeople } from './people'
+import { nudgeIdlePeople, wake, wakeAtDawn } from './people'
 import { goTo, listPlaces, lookAround } from './travel'
 
 const client = postgres('postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 12 })
@@ -30,6 +31,7 @@ afterAll(() => client.end())
 
 const { people, conversations, conversationRequests, deliveries, messages, worldEvents } = schema
 const t0 = new Date('2026-10-27T18:00:00Z')
+const awake = new Date('2027-01-01T00:00:00Z')
 const later = (ms: number) => new Date(t0.getTime() + ms)
 const minutes = (n: number) => n * 60 * 1000
 
@@ -86,6 +88,7 @@ async function person(name: string, at: string | null = placeId): Promise<string
       tileX: spot?.x ?? null,
       tileY: spot?.y ?? null,
       lastActiveAt: t0,
+      awakeUntil: awake,
     })
     .returning({ id: people.id })
   return row!.id
@@ -324,7 +327,7 @@ describe('pace', () => {
     })
     expect(await run((w) => requestConversation(w, a, away, 'hey'))).toMatchObject({
       ok: false,
-      text: expect.stringContaining("isn't here"),
+      text: expect.stringContaining('asleep'),
     })
     expect(await pendingFrom(a)).toHaveLength(0)
   })
@@ -510,8 +513,14 @@ describe('travel', () => {
 })
 
 describe('nudges', () => {
-  test('only free agents idle for 15 minutes get one nudge during waking hours', async () => {
-    const [a, b, c] = [await person('A'), await person('B'), await person('C')]
+  test('only free, awake agents idle for 15 minutes get one nudge', async () => {
+    const [a, b, c, sleeper] = [
+      await person('A'),
+      await person('B'),
+      await person('C'),
+      await person('D'),
+    ]
+    await db.update(people).set({ awakeUntil: t0 }).where(eq(people.id, sleeper))
     await talking(b, c)
     await run(nudgeIdlePeople, later(minutes(10)))
     expect(await inboxOf(a)).toHaveLength(0)
@@ -520,8 +529,7 @@ describe('nudges', () => {
     const nudges = (await eventsOf(a)).filter((event) => event.event === 'nudge')
     expect(nudges).toHaveLength(1)
     expect((await eventsOf(b)).some((event) => event.event === 'nudge')).toBe(false)
-    await run(nudgeIdlePeople, new Date('2026-10-27T09:00:00Z'))
-    expect((await eventsOf(a)).filter((event) => event.event === 'nudge')).toHaveLength(1)
+    expect(await inboxOf(sleeper)).toHaveLength(0)
   })
 
   test('nobody is nudged during their break after a conversation', async () => {
@@ -536,5 +544,100 @@ describe('nudges', () => {
     await run(nudgeIdlePeople, later(minutes(7) + restAfterConversationMs))
     expect(await nudged(a)).toBe(1)
     expect(await nudged(b)).toBe(1)
+  })
+})
+
+describe('sleep', () => {
+  const asleepAt = (id: string, until: Date | null = t0) =>
+    db.update(people).set({ awakeUntil: until }).where(eq(people.id, id))
+  const awakeUntilOf = async (id: string) =>
+    (await db.select({ until: people.awakeUntil }).from(people).where(eq(people.id, id)))[0]!.until
+
+  test('someone asleep is not offered, cannot be asked, and cannot act', async () => {
+    const [a, b] = [await person('Ada'), await person('Bob')]
+    await asleepAt(b)
+    const now = later(1000)
+    expect(JSON.parse((await run((w) => lookAround(w, a), now)).text).people_here).toEqual([])
+    expect(await run((w) => requestConversation(w, a, b, 'hey'), now)).toMatchObject({
+      ok: false,
+      text: 'That person is asleep.',
+    })
+    for (const act of [
+      (w: World) => lookAround(w, b),
+      (w: World) => listPlaces(w, b),
+      (w: World) => goTo(w, b, 'lands-end-lookout', 'a walk'),
+      (w: World) => requestConversation(w, b, a, 'hey'),
+    ]) {
+      expect(await run(act, now)).toMatchObject({
+        ok: false,
+        text: expect.stringContaining("You're asleep"),
+      })
+    }
+  })
+
+  test('a conversation under way carries on past bedtime', async () => {
+    const [a, b] = [await person('Ada'), await person('Bob')]
+    await talking(a, b)
+    await asleepAt(a)
+    await asleepAt(b)
+    expect((await run((w) => sendMessage(w, a, 'one more thing'), later(1000))).ok).toBe(true)
+  })
+
+  test('a wake-up lasts until the next 10pm in San Francisco and tells the agent', async () => {
+    const a = await person('Ada')
+    await asleepAt(a, null)
+    expect(await run((w) => wake(w, a))).toEqual(new Date('2026-10-28T05:00:00Z'))
+    expect(await awakeUntilOf(a)).toEqual(new Date('2026-10-28T05:00:00Z'))
+    expect((await eventsOf(a)).map((event) => event.event)).toEqual(['woke_up'])
+    expect(await run((w) => wake(w, a), new Date('2026-10-28T06:30:00Z'))).toEqual(
+      new Date('2026-10-29T05:00:00Z'),
+    )
+  })
+
+  test('waking someone already awake changes nothing, even when two wake-ups race', async () => {
+    const a = await person('Ada')
+    await asleepAt(a, null)
+    const woken = await Promise.all([run((w) => wake(w, a)), run((w) => wake(w, a))])
+    expect(woken).toEqual([new Date('2026-10-28T05:00:00Z'), new Date('2026-10-28T05:00:00Z')])
+    await run((w) => wake(w, a), later(minutes(30)))
+    expect((await eventsOf(a)).map((event) => event.event)).toEqual(['woke_up'])
+  })
+
+  test('until November 22 sleepers get up by themselves at 6am, and never at night', async () => {
+    const a = await person('Ada')
+    await asleepAt(a, null)
+    await run(wakeAtDawn, new Date('2026-10-27T12:30:00Z'))
+    expect(await awakeUntilOf(a)).toBeNull()
+    await run(wakeAtDawn, new Date('2026-10-27T13:30:00Z'))
+    expect(await awakeUntilOf(a)).toEqual(new Date('2026-10-28T05:00:00Z'))
+    await asleepAt(a, null)
+    await run(wakeAtDawn, new Date('2026-11-23T18:00:00Z'))
+    expect(await awakeUntilOf(a)).toBeNull()
+  })
+
+  test('a day holds 30 conversations', async () => {
+    const [a, b, c] = [await person('Ada'), await person('Bob'), await person('Cy')]
+    const [first, second] = a < b ? [a, b] : [b, a]
+    await db.insert(conversations).values(
+      Array.from({ length: conversationsPerDay }, (_, i) => ({
+        personA: first,
+        personB: second,
+        placeId,
+        startedAt: later(i * 1000),
+        lastMessageAt: later(i * 1000),
+        endedAt: later(i * 1000),
+      })),
+    )
+    const now = later(minutes(60))
+    expect(await run((w) => requestConversation(w, a, c, 'hey'), now)).toMatchObject({
+      ok: false,
+      text: expect.stringContaining('the limit'),
+    })
+    expect(await run((w) => requestConversation(w, c, a, 'hey'), now)).toMatchObject({
+      ok: false,
+      text: expect.stringContaining('full day'),
+    })
+    const tomorrow = new Date('2026-10-28T18:00:00Z')
+    expect((await run((w) => requestConversation(w, c, a, 'hey'), tomorrow)).ok).toBe(true)
   })
 })

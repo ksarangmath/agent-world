@@ -1,8 +1,21 @@
-import { and, asc, eq, inArray, isNotNull, isNull, lt, lte, notExists, or, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  notExists,
+  or,
+  sql,
+} from 'drizzle-orm'
 import type { Profile } from '../../shared/profile'
 import type { PersonStatus } from '../../shared/world'
 import { conversationRequests, deliveries, people } from '../db/schema'
-import { clockTime, timeZone, worldEvent, type World } from './events'
+import { clockTime, deliver, refuse, timeZone, worldEvent, type World } from './events'
 
 export type Person = Omit<typeof people.$inferSelect, 'portrait'>
 
@@ -21,6 +34,7 @@ export const personColumns = {
   arrivesAt: people.arrivesAt,
   conversationId: people.conversationId,
   restingUntil: people.restingUntil,
+  awakeUntil: people.awakeUntil,
   lastActiveAt: people.lastActiveAt,
   lastNudgedAt: people.lastNudgedAt,
   profileVersion: people.profileVersion,
@@ -28,12 +42,20 @@ export const personColumns = {
   createdAt: people.createdAt,
 }
 
+export const isAwake = (person: Pick<Person, 'agentId' | 'awakeUntil'>, now: Date) =>
+  person.agentId !== null && person.awakeUntil !== null && person.awakeUntil > now
+
 export function statusOf(person: Person, now: Date): PersonStatus {
   if (person.conversationId) return 'in_conversation'
   if (person.arrivesAt && person.arrivesAt > now) return 'traveling'
+  if (!isAwake(person, now)) return 'asleep'
   if (person.restingUntil && person.restingUntil > now) return 'resting'
   return 'available'
 }
+
+export const asleep = refuse(
+  "You're asleep until you're woken up. Stop here: nothing more happens until then.",
+)
 
 export const isAt = (person: Person, placeId: string, now: Date) =>
   person.placeId === placeId && statusOf(person, now) !== 'traveling'
@@ -58,25 +80,90 @@ export async function touch({ tx, now }: World, personId: string) {
 }
 
 export const idleBeforeNudgeMs = 15 * 60 * 1000
-export const wakingHours = { from: 8, to: 23 } as const
-const nudgeBatch = 500
+export const wakingHours = { from: 6, to: 22 } as const
+export const selfWakingUntil = new Date('2026-11-22T08:00:00Z')
+const batch = 500
+const pacificParts = new Intl.DateTimeFormat('en-US', {
+  timeZone,
+  hourCycle: 'h23',
+  year: 'numeric',
+  month: 'numeric',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: 'numeric',
+  second: 'numeric',
+})
 
-export function isWakingHour(now: Date) {
-  const hour = Number(
-    new Intl.DateTimeFormat('en-US', {
-      timeZone,
-      hour: 'numeric',
-      hourCycle: 'h23',
-    }).format(now),
+function wallClock(at: Date) {
+  const field = Object.fromEntries(
+    pacificParts.formatToParts(at).map((part) => [part.type, Number(part.value)]),
+  ) as Record<'year' | 'month' | 'day' | 'hour' | 'minute' | 'second', number>
+  return Date.UTC(field.year, field.month - 1, field.day, field.hour, field.minute, field.second)
+}
+
+const offsetAt = (at: Date) => wallClock(at) - Math.floor(at.getTime() / 1000) * 1000
+
+function pacific(now: Date, hour: number, days = 0) {
+  const today = new Date(wallClock(now))
+  const wall = Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate() + days,
+    hour,
   )
+  return new Date(wall - offsetAt(new Date(wall - offsetAt(now))))
+}
+
+export const startOfDay = (now: Date) => pacific(now, 0)
+
+export function nextBedtime(now: Date) {
+  const tonight = pacific(now, wakingHours.to)
+  return tonight > now ? tonight : pacific(now, wakingHours.to, 1)
+}
+
+function isWakingHour(now: Date) {
+  const hour = new Date(wallClock(now)).getUTCHours()
   return hour >= wakingHours.from && hour < wakingHours.to
+}
+
+export async function wake(world: World, personId: string) {
+  const { tx, now } = world
+  const person = (await lockPeople(world, [personId])).get(personId)!
+  if (isAwake(person, now)) return person.awakeUntil!
+  const until = nextBedtime(now)
+  await tx.update(people).set({ awakeUntil: until }).where(eq(people.id, personId))
+  await deliver(
+    world,
+    personId,
+    worldEvent('woke_up', {
+      time: clockTime(now),
+      awake_until: clockTime(until),
+      next: 'Look around and decide what to do next.',
+    }),
+  )
+  return until
+}
+
+export async function wakeAtDawn(world: World) {
+  const { tx, now } = world
+  if (now >= selfWakingUntil || !isWakingHour(now)) return
+  const sleepers = await tx
+    .select({ id: people.id })
+    .from(people)
+    .where(
+      and(isNotNull(people.agentId), or(isNull(people.awakeUntil), lte(people.awakeUntil, now))),
+    )
+    .orderBy(asc(people.id))
+    .limit(batch)
+    .for('no key update', { skipLocked: true })
+  for (const sleeper of sleepers) await wake(world, sleeper.id)
 }
 
 export async function nudgeIdlePeople(world: World) {
   const { tx, now } = world
-  if (!isWakingHour(now)) return
   const eligible = and(
     isNotNull(people.agentId),
+    gt(people.awakeUntil, now),
     isNull(people.conversationId),
     or(isNull(people.arrivesAt), lte(people.arrivesAt, now)),
     or(isNull(people.restingUntil), lte(people.restingUntil, now)),
@@ -102,7 +189,7 @@ export async function nudgeIdlePeople(world: World) {
     .from(people)
     .where(eligible)
     .orderBy(asc(people.id))
-    .limit(nudgeBatch)
+    .limit(batch)
     .for('no key update', { skipLocked: true })
   if (candidates.length === 0) return
   const nudged = await tx
@@ -147,11 +234,14 @@ export async function createPerson(
 }
 
 export async function setAgent(
-  { tx }: World,
+  { tx, now }: World,
   personId: string,
   agent: { agentId?: string; memoryStoreId?: string },
 ) {
-  await tx.update(people).set(agent).where(eq(people.id, personId))
+  await tx
+    .update(people)
+    .set({ ...agent, ...(agent.agentId && { awakeUntil: nextBedtime(now) }) })
+    .where(eq(people.id, personId))
 }
 
 export async function updateProfile(

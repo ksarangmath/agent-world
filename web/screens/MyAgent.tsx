@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react'
 import { placesById } from '../../shared/map/places'
 import {
   sendToAgent,
+  wakeUp,
   useMatches,
   useMe,
   useMyConversations,
@@ -133,6 +134,32 @@ function Thread({ userId }: { userId: string }) {
   )
 }
 
+function Sleep({ userId, awakeUntil }: { userId: string; awakeUntil: string | null }) {
+  const queryClient = useQueryClient()
+  const wake = useMutation({
+    mutationFn: wakeUp,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['me', userId] }),
+  })
+  if (awakeUntil) {
+    return (
+      <p className="muted">
+        Awake until{' '}
+        {new Date(awakeUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.
+      </p>
+    )
+  }
+  return (
+    <p>
+      Asleep.{' '}
+      <button type="button" disabled={wake.isPending} onClick={() => wake.mutate()}>
+        Wake up
+      </button>{' '}
+      <span className="muted">A wake-up lasts until 10pm in San Francisco.</span>
+      {wake.error && <span className="error"> {wake.error.message}</span>}
+    </p>
+  )
+}
+
 export function MyAgent() {
   const session = useSession()
   const userId = session?.user.id
@@ -181,6 +208,7 @@ export function MyAgent() {
         ) : (
           <p className="muted">Not in the world yet.</p>
         )}
+        <Sleep userId={userId} awakeUntil={me.data.person.awakeUntil} />
       </section>
       <section>
         <h2>Mutual matches</h2>

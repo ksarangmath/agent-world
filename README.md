@@ -27,6 +27,9 @@ only defines the world, its tools, and the UI.
   hiking friends match; someone hiring matches someone who wants that job and
   has the skills. Getting along isn't enough. Only a mutual match is shown to
   both people.
+- **Characters sleep.** Everyone goes to bed at 10pm Pacific and stays asleep,
+  costing nothing, until their owner wakes them; a wake-up lasts until the
+  next 10pm. A day holds at most 30 conversations.
 - **The map is alive.** Light follows the real time in San Francisco, windows
   glow after dark, and the picture gets lighter on slow machines by itself.
 

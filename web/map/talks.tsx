@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { Vector3 } from 'three'
 import { detailZoom } from './clock'
-import { talks } from './people'
+import { sleepers, talks } from './people'
 
 const tail = 6
 
@@ -38,6 +38,41 @@ export function Talks({ onOpen }: { onOpen: (conversationId: string) => void }) 
       element.style.display = 'flex'
       element.style.setProperty('--size', `${scale}px`)
       element.style.transform = `translate(${((projected.x + 1) / 2) * size.width}px, ${((1 - projected.y) / 2) * size.height}px) translate(-50%, calc(-100% - ${tail}px))`
+    }
+    for (let i = shown; i < pool.current.length; i++) pool.current[i]!.style.display = 'none'
+  })
+  return null
+}
+
+export function Snores() {
+  const { gl, camera, size } = useThree()
+  const pool = useRef<HTMLSpanElement[]>([])
+  const projected = useMemo(() => new Vector3(), [])
+  useEffect(() => {
+    const current = pool.current
+    return () => current.forEach((element) => element.remove())
+  }, [])
+  useFrame(() => {
+    const shown = camera.zoom >= detailZoom ? sleepers.count : 0
+    for (let i = 0; i < shown; i++) {
+      let element = pool.current[i]
+      if (!element) {
+        element = document.createElement('span')
+        element.className = 'snore'
+        element.append(
+          ...['z', 'z', 'z'].map((letter) =>
+            Object.assign(document.createElement('i'), { textContent: letter }),
+          ),
+        )
+        gl.domElement.parentElement?.appendChild(element)
+        pool.current.push(element)
+      }
+      projected.set(sleepers.x[i]!, sleepers.height[i]!, sleepers.y[i]!).project(camera)
+      element.style.setProperty('display', 'flex')
+      element.style.setProperty(
+        'transform',
+        `translate(${((projected.x + 1) / 2) * size.width}px, ${((1 - projected.y) / 2) * size.height}px) translate(-50%, -100%)`,
+      )
     }
     for (let i = shown; i < pool.current.length; i++) pool.current[i]!.style.display = 'none'
   })

@@ -3,7 +3,7 @@ import { places, placesById, regionNames, type Place } from '../../shared/map/pl
 import { conversationRequests, conversations, people, worldEvents } from '../db/schema'
 import { expirePendingRequests } from './conversations'
 import { clockTime, done, record, refuse, type Outcome, type World } from './events'
-import { isAt, lockPeople, personColumns, statusOf } from './people'
+import { asleep, isAt, lockPeople, personColumns, statusOf } from './people'
 
 const words = (text: string) =>
   text
@@ -12,12 +12,19 @@ const words = (text: string) =>
     .filter((word) => word.length > 2)
 
 export async function listPlaces(world: World, meId: string, interest?: string): Promise<Outcome> {
-  const { tx } = world
-  const [me] = await tx.select({ profile: people.profile }).from(people).where(eq(people.id, meId))
+  const { tx, now } = world
+  const [me] = await tx.select(personColumns).from(people).where(eq(people.id, meId))
+  if (me && statusOf(me, now) === 'asleep') return asleep
   const crowd = new Map(
     (
       await tx
-        .select({ placeId: people.placeId, held: count(), occupancy: count(people.agentId) })
+        .select({
+          placeId: people.placeId,
+          held: count(),
+          occupancy: count(
+            sql`case when ${people.agentId} is not null and ${people.awakeUntil} > ${now.toISOString()}::timestamptz then 1 end`,
+          ),
+        })
         .from(people)
         .where(isNotNull(people.placeId))
         .groupBy(people.placeId)
@@ -89,6 +96,7 @@ export async function goTo(
     return refuse("You're in a conversation. End it with end_conversation before you leave.")
   }
   if (status === 'traveling') return refuse("You're already on your way somewhere.")
+  if (status === 'asleep') return asleep
   if (me.placeId === placeId) return refuse(`You're already at ${place.name}.`)
 
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${placeId}))`)
@@ -131,6 +139,7 @@ export async function lookAround(world: World, meId: string): Promise<Outcome> {
     const seconds = Math.ceil((me.arrivesAt!.getTime() - now.getTime()) / 1000)
     return done(`You're on your way to ${place.name}, arriving in about ${seconds} seconds.`)
   }
+  if (statusOf(me, now) === 'asleep') return asleep
   const others = await tx
     .select(personColumns)
     .from(people)
@@ -170,7 +179,7 @@ export async function lookAround(world: World, meId: string): Promise<Outcome> {
       your_status: statusOf(me, now),
       your_break_ends: statusOf(me, now) === 'resting' ? clockTime(me.restingUntil!) : undefined,
       people_here: others
-        .filter((person) => person.agentId && isAt(person, place.id, now))
+        .filter((person) => isAt(person, place.id, now) && statusOf(person, now) !== 'asleep')
         .map((person) => ({
           person_id: person.id,
           status: statusOf(person, now),

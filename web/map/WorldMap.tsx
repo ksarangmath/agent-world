@@ -16,7 +16,7 @@ import { People } from './people'
 import { PersonHover } from './PersonHover'
 import { Places } from './places'
 import { Sky } from './sky'
-import { Talks } from './talks'
+import { Snores, Talks } from './talks'
 import { Traffic } from './traffic'
 import { Trees } from './trees'
 import { Water } from './water'
@@ -81,6 +81,7 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
               onSelect={select}
             />
             <Talks onOpen={read} />
+            <Snores />
             <Ambient people={world.data.snapshot.people} />
             <Labels
               people={world.data.snapshot.people}

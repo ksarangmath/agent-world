@@ -65,6 +65,7 @@ export const people = pgTable(
     arrivesAt: timestamptz(),
     conversationId: uuid().references((): AnyPgColumn => conversations.id),
     restingUntil: timestamptz(),
+    awakeUntil: timestamptz(),
     lastActiveAt: createdAt(),
     lastNudgedAt: timestamptz(),
     profileVersion: integer().notNull().default(0),
