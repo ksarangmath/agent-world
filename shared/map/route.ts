@@ -48,6 +48,8 @@ function line(
 }
 
 const spurTiles = 5
+const twinCells = 6
+const twinShare = 0.85
 
 function cellsOf(road: number[]) {
   const cells = new Set<number>()
@@ -67,10 +69,9 @@ const tilesAlong = (road: number[]) => {
   return tiles
 }
 
-function withoutSpurs(): Record<RoadClass, number[][]> {
-  let kept = roadClasses.flatMap((roadClass) =>
-    geography.roads[roadClass].map((road) => ({ roadClass, road, cells: cellsOf(road) })),
-  )
+type Kept = { roadClass: RoadClass; road: number[]; cells: Set<number> }
+
+function withoutSpurs(kept: Kept[]): Kept[] {
   for (;;) {
     const covered = new Map<number, number>()
     for (const { cells } of kept) {
@@ -82,15 +83,56 @@ function withoutSpurs(): Record<RoadClass, number[][]> {
         tilesAlong(road) >= spurTiles ||
         !(loose(road[0]!, road[1]!) || loose(road.at(-2)!, road.at(-1)!)),
     )
-    if (joined.length === kept.length) break
+    if (joined.length === kept.length) return kept
     kept = joined
   }
+}
+
+const beside = [-1, 0, 1].flatMap((dy) => [-1, 0, 1].map((dx) => dy * mapWidth + dx))
+
+function withoutTwins(kept: Kept[]): Kept[] {
+  const rank = (entry: Kept) => roadClasses.indexOf(entry.roadClass)
+  const owners = new Map<number, Kept[]>()
+  for (const entry of kept) {
+    for (const cell of entry.cells) owners.set(cell, [...(owners.get(cell) ?? []), entry])
+  }
+  const dropped = new Set<Kept>()
+  const near = (cell: number, entry: Kept) =>
+    new Set(
+      beside.flatMap((step) =>
+        (owners.get(cell + step) ?? []).filter(
+          (other) => other !== entry && !dropped.has(other) && rank(other) > rank(entry),
+        ),
+      ),
+    )
+  const shortestFirst = [...kept].sort((a, b) => rank(a) - rank(b) || a.cells.size - b.cells.size)
+  for (const entry of shortestFirst) {
+    if (entry.cells.size < twinCells) continue
+    const alongside = new Map<Kept, number>()
+    for (const cell of entry.cells) {
+      for (const other of near(cell, entry)) alongside.set(other, (alongside.get(other) ?? 0) + 1)
+    }
+    const twin = [...alongside].some(([, shared]) => shared >= entry.cells.size * twinShare)
+    const { road } = entry
+    const joined = [index(road[0]!, road[1]!), index(road.at(-2)!, road.at(-1)!)].every(
+      (end) => near(end, entry).size > 0,
+    )
+    if (twin && joined) dropped.add(entry)
+  }
+  return kept.filter((entry) => !dropped.has(entry))
+}
+
+function tidied(): Record<RoadClass, number[][]> {
+  const all = roadClasses.flatMap((roadClass) =>
+    geography.roads[roadClass].map((road) => ({ roadClass, road, cells: cellsOf(road) })),
+  )
+  const kept = withoutSpurs(withoutTwins(withoutSpurs(all)))
   const of = (roadClass: RoadClass) =>
     kept.filter((entry) => entry.roadClass === roadClass).map((entry) => entry.road)
   return { local: of('local'), street: of('street'), freeway: of('freeway') }
 }
 
-export const roadLines = withoutSpurs()
+export const roadLines = tidied()
 
 function rasterize(): Uint8Array {
   const grid = new Uint8Array(mapWidth * mapHeight)
