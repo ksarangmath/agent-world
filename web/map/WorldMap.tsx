@@ -7,6 +7,7 @@ import { useMusic } from '../music'
 import { Ambient } from './ambient'
 import { Buildings } from './buildings'
 import { Camera, VisibleArea, zoomBy, type Focus } from './camera'
+import { Eggs } from './eggs'
 import { PixelPass } from './pixel'
 import { buildCity } from './city'
 import { Decor } from './decor'
@@ -82,6 +83,7 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
         <Places />
         <Traffic />
         <Wonders />
+        <Eggs />
         {world.data && (
           <>
             <People

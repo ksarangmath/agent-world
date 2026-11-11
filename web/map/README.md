@@ -38,6 +38,9 @@ the world snapshot that `People` and `Labels` draw.
   and one for pods, and the stations.
 - **`rides.tsx`**: what a travelling person rides: a boat along the ferry
   lanes and a pod on the Skyloop, with the walk on and off at each stop.
+- **`eggs.tsx`**: small things to find on the ground: fighting cats, a
+  broken hydrant, a driverless taxi, men in black, and a robot that watches
+  the ocean.
 - **`wonders.tsx`**: balloons, airships, the fog dragon, whales, the big
   wheel, the rocket, fireworks, and the saucer.
 - **`wings.tsx`**: the canopies over people who are paragliding or
