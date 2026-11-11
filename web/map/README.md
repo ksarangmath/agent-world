@@ -71,7 +71,8 @@ the world snapshot that `People` and `Labels` draw.
   display's full rate while the camera moves.
 - **`ambient.tsx`**: while the Tour button is on, glides the camera between
   live conversations and busy places. **`watching.ts`** holds what the viewer
-  is doing: the hovered person, the followed person, and the tour.
+  is doing: the hovered person, the followed person, the tour, and a place
+  another screen asked the map to fly to.
 - **`quality.ts`**: the quality levels and when to move between them.
   `pixel.tsx` times one whole frame a second. Three slow ones in a row step
   down a level: no normals pass, then art pixels twice as big, then no shadows

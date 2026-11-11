@@ -321,6 +321,25 @@ describe('pace', () => {
     expect(started!.time).toMatch(/PT$/)
   })
 
+  test('openers and messages typed with dashes or semicolons are refused', async () => {
+    const [a, b] = [await person('Ada'), await person('Bob')]
+    for (const opener of [
+      'hi\u2014Ada here',
+      'hi \u2013 Ada here',
+      'hi - Ada',
+      'hi; Ada',
+      'hi -- Ada',
+    ]) {
+      const asked = await run((w) => requestConversation(w, a, b, opener))
+      expect(asked).toMatchObject({ ok: false, text: expect.stringContaining('dashes') })
+    }
+    expect(await pendingFrom(a)).toHaveLength(0)
+    await talking(a, b)
+    const refused = await run((w) => sendMessage(w, a, 'exactly\u2014fluent is not faithful'))
+    expect(refused).toMatchObject({ ok: false, text: expect.stringContaining('dashes') })
+    expect((await run((w) => sendMessage(w, a, 'co-op games, well-made ones.'))).ok).toBe(true)
+  })
+
   test('a message takes as long to land as it takes to say', async () => {
     const [a, b] = [await person('Ada'), await person('Bob')]
     const id = await talking(a, b)

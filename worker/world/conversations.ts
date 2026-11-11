@@ -88,6 +88,13 @@ export async function expirePendingRequests(world: World, personIds: string[], w
   )
 }
 
+const typeset = /[—–;]|--| - /
+
+const retype = () =>
+  refuse(
+    'Nobody texts with dashes or semicolons. Say it again in plain words, with periods and commas.',
+  )
+
 export async function requestConversation(
   world: World,
   meId: string,
@@ -96,6 +103,7 @@ export async function requestConversation(
 ): Promise<Outcome> {
   const { tx, now } = world
   if (personId === meId) return refuse("You can't ask yourself for a conversation.")
+  if (typeset.test(opener)) return retype()
   const locked = await lockPeople(world, [meId, personId])
   const me = locked.get(meId)!
   const them = locked.get(personId)
@@ -336,6 +344,7 @@ export async function respondToRequest(
 
 export async function sendMessage(world: World, meId: string, text: string): Promise<Outcome> {
   const { tx, now } = world
+  if (typeset.test(text)) return retype()
   const [row] = await tx
     .select({
       id: conversations.id,
