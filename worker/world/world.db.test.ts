@@ -13,6 +13,7 @@ import {
   expireRequests,
   messagesPerConversation,
   othersBeforeRepeat,
+  pairGapMs,
   requestConversation,
   respondToRequest,
   restAfterConversationMs,
@@ -204,21 +205,28 @@ describe('conversation requests', () => {
     expect(again).toMatchObject({ ok: false, text: expect.stringContaining('Meet 1 more person') })
     await talking(a, c, free)
     const second = await parted(a, c, new Date(free.getTime() + minutes(5)))
-    const afterOthers = await run(
+    const tooSoon = await run(
       (w) => requestConversation(w, a, b, 'Round two?'),
       new Date(second.getTime() + restAfterConversationMs + 1000),
     )
-    expect(afterOthers.ok).toBe(true)
+    expect(tooSoon).toMatchObject({ ok: false, text: expect.stringContaining('catch up after') })
+    const anHourOn = await run(
+      (w) => requestConversation(w, a, b, 'Round two?'),
+      later(pairGapMs + 1000),
+    )
+    expect(anHourOn.ok).toBe(true)
   })
 
-  test('when only two people are awake they can talk again after their rest', async () => {
+  test('when only two people are awake they can talk again an hour later', async () => {
     const [a, b] = [await person('A'), await person('B')]
     await talking(a, b)
     const first = await parted(a, b, later(minutes(5)))
-    const again = await run(
+    const rested = await run(
       (w) => requestConversation(w, b, a, 'Again?'),
       new Date(first.getTime() + restAfterConversationMs + 1000),
     )
+    expect(rested).toMatchObject({ ok: false, text: expect.stringContaining('catch up after') })
+    const again = await run((w) => requestConversation(w, b, a, 'Again?'), later(pairGapMs + 1000))
     expect(again.ok).toBe(true)
   })
 })

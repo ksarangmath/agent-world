@@ -31,6 +31,7 @@ import { asleep, isAt, lockPeople, startOfDay, statusOf, type Person } from './p
 export const requestLifetimeMs = 5 * 60 * 1000
 export const othersBeforeRepeat = (population: number) =>
   Math.min(Math.max(1, Math.min(10, Math.floor(population / 5))), Math.max(0, population - 2))
+export const pairGapMs = 60 * 60 * 1000
 export const idleConversationMs = 10 * 60 * 1000
 export const goodbyeWaitMs = 2 * 60 * 1000
 export const wrapUpAfter = 16
@@ -204,6 +205,10 @@ export async function requestConversation(
       return refuse(
         `You've already talked with them. Meet ${more} more ${more === 1 ? 'person' : 'people'} before asking them again.`,
       )
+    }
+    const catchUpAt = new Date(last.startedAt.getTime() + pairGapMs)
+    if (catchUpAt > now) {
+      return refuse(`You two talked not long ago. You can catch up after ${clockTime(catchUpAt)}.`)
     }
   }
 
