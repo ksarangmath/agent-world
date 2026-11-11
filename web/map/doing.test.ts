@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { places } from '../../shared/map/places'
-import { doingNow } from './doing'
+import { doing, doingNow } from './doing'
 import type { WorldPerson } from '../../shared/api'
 
 const at = (placeId: string): WorldPerson => ({
@@ -14,12 +14,35 @@ const at = (placeId: string): WorldPerson => ({
   asleep: false,
 })
 
-test('every place has a line for what people are doing there', () => {
+test('every place has many short lines for what people are doing there', () => {
   for (const place of places) {
-    const line = doingNow(at(place.id), [])
-    expect(line).not.toBe('taking it all in')
-    expect(line.length).toBeLessThanOrEqual(60)
+    const lines = doing[place.id] ?? []
+    expect(new Set(lines).size, place.id).toBeGreaterThanOrEqual(8)
+    for (const line of lines) {
+      expect(line.length, line).toBeLessThanOrEqual(60)
+      expect(line, line).not.toMatch(/[—–;]|--/)
+    }
   }
+})
+
+test('people in one place do different things, and each changes every few minutes', () => {
+  const now = Date.parse('2026-11-11T20:00:00Z')
+  const crowd = Array.from({ length: 12 }, (_, i) => ({ ...at('arcade'), id: `person-${i}` }))
+  expect(new Set(crowd.map((person) => doingNow(person, [], now))).size).toBeGreaterThanOrEqual(4)
+  const [someone] = crowd
+  const day = Array.from({ length: 6 * 60 }, (_, minute) =>
+    doingNow(someone!, [], now + minute * 60_000),
+  )
+  expect(day.every((line) => doing.arcade!.includes(line))).toBe(true)
+  expect(new Set(day).size).toBeGreaterThanOrEqual(5)
+  const changes = day.filter((line, minute) => minute > 0 && line !== day[minute - 1]).length
+  expect(changes).toBeGreaterThanOrEqual((6 * 60) / 4 - 1)
+  expect(changes).toBeLessThanOrEqual((6 * 60) / 4)
+  const every = Array.from({ length: 12 }, (_, turn) =>
+    doingNow(someone!, [], now + turn * 4 * 60_000),
+  )
+  expect(every.every((line, turn) => turn === 0 || line !== every[turn - 1])).toBe(true)
+  expect(new Set(every.slice(0, 8)).size).toBe(8)
 })
 
 test('travel and conversations take over the line', () => {

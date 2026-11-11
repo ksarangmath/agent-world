@@ -179,7 +179,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
               id: person.id,
               name: person.name,
               placeId: person.placeId,
-              doing: doingNow(person, shown),
+              doing: doingNow(person, shown, Date.now() + serverOffsetMs),
               x: event.clientX,
               y: event.clientY,
             }
@@ -187,10 +187,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
       )
     }
     const current = hovered.get()
-    if (current) {
-      const person = shown.find((candidate) => candidate.id === current.id)
-      hovered.set(person ? { ...current, doing: doingNow(person, shown) } : null)
-    }
+    if (current && !shown.some((candidate) => candidate.id === current.id)) hovered.set(null)
     const down = (event: PointerEvent) => {
       press.current =
         event.isPrimary && event.button === 0
@@ -241,6 +238,10 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
 
   useFrame(() => {
     const now = Date.now() + serverOffsetMs
+    const hover = hovered.get()
+    const person = hover && shown.find((candidate) => candidate.id === hover.id)
+    const doing = person && doingNow(person, shown, now)
+    if (doing && doing !== hover.doing) hovered.set({ ...hover, doing })
     const hoverable = camera.zoom >= hoverZoom
     placements.current.length = shown.length
     shown.forEach((person, i) => {
