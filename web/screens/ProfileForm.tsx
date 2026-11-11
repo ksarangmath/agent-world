@@ -63,8 +63,8 @@ export function ProfileForm({
     setPicked(picked.includes(hobby) ? picked.filter((item) => item !== hobby) : [...picked, hobby])
   const search = query.trim().toLowerCase()
   const shown = search
-    ? hobbies.filter((hobby) => hobby.includes(search)).slice(0, 40)
-    : popularHobbies
+    ? hobbies.filter((hobby) => hobby.includes(search))
+    : [...popularHobbies, ...hobbies.filter((hobby) => !popularHobbies.includes(hobby))]
   const written = goals.filter((goal) => goal.trim()).length
   const expertise = listed(about.expertise, draft.expertise, ', ')
   const interests = listed(about.interests, draft.interests, ', ')
@@ -165,28 +165,30 @@ export function ProfileForm({
         <legend>Pick 3–5 hobbies · {picked.length}/5</legend>
         <input
           type="search"
-          placeholder="Search hobbies"
+          placeholder="Search, or scroll the list"
           aria-label="Search hobbies"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => event.key === 'Enter' && event.preventDefault()}
         />
-        {[...picked, ...shown.filter((hobby) => !picked.includes(hobby))].map((hobby) => {
-          const chosen = picked.includes(hobby)
-          return (
-            <button
-              key={hobby}
-              type="button"
-              className={chosen ? 'picked' : undefined}
-              aria-pressed={chosen}
-              disabled={!chosen && picked.length >= 5}
-              onClick={() => toggle(hobby)}
-            >
-              {hobby}
-            </button>
-          )
-        })}
-        {search && shown.length === 0 && <p className="muted">No matches</p>}
+        <div className="choices">
+          {[...picked, ...shown.filter((hobby) => !picked.includes(hobby))].map((hobby) => {
+            const chosen = picked.includes(hobby)
+            return (
+              <button
+                key={hobby}
+                type="button"
+                className={chosen ? 'picked' : undefined}
+                aria-pressed={chosen}
+                disabled={!chosen && picked.length >= 5}
+                onClick={() => toggle(hobby)}
+              >
+                {hobby}
+              </button>
+            )
+          })}
+          {search && shown.length === 0 && <p className="muted">No matches</p>}
+        </div>
       </fieldset>
       <fieldset className="goals">
         <legend>Looking for · at least 3</legend>

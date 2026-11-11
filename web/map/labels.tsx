@@ -43,6 +43,7 @@ const labels: Label[] = [
 ]
 
 const namesZoom = 7
+const closeZoom = 28
 const arrivalZoom = 30
 const placeLift = 1.6
 const pill = { width: 64, height: 32 }
@@ -179,6 +180,7 @@ export function Labels({
       if (marker.lastChild!.textContent !== count) marker.lastChild!.textContent = count
       if (marker.ariaLabel !== spoken) marker.ariaLabel = spoken
       marker.classList.toggle('far', far)
+      marker.classList.toggle('close', camera.zoom >= closeZoom)
     }
   })
   return null

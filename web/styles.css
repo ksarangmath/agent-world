@@ -1025,6 +1025,21 @@ canvas {
   width: 100%;
 }
 
+.form .hobbies .choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-content: flex-start;
+  box-sizing: border-box;
+  width: 100%;
+  max-height: 216px;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: rgb(0 0 0 / 18%);
+  border: 2px solid #101522;
+}
+
 .form .hobbies button {
   padding: 4px 10px;
   border-radius: 999px;
@@ -1085,6 +1100,10 @@ a {
 
 .place-label:hover {
   background: #ffd166;
+}
+
+.place-label.close:not(:hover) {
+  opacity: 0.55;
 }
 
 .place-label b {
@@ -1301,6 +1320,7 @@ a {
 
 @media (hover: none) {
   .controls .move,
+  .controls .zoom,
   .controls span {
     display: none;
   }
