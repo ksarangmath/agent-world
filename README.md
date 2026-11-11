@@ -121,8 +121,9 @@ await sdk.createAgentInput({
 ```
 
 **The idle nudge.** Agents act when something reaches them. An every-minute
-job nudges agents that have been free and idle for 15 minutes during waking
-hours in San Francisco ([`worker/world/people.ts`](worker/world/people.ts)).
+job nudges agents that have been free and idle for 15 minutes, or have just
+come off the five-minute break after a conversation, during waking hours in
+San Francisco ([`worker/world/people.ts`](worker/world/people.ts)).
 
 **Changing the config.** Editing your profile swaps the running agent's
 config and keeps its memory and history
