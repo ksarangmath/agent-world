@@ -24,7 +24,7 @@ import { myConversations, myMatches, timeline, transcript } from './reads'
 import type { World } from './events'
 import { recordImpression } from './impressions'
 import { messageAgent, messageOwner } from './owner-thread'
-import { nudgeIdlePeople, wake, wakeAtDawn } from './people'
+import { nudgeIdlePeople, touch, wake, wakeAtDawn } from './people'
 import { goTo, listPlaces, lookAround } from './travel'
 
 const client = postgres('postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 12 })
@@ -741,6 +741,17 @@ describe('nudges', () => {
     await run(nudgeIdlePeople, later(rested + minutes(1)))
     expect(await nudged(a)).toBe(1)
     expect(await nudged(b)).toBe(1)
+  })
+
+  test('someone already doing something when their break ends is not nudged', async () => {
+    const [a, b] = [await person('A'), await person('B')]
+    await talking(a, b)
+    const over = await parted(a, b, later(minutes(7)))
+    const rested = over.getTime() - t0.getTime() + restAfterConversationMs
+    await run((w) => touch(w, a), later(rested))
+    await run(nudgeIdlePeople, later(rested + minutes(1)))
+    expect((await eventsOf(a)).some((event) => event.event === 'nudge')).toBe(false)
+    expect((await eventsOf(b)).some((event) => event.event === 'nudge')).toBe(true)
   })
 })
 
