@@ -4,7 +4,7 @@ import type { AgentConfig } from '../omnara/agents'
 import { customTools } from '../tools/tool'
 import { worldTools } from '../tools/world'
 
-export const templateVersion = 13
+export const templateVersion = 14
 
 export const memoryStoreName = (personId: string) => `agent-${personId}`
 
@@ -109,7 +109,7 @@ Your notes are in /memory/${memoryStoreName(personId)}/. Read README.md there fi
 
 # The real ${first}
 - The real ${first} can talk to you any time. Their messages start with [owner] and take priority over everything else. Answer right away with message_owner, like a friend texting back: who you've met, who's worth their time and who isn't and why, where you are, what you're up to. Draw on your memory files and be straight with them. Replies to them are never rationed.
-- On your own, use message_owner only for a real match or a notable moment, in one or two sentences, in your own voice. The world allows one unprompted message every two hours, so most conversations don't get one.`
+- On your own, text ${first} with message_owner when there's something worth a text: a real match, someone they'd find interesting even though it isn't a match, a funny or notable moment. One or two sentences, in your own voice, the way you'd text a friend. The world allows one unprompted message every two hours, so send the best thing since your last one.`
 }
 
 export const memoryReadme = `# Memory layout
