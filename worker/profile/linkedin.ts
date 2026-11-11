@@ -1,5 +1,5 @@
 import type { LinkedInIdentity } from './builder'
-import { exaFreshContents } from './exa'
+import { exaContents, exaFreshContents } from './exa'
 
 export type LinkedInProblem =
   | 'no-sign-in-photo'
@@ -37,8 +37,8 @@ export function profileUrl(value: string) {
     : null
 }
 
-const tries = 8
-const everyMs = 4000
+const tries = 5
+const everyMs = 5000
 const notFoundTwice = 2
 
 const pause = (ms: number, stop: AbortSignal) =>
@@ -66,6 +66,12 @@ export async function verifyLinkedIn(
   const stop = new AbortController()
   const failures = new Set<string>()
   let missing = 0
+  const stored = async () => {
+    const copies = await exaContents(apiKey, [url], stop.signal)
+    const profile = copies.find((copy) => profileUrl(copy.url) === url)
+    if (profile && photoId(profile.image) === signedIn) return profile
+    throw new Error('no stored copy with the sign-in photo')
+  }
   const read = async (attempt: number) => {
     await pause(attempt * everyMs, stop.signal)
     try {
@@ -80,7 +86,10 @@ export async function verifyLinkedIn(
     throw new Error('LinkedIn profile not read')
   }
   try {
-    const profile = await Promise.any(Array.from({ length: tries }, (_, attempt) => read(attempt)))
+    const profile = await Promise.any([
+      stored(),
+      ...Array.from({ length: tries }, (_, attempt) => read(attempt)),
+    ])
     if (!profile) return 'not-found'
     const photo = photoId(profile.image)
     if (!profile.image || !photo) return 'no-public-photo'

@@ -58,30 +58,39 @@ describe('LinkedIn URLs', () => {
 
 describe('verifying a pasted LinkedIn profile', () => {
   const theirs = { url, photoUrl: photo('D5603AQsignedin') }
-  const fresh = expect.objectContaining({ urls: [url], maxAgeHours: 0, livecrawlTimeout: 12_000 })
+  const stored = expect.not.objectContaining({ maxAgeHours: expect.anything() })
+  const fresh = expect.objectContaining({ urls: [url], maxAgeHours: 0, livecrawlTimeout: 25_000 })
 
-  test('accepts it when a fresh fetch shows the sign-in photo, and fetches once', async () => {
+  test('accepts a stored copy at once when it shows the sign-in photo', async () => {
     const calls = exa([{ url, image: photo('D5603AQsignedin') }])
     expect(await verify()).toEqual(theirs)
-    expect(calls).toEqual([fresh])
+    expect(calls).toEqual([stored])
   })
 
-  test('starts another fetch every four seconds until one comes back', async () => {
+  test('reads live when the stored copy is missing or shows another photo', async () => {
+    const calls = exa(
+      [{ url, image: photo('D5603AQold') }],
+      [{ url, image: photo('D5603AQsignedin') }],
+    )
+    expect(await verify()).toEqual(theirs)
+    expect(calls).toEqual([stored, fresh])
+  })
+
+  test('starts another live fetch every five seconds until one comes back', async () => {
     const calls = exa([], new Error('timed out'), [{ url, image: photo('D5603AQsignedin') }])
     const result = verifyLinkedIn('key', identity, url)
-    await vi.advanceTimersByTimeAsync(3999)
-    expect(calls).toHaveLength(1)
-    await vi.advanceTimersByTimeAsync(1)
+    await vi.advanceTimersByTimeAsync(4999)
     expect(calls).toHaveLength(2)
-    await vi.advanceTimersByTimeAsync(4000)
+    await vi.advanceTimersByTimeAsync(1)
     expect(await result).toEqual(theirs)
     await vi.runAllTimersAsync()
-    expect(calls).toHaveLength(3)
+    expect(calls).toEqual([stored, fresh, fresh])
   })
 
-  test("rejects a profile with someone else's photo", async () => {
-    exa([{ url, image: photo('D5603AQsomeoneelse') }])
+  test("rejects a profile with someone else's photo, but only on a live fetch", async () => {
+    const calls = exa([{ url, image: photo('D5603AQsomeoneelse') }])
     expect(await verify()).toBe('not-yours')
+    expect(calls).toEqual([stored, fresh])
   })
 
   test('asks for a public photo when the public profile shows none', async () => {
@@ -95,14 +104,14 @@ describe('verifying a pasted LinkedIn profile', () => {
     expect(calls).toHaveLength(0)
   })
 
-  test('says there is no public profile only after two fetches say so', async () => {
+  test('says there is no public profile only after two live fetches say so', async () => {
     const calls = exa('not found')
     expect(await verify()).toBe('not-found')
-    expect(calls).toHaveLength(2)
+    expect(calls).toEqual([stored, fresh, fresh])
   })
 
-  test('one fetch that finds nothing does not stop a later one that finds the profile', async () => {
-    exa('not found', [{ url, image: photo('D5603AQsignedin') }])
+  test('one live fetch that finds nothing does not stop a later one that finds the profile', async () => {
+    exa('not found', 'not found', [{ url, image: photo('D5603AQsignedin') }])
     expect(await verify()).toEqual(theirs)
   })
 
@@ -113,17 +122,18 @@ describe('verifying a pasted LinkedIn profile', () => {
     expect(log).toHaveBeenCalledWith('LinkedIn check failed', 'no profile')
   })
 
-  test('reports LinkedIn as unreachable after eight fetches that come back empty or fail', async () => {
+  test('reports LinkedIn as unreachable after five live fetches that come back empty or fail', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const calls = exa([], new Error('network down'))
+    const calls = exa([], [], new Error('network down'))
     expect(await verify()).toBe('unreachable')
-    expect(calls).toHaveLength(8)
+    expect(calls).toHaveLength(6)
     expect(log).toHaveBeenCalledWith('LinkedIn check failed', 'no profile, Error')
   })
 
   test('logs what kind of failure it was, never what Exa or the network said', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     exa(
+      [],
       new Response('<html>Ada Lovelace, ada@example.com</html>'),
       new Response('rate limited for key abc', { status: 429 }),
       Response.json({

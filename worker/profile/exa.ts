@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 const timeoutMs = 20_000
-const freshCrawlMs = 12_000
+const freshCrawlMs = 25_000
 const maxCharacters = 3000
 
 const responseSchema = z.object({
@@ -72,8 +72,8 @@ export const exaSearch = async (apiKey: string, query: string, results: number) 
     })
   ).results
 
-export const exaContents = async (apiKey: string, urls: string[]) =>
-  (await exa(apiKey, 'contents', { urls, text: { maxCharacters } })).results
+export const exaContents = async (apiKey: string, urls: string[], signal?: AbortSignal) =>
+  (await exa(apiKey, 'contents', { urls, text: { maxCharacters } }, signal)).results
 
 // https://exa.ai/docs/reference/get-contents
 // https://exa.ai/docs/admin/error-codes
@@ -82,5 +82,5 @@ export const exaFreshContents = (apiKey: string, urls: string[], stop: AbortSign
     apiKey,
     'contents',
     { urls, text: { maxCharacters }, maxAgeHours: 0, livecrawlTimeout: freshCrawlMs },
-    AbortSignal.any([stop, AbortSignal.timeout(freshCrawlMs + 2000)]),
+    AbortSignal.any([stop, AbortSignal.timeout(freshCrawlMs + 5000)]),
   )
