@@ -33,7 +33,6 @@ export function Ambient({ people }: { people: WorldPerson[] }) {
         y: pair.reduce((sum, person) => sum + person.tile.y, 0) / pair.length + 0.5,
       })),
       ...[...crowds]
-        .filter(([, here]) => here > 1)
         .sort((a, b) => b[1] - a[1])
         .map(([placeId]) => {
           const { center } = placesById.get(placeId)!

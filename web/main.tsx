@@ -101,19 +101,35 @@ function World() {
   const person = me.data?.person
   const focus = search.x === undefined && person?.tile ? { ...person.tile, zoom: 30 } : search
   const world = useWorld()
-  const talking = (world.data?.snapshot.people ?? []).filter((one) => one.conversationId).length / 2
+  const agents = world.data?.snapshot.people ?? []
+  const talking = agents.filter((one) => one.conversationId).length / 2
   return (
     <main className="home">
       <Suspense>
         <WorldMap focus={focus} />
       </Suspense>
       <header className="panel">
-        <img className="lockup" src="/lockup.png" alt="Agent World" />
-        {talking > 0 && (
-          <button type="button" className="pulse" onClick={() => tour(true)}>
-            {talking === 1 ? '1 conversation' : `${talking} conversations`} happening now
-          </button>
-        )}
+        {!session && <img className="lockup" src="/lockup.png" alt="Agent World" />}
+        {session && person && <You person={person} userId={session.user.id} />}
+        <div className="status">
+          {agents.length > 0 && (
+            <button type="button" className="pulse" onClick={() => tour(true)}>
+              <span>
+                {agents.length === 1 ? '1 agent' : `${agents.length} agents`} in the world
+              </span>
+              {talking > 0 && (
+                <span>
+                  {talking === 1 ? '1 conversation' : `${talking} conversations`} happening now
+                </span>
+              )}
+            </button>
+          )}
+          {session && person && (
+            <button type="button" className="quiet" onClick={() => void signOut()}>
+              Sign out
+            </button>
+          )}
+        </div>
         {session === null && (
           <button type="button" className="big linkedin" onClick={() => void signIn()}>
             <span className="mark" aria-hidden="true">
@@ -122,8 +138,7 @@ function World() {
             Join with LinkedIn
           </button>
         )}
-        {session && person && <You person={person} userId={session.user.id} />}
-        {session && (
+        {session && !person && (
           <p className="account">
             Signed in as {String(session.user.user_metadata.name ?? session.user.email)}.{' '}
             <button type="button" onClick={() => void signOut()}>

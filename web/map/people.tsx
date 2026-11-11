@@ -76,6 +76,13 @@ export const sleepers = {
   y: new Float32Array(capacity),
   height: new Float32Array(capacity),
 }
+export const travelers = {
+  count: 0,
+  who: [] as WorldPerson[],
+  x: new Float32Array(capacity),
+  y: new Float32Array(capacity),
+  height: new Float32Array(capacity),
+}
 const bubbleLift = 1.7
 const seat: Seat = { x: 0, y: 0, height: 0, heading: 0, walking: false }
 const mostWalkers = 64
@@ -286,6 +293,7 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
     const hoverable = camera.zoom >= hoverZoom
     placements.current.length = shown.length
     carriers.count = 0
+    travelers.count = 0
     let walking = 0
     shown.forEach((person, i) => {
       let [x, y] = [person.tile.x + 0.5, person.tile.y + 0.5]
@@ -429,8 +437,13 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
         return
       }
       const ground = deck ?? surfaceAt(x, y) + lift
-      if (travelling && walking < mostWalkers) {
-        walkers.set([x, y, ground], walking++ * 3)
+      if (travelling) {
+        if (walking < mostWalkers) walkers.set([x, y, ground], walking++ * 3)
+        const k = travelers.count++
+        travelers.who[k] = person
+        travelers.x[k] = x
+        travelers.y[k] = y
+        travelers.height[k] = ground + bubbleLift
       }
       placements.current[i] = {
         x,

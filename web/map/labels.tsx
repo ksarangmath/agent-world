@@ -43,7 +43,7 @@ const labels: Label[] = [
 ]
 
 const namesZoom = 7
-const closeZoom = 28
+export const closeZoom = 28
 const arrivalZoom = 30
 const placeLift = 1.6
 const pill = { width: 64, height: 32 }
