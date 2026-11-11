@@ -55,6 +55,7 @@ const profile = (name: string): Profile => ({
   avoid: '',
   conversation_style: '',
   fun_facts: [],
+  background: [],
   links: [],
   avatar: {
     gender: 'male',
@@ -294,8 +295,10 @@ describe('conversations', () => {
     ]
     await talking(a, b)
     await run((w) => sendMessage(w, b, 'so that is the whole story'))
-    await run((w) => endConversation(w, a, 'good meeting you'))
-    const rushed = await run((w) => endConversation(w, b, 'you too'), later(2000))
+    const early = await run((w) => endConversation(w, a, 'good meeting you'), later(1000))
+    expect(early).toMatchObject({ ok: false, text: expect.stringContaining('still landing') })
+    await run((w) => endConversation(w, a, 'good meeting you'), later(10_000))
+    const rushed = await run((w) => endConversation(w, b, 'you too'), later(11_000))
     expect(rushed).toMatchObject({ ok: false, text: expect.stringContaining('still landing') })
     const back = await run((w) => endConversation(w, b, 'you too'), later(30_000))
     expect(JSON.parse(back.text)).toMatchObject({ ended: true })

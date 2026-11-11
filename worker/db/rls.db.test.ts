@@ -20,6 +20,7 @@ const profile = (name: string): Profile => ({
   avoid: '',
   conversation_style: '',
   fun_facts: [],
+  background: [],
   links: [],
   avatar: {
     gender: 'male',

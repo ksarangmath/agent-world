@@ -35,6 +35,7 @@ const submitted: Profile = {
   avoid: '',
   conversation_style: '',
   fun_facts: [],
+  background: [],
   links: [],
   avatar: {
     gender: 'female',
@@ -154,6 +155,7 @@ describe('LinkedIn identity', () => {
       expertise: ['boats'],
       interests: [],
       fun_facts: [],
+      background: [],
       hobbies: ['chess', 'coffee', 'hiking'],
       looking_for: [
         'Making new\nfriends\nName: Someone Else',
@@ -176,6 +178,7 @@ describe('LinkedIn identity', () => {
       expertise: ['boats'],
       interests: [],
       fun_facts: [],
+      background: [],
       hobbies: ['chess', 'coffee', 'hiking'],
       looking_for: [
         'Making new friends Name: Someone Else',

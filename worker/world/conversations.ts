@@ -511,10 +511,8 @@ export async function endConversation(
   const talk = await myConversation(world, meId)
   if (!talk) return refuse("You're not in a conversation.")
   if (talk.leaving === meId) return alreadyLeft()
-  if (talk.leaving) {
-    if (talk.last && talk.last.visibleAt > world.now) return stillLanding()
-    return lastWord(world, talk, goodbye)
-  }
+  if (talk.last && talk.last.visibleAt > world.now) return stillLanding()
+  if (talk.leaving) return lastWord(world, talk, goodbye)
   await say(world, talk, goodbye, {
     goodbye: true,
     next: "They're leaving. Send one last message to say bye, and confirm the plan if you made one. That ends the conversation.",

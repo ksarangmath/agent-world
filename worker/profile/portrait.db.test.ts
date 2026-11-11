@@ -35,6 +35,7 @@ const edits: Editable = {
   expertise: [],
   interests: [],
   fun_facts: [],
+  background: [],
   hobbies: ['chess', 'coffee', 'hiking'],
   looking_for: ['Making new friends', 'Finding a climbing partner', 'Learning to cook'],
   about_me: '',

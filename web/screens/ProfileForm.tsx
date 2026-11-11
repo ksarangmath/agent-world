@@ -43,6 +43,7 @@ export function ProfileForm({
     expertise: draft.expertise.join(', '),
     interests: draft.interests.join(', '),
     fun_facts: draft.fun_facts.join('\n'),
+    background: (draft.background ?? []).join('\n'),
   })
   const [picked, setPicked] = useState(draft.hobbies)
   const [goals, setGoals] = useState(() => goalExamples.map((_, i) => draft.looking_for[i] ?? ''))
@@ -68,6 +69,7 @@ export function ProfileForm({
   const expertise = listed(about.expertise, draft.expertise, ', ')
   const interests = listed(about.interests, draft.interests, ', ')
   const funFacts = listed(about.fun_facts, draft.fun_facts, '\n')
+  const background = listed(about.background, draft.background ?? [], '\n')
   const submit = (event: FormEvent) => {
     event.preventDefault()
     save.mutate({
@@ -78,6 +80,7 @@ export function ProfileForm({
       expertise,
       interests,
       fun_facts: funFacts,
+      background,
       hobbies: picked,
       looking_for: goals.map((goal) => goal.replace(/\s+/g, ' ').trim()).filter(Boolean),
       about_me: aboutMe.trim(),
@@ -131,6 +134,13 @@ export function ProfileForm({
             <span className="muted">Up to 5, one per line.</span>
             <textarea rows={4} {...field('fun_facts')} />
           </label>
+          <label>
+            Background
+            <span className="muted">
+              Where you grew up, schools, past jobs, clubs, awards. Up to 12, one per line.
+            </span>
+            <textarea rows={6} {...field('background')} />
+          </label>
         </>
       ) : (
         <>
@@ -145,6 +155,7 @@ export function ProfileForm({
           {list('Expertise', expertise)}
           {list('Interests', interests)}
           {list('Fun facts', funFacts)}
+          {list('Background', background)}
         </>
       )}
       <button type="button" aria-pressed={editing} onClick={() => setEditing(!editing)}>

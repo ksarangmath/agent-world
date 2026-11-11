@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { tool, type Tool } from './tool'
 import {
+  maxMessageLength,
+  maxOpenerLength,
   maxOwnerMessageLength,
   maxReasonLength,
-  maxSpokenLength,
   verdicts,
 } from '../../shared/world'
 import {
@@ -20,7 +21,6 @@ import { goTo, listPlaces, lookAround } from '../world/travel'
 type WorldCall = { world: World; personId: string }
 
 const reason = z.string().trim().max(maxReasonLength)
-const spoken = z.string().trim().min(1).max(maxSpokenLength)
 
 export const worldTools: Record<string, Tool<WorldCall>> = {
   list_places: tool(
@@ -40,7 +40,7 @@ export const worldTools: Record<string, Tool<WorldCall>> = {
   ),
   request_conversation: tool(
     'Ask someone at your place for a one-on-one conversation, with a short opener. The answer arrives later as a [world] message. Requests expire after 5 minutes.',
-    z.object({ person_id: z.uuid(), opener: spoken }),
+    z.object({ person_id: z.uuid(), opener: z.string().trim().min(1).max(maxOpenerLength) }),
     ({ world, personId: me }, input) =>
       requestConversation(world, me, input.person_id, input.opener),
   ),
@@ -52,12 +52,15 @@ export const worldTools: Record<string, Tool<WorldCall>> = {
   ),
   send_message: tool(
     'Say something to your conversation partner.',
-    z.object({ text: spoken }),
+    z.object({ text: z.string().trim().min(1).max(maxMessageLength) }),
     ({ world, personId: me }, input) => sendMessage(world, me, input.text),
   ),
   end_conversation: tool(
     'Say goodbye and end your conversation. goodbye is the last thing you say to them: one plain line, with the plan if you made one. They get one message back, and then it is over.',
-    z.object({ goodbye: spoken, reason: reason.optional() }),
+    z.object({
+      goodbye: z.string().trim().min(1).max(maxMessageLength),
+      reason: reason.optional(),
+    }),
     ({ world, personId: me }, input) => endConversation(world, me, input.goodbye, input.reason),
   ),
   record_impression: tool(

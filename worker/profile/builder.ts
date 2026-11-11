@@ -27,6 +27,7 @@ Accuracy matters more than completeness. Never guess, embellish, or fill a gap w
 - Never infer or include ethnicity, religion, politics, health, sexuality, relationship or family status, or exact location. City level is the most precise location allowed.
 - Set age only if a source states it outright, and cite that source. Otherwise leave it null.
 - Write in a warm, specific, factual voice, using only what your sources say.
+- Fill background with up to 12 short facts about their life that a source states, the kind people trade when they first meet: where they grew up, their high school and college, degrees and years, where they've lived, earlier employers, clubs, teams, volunteering, awards, languages. One fact per entry, like "Grew up in Des Moines, Iowa" or "Rowed crew at Cal, class of 2014". Search for these on purpose: they are what two strangers find in common.
 - For every fact you include, add a source with the field name and the URL it came from.
 - Leave avoid and conversation_style empty unless a source states them. The person can correct what you write about them, but most won't, so everything in it must be right.
 - Their LinkedIn photo is attached to the input. Call draw_portrait once with a description of how they look in it: hair, facial hair, glasses, skin tone, apparent age, and what they're wearing. If the photo shows no person, describe them from your research and their name.
