@@ -80,18 +80,19 @@ export function revealWalkers(walkers: Float32Array, count: number) {
 export function seeThrough(
   material: Material,
   also?: (shader: WebGLProgramParametersWithUniforms) => void,
+  spared = 0,
 ) {
   material.allowOverride = false
   const facing = material instanceof MeshBasicMaterial ? 'vec3(0.0, 0.0, 1.0)' : 'normal'
   const program = `sightline-${programs++}`
   material.customProgramCacheKey = () => program
   material.onBeforeCompile = (shader) => {
-    cutAway(shader, facing)
+    cutAway(shader, facing, spared)
     also?.(shader)
   }
 }
 
-function cutAway(shader: WebGLProgramParametersWithUniforms, facing: string) {
+function cutAway(shader: WebGLProgramParametersWithUniforms, facing: string, spared: number) {
   shader.uniforms.sightlines = { value: (ceilings ??= sightlineCeilings()) }
   shader.uniforms.reveal = reveal
   shader.uniforms.drawingNormals = drawingNormals
@@ -125,7 +126,7 @@ float bayer2(vec2 a) { a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75);
       `if (reveal > 0.0) {
   float ceiling = texture2D(sightlines, vSightline.xz / vec2(${mapWidth}.0, ${mapHeight}.0)).r;
   float dither = bayer2(0.5 * gl_FragCoord.xy) * 0.25 + bayer2(gl_FragCoord.xy);
-  if (vSightline.y > ceiling && dither < reveal) discard;
+  if (vSightline.y > ceiling + ${spared.toFixed(2)} && dither < reveal) discard;
 }
 #include <opaque_fragment>`,
     )

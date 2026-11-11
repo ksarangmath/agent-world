@@ -1,5 +1,6 @@
+import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useRef } from 'react'
-import { BoxGeometry, Color, Object3D, type InstancedMesh } from 'three'
+import { BoxGeometry, Color, MeshBasicMaterial, Object3D, type InstancedMesh } from 'three'
 import { places, type Place } from '../../shared/map/places'
 import { spots } from '../../shared/map/spots'
 import { useDetail, viewFrom } from './clock'
@@ -8,6 +9,7 @@ import { hash } from './elevation'
 import { toon } from './paint'
 import { seeThrough } from './sightlines'
 
+type Move = 'spin' | 'sway' | 'bob' | 'bounce' | 'flicker' | 'beat' | 'disco'
 type Prop = {
   x: number
   z: number
@@ -15,11 +17,15 @@ type Prop = {
   size: [number, number, number]
   color: string
   yaw: number
+  move?: Move
 }
 
 const box = new BoxGeometry(1, 1, 1).translate(0, 0.5, 0)
 const material = toon()
-seeThrough(material)
+const glowing = new MeshBasicMaterial()
+const underfoot = 0.35
+seeThrough(material, undefined, underfoot)
+seeThrough(glowing, undefined, underfoot)
 const propScale = 1.7
 const bright = ['#e8524a', '#f2b632', '#4aa3df', '#5fbf6b', '#b06ad9', '#f28c38']
 const across = Math.hypot(viewFrom.x, viewFrom.z)
@@ -47,6 +53,7 @@ export function propsOf(place: Place): Prop[] {
       size: [number, number, number],
       tint: string,
       side = 0,
+      move?: Move,
     ) =>
       props.push({
         x: cx + (ux * forward + uz * side) * propScale,
@@ -55,8 +62,9 @@ export function propsOf(place: Place): Prop[] {
         size: [size[0] * propScale, size[1] * propScale, size[2] * propScale],
         color: tint,
         yaw,
+        move,
       })
-    const floor = (tint: string, top: number) =>
+    const floor = (tint: string, top: number, move?: Move) =>
       props.push({
         x: cx,
         z: cz,
@@ -64,6 +72,7 @@ export function propsOf(place: Place): Prop[] {
         size: [1, top, 1],
         color: tint,
         yaw: 0,
+        move,
       })
     const stool = () => add(0, 0, [0.16, 0.12, 0.16], '#7a5a3a')
     const table = (top: string) => {
@@ -101,8 +110,8 @@ export function propsOf(place: Place): Prop[] {
         add(0, 0, [1, 0.1, 1], '#a8744a')
         add(0.46, 0.1, [0.9, 0.03, 0.05], color)
         if (i === 0) {
-          add(0.6, 0.1, [0.25, 0.55, 0.25], '#2a2a33', 0.5)
-          add(0.6, 0.1, [0.25, 0.55, 0.25], '#2a2a33', -0.5)
+          add(0.6, 0.1, [0.25, 0.55, 0.25], '#2a2a33', 0.5, 'beat')
+          add(0.6, 0.1, [0.25, 0.55, 0.25], '#2a2a33', -0.5, 'beat')
         }
         break
       case 'pitching':
@@ -135,7 +144,7 @@ export function propsOf(place: Place): Prop[] {
         }
         break
       case 'surfing':
-        add(0.2, 0, [0.12, 0.75, 0.035], color, 0.3)
+        add(0.2, 0, [0.12, 0.75, 0.035], color, 0.3, 'bob')
         break
       case 'sailing':
         add(0, -0.02, [1, 0.08, 1], '#a88a6a')
@@ -144,7 +153,7 @@ export function propsOf(place: Place): Prop[] {
       case 'tinkering':
         add(0.3, 0, [0.55, 0.26, 0.28], '#8b5a2b')
         add(0.3, 0.26, [0.13, 0.13, 0.13], '#9aa3ad')
-        add(0.3, 0.39, [0.08, 0.07, 0.08], '#c7cdd3')
+        add(0.3, 0.39, [0.08, 0.07, 0.08], '#c7cdd3', 0, 'sway')
         break
       case 'chatting':
         add(0.3, 0, [0.45, 0.12, 0.16], '#7a5a3a')
@@ -160,6 +169,8 @@ export function propsOf(place: Place): Prop[] {
             0.12,
             [1.3, place.activity === 'karaoke' ? 0.6 : 0.95, 0.08],
             place.activity === 'karaoke' ? '#ff5fa8' : '#9a4b3c',
+            0,
+            place.activity === 'karaoke' ? 'disco' : undefined,
           )
         } else {
           stool()
@@ -179,7 +190,7 @@ export function propsOf(place: Place): Prop[] {
       case 'rallying':
         floor((spot.x + spot.y) % 2 ? '#3f7fbf' : '#3f9f6f', 0.03)
         add(0.3, 0.06, [0.6, 0.18, 0.02], '#f4f1ea')
-        add(0.1, 0.06, [0.05, 0.05, 0.05], '#d8f23a', 0.25)
+        add(0.1, 0.06, [0.05, 0.05, 0.05], '#d8f23a', 0.25, 'bounce')
         break
       case 'swimming':
         floor((spot.x + spot.y) % 2 ? '#49b6e8' : '#5cc3ee', 0.3)
@@ -188,7 +199,7 @@ export function propsOf(place: Place): Prop[] {
         floor((spot.x + spot.y) % 2 ? '#c79a5e' : '#d4a96b', 0.04)
         if (i === 0) {
           add(0, 1.5, [0.02, 0.5, 0.02], '#8e969e')
-          add(0, 1.25, [0.25, 0.25, 0.25], '#e8eef5')
+          add(0, 1.25, [0.25, 0.25, 0.25], '#e8eef5', 0, 'spin')
         }
         break
       case 'dogs':
@@ -198,6 +209,7 @@ export function propsOf(place: Place): Prop[] {
           [0.12, 0.12, 0.26],
           i % 3 === 0 ? '#3a2f28' : i % 3 === 1 ? '#c98a4b' : '#f1e6d2',
           0.2,
+          'bob',
         )
         add(
           0.5,
@@ -205,60 +217,70 @@ export function propsOf(place: Place): Prop[] {
           [0.1, 0.1, 0.1],
           i % 3 === 0 ? '#3a2f28' : i % 3 === 1 ? '#c98a4b' : '#f1e6d2',
           0.2,
+          'bob',
         )
-        if (i % 4 === 0) add(0.2, 0, [0.07, 0.07, 0.07], '#d8f23a', -0.3)
+        if (i % 4 === 0) add(0.2, 0, [0.07, 0.07, 0.07], '#d8f23a', -0.3, 'bounce')
         break
       case 'flying':
         add(0, 0, [0.5, 0.02, 0.5], color)
         if (i === 0) {
           add(0.9, 0, [0.03, 0.9, 0.03], '#8e969e', 0.9)
-          add(0.9, 0.8, [0.1, 0.1, 0.34], '#f28c38', 0.9)
+          add(0.9, 0.8, [0.1, 0.1, 0.34], '#f28c38', 0.9, 'sway')
         }
         break
       case 'camping':
         add(0, 0, [0.3, 0.1, 0.14], '#7a5a3a')
         add(0.3, 0, [0.08, 0.3, 0.08], '#5b4632', 0.2)
         add(0.3, 0.3, [0.07, 0.07, 0.07], '#f4f1ea', 0.2)
+        if (i === 0) {
+          add(0.75, 0, [0.34, 0.06, 0.08], '#5b4632')
+          add(0.75, 0, [0.08, 0.06, 0.34], '#6b4f36')
+          add(0.75, 0.06, [0.14, 0.24, 0.14], '#ff7a2f', 0, 'flicker')
+          add(0.75, 0.06, [0.08, 0.34, 0.08], '#ffb347', 0.05, 'flicker')
+          add(0.75, 0.06, [0.07, 0.18, 0.07], '#ffd166', -0.06, 'flicker')
+        }
         break
       case 'yoga':
         floor('#c9a978', 0.05)
         add(0, 0.06, [0.38, 0.015, 0.56], color)
         break
       case 'dancing':
-        floor((spot.x + spot.y) % 2 ? '#b8834f' : '#a8744a', 0.04)
+        floor((spot.x + spot.y) % 2 ? '#b8834f' : '#a8744a', 0.04, 'disco')
         if (i === 0) {
-          add(0.7, 0.05, [0.3, 0.6, 0.3], '#2a2a33', 0.6)
-          add(0.7, 0.05, [0.3, 0.6, 0.3], '#2a2a33', -0.6)
+          add(0.7, 0.05, [0.3, 0.6, 0.3], '#2a2a33', 0.6, 'beat')
+          add(0.7, 0.05, [0.3, 0.6, 0.3], '#2a2a33', -0.6, 'beat')
         }
         break
       case 'gardening':
         add(0.36, 0, [0.7, 0.14, 0.4], '#8b5a2b')
         add(0.36, 0.14, [0.6, 0.03, 0.3], '#4a3524')
-        add(0.36, 0.17, [0.1, 0.16, 0.1], '#4f9f4a', -0.2)
-        add(0.36, 0.17, [0.1, 0.22, 0.1], '#5fbf6b')
-        add(0.36, 0.17, [0.1, 0.12, 0.1], i % 2 ? '#e8524a' : '#f2b632', 0.2)
+        add(0.36, 0.17, [0.1, 0.16, 0.1], '#4f9f4a', -0.2, 'sway')
+        add(0.36, 0.17, [0.1, 0.22, 0.1], '#5fbf6b', 0, 'sway')
+        add(0.36, 0.17, [0.1, 0.12, 0.1], i % 2 ? '#e8524a' : '#f2b632', 0.2, 'sway')
         break
       case 'cooking':
         add(0.32, 0, [0.6, 0.3, 0.3], '#c7cdd3')
         add(0.32, 0.3, [0.16, 0.1, 0.16], '#2f2a36', -0.14)
         add(0.32, 0.3, [0.18, 0.02, 0.12], '#e3d5b8', 0.16)
         add(0.32, 0.32, [0.05, 0.04, 0.05], i % 2 ? '#e8524a' : '#5fbf6b', 0.16)
+        add(0.32, 0.44, [0.07, 0.07, 0.07], '#f4f1ea', -0.14, 'bob')
         break
       case 'fishing':
         add(0.55, 0.42, [0.015, 0.015, 0.9], '#5b4632')
         add(0.98, 0, [0.008, 0.42, 0.008], '#e8eef5')
+        add(0.98, -0.02, [0.05, 0.05, 0.05], '#e8524a', 0, 'bob')
         add(0.1, 0, [0.14, 0.14, 0.14], '#4aa3df', 0.28)
         break
       case 'stargazing':
         add(0.3, 0, [0.03, 0.32, 0.03], '#2a2a33')
-        add(0.3, 0.32, [0.09, 0.09, 0.4], '#e8eef5')
+        add(0.3, 0.32, [0.09, 0.09, 0.4], '#e8eef5', 0, 'sway')
         add(0, 0, [0.4, 0.02, 0.8], '#5a4a7a')
         break
       case 'pottery':
         stool()
         add(0.3, 0, [0.3, 0.16, 0.3], '#6b6f7a')
-        add(0.3, 0.16, [0.22, 0.03, 0.22], '#9aa3ad')
-        add(0.3, 0.19, [0.1, 0.12, 0.1], '#c0643f')
+        add(0.3, 0.16, [0.22, 0.03, 0.22], '#9aa3ad', 0, 'spin')
+        add(0.3, 0.19, [0.1, 0.12, 0.1], '#c0643f', 0, 'spin')
         break
       case 'birding':
         add(0.5, 0, [0.03, 0.5, 0.03], '#7f9a4a', 0.3)
@@ -282,30 +304,82 @@ export function propsOf(place: Place): Prop[] {
   })
 }
 
+const disco = bright.map((hex) => new Color(hex))
+const flames = ['#ff7a2f', '#ffb347', '#ffd166'].map((hex) => new Color(hex))
+
+const dummy = new Object3D()
+const paint = new Color()
+
+function place(mesh: InstancedMesh, list: Prop[], seconds?: number) {
+  list.forEach((prop, i) => {
+    const phase = (prop.x * 12.9898 + prop.z * 78.233) % (Math.PI * 2)
+    const t = (seconds ?? 0) + phase
+    const [width, height, depth] = prop.size
+    const move = seconds === undefined ? undefined : prop.move
+    const lift =
+      move === 'bob'
+        ? 0.05 * Math.sin(t * 2.4)
+        : move === 'bounce'
+          ? 0.45 * Math.abs(Math.sin(t * 3.2))
+          : 0
+    const turn = move === 'spin' ? t * 3 : move === 'sway' ? 0.45 * Math.sin(t * 1.1) : 0
+    const beat = move === 'beat' ? 1 + 0.07 * Math.max(0, Math.sin(t * 9)) : 1
+    const flame =
+      move === 'flicker' ? 0.75 + 0.35 * Math.abs(Math.sin(t * 7.3) * Math.sin(t * 3.1)) : 1
+    dummy.position.set(prop.x, prop.y + lift, prop.z)
+    dummy.rotation.set(0, prop.yaw + turn, 0)
+    dummy.scale.set(width * beat, height * beat * flame, depth * beat)
+    dummy.updateMatrix()
+    mesh.setMatrixAt(i, dummy.matrix)
+    if (move === 'disco') mesh.setColorAt(i, disco[Math.floor(t * 1.5) % disco.length]!)
+    else if (move === 'flicker') mesh.setColorAt(i, flames[Math.floor(t * 6) % flames.length]!)
+    else if (seconds === undefined) mesh.setColorAt(i, paint.set(prop.color))
+  })
+  mesh.instanceMatrix.needsUpdate = true
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
+}
+
+const lit = (prop: Prop) => prop.move === 'disco' || prop.move === 'flicker'
+
 export function Places() {
-  const mesh = useRef<InstancedMesh>(null)
-  const props = useMemo(() => places.flatMap(propsOf), [])
+  const still = useRef<InstancedMesh>(null)
+  const moving = useRef<InstancedMesh>(null)
+  const glow = useRef<InstancedMesh>(null)
+  const props = useMemo(() => {
+    const all = places.flatMap(propsOf)
+    return {
+      still: all.filter((prop) => !prop.move),
+      moving: all.filter((prop) => prop.move && !lit(prop)),
+      glow: all.filter(lit),
+    }
+  }, [])
+  const detail = useDetail()
   useLayoutEffect(() => {
-    const dummy = new Object3D()
-    const color = new Color()
-    props.forEach((prop, i) => {
-      dummy.position.set(prop.x, prop.y, prop.z)
-      dummy.rotation.set(0, prop.yaw, 0)
-      dummy.scale.set(...prop.size)
-      dummy.updateMatrix()
-      mesh.current!.setMatrixAt(i, dummy.matrix)
-      mesh.current!.setColorAt(i, color.set(prop.color))
-    })
-    mesh.current!.instanceMatrix.needsUpdate = true
-    if (mesh.current!.instanceColor) mesh.current!.instanceColor.needsUpdate = true
-    mesh.current!.computeBoundingSphere()
+    place(still.current!, props.still)
+    place(moving.current!, props.moving)
+    place(glow.current!, props.glow)
+    for (const mesh of [still, moving, glow]) mesh.current!.computeBoundingSphere()
   }, [props])
+  useFrame(() => {
+    if (!detail) return
+    place(moving.current!, props.moving, Date.now() / 1000)
+    place(glow.current!, props.glow, Date.now() / 1000)
+  })
   return (
-    <instancedMesh
-      ref={mesh}
-      args={[box, material, props.length]}
-      castShadow={useDetail()}
-      receiveShadow
-    />
+    <>
+      <instancedMesh
+        ref={still}
+        args={[box, material, props.still.length]}
+        castShadow={detail}
+        receiveShadow
+      />
+      <instancedMesh
+        ref={moving}
+        args={[box, material, props.moving.length]}
+        castShadow={detail}
+        receiveShadow
+      />
+      <instancedMesh ref={glow} args={[box, glowing, props.glow.length]} />
+    </>
   )
 }
