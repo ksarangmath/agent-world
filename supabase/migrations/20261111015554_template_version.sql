@@ -1,0 +1,1 @@
+ALTER TABLE "people" ADD COLUMN "template_version" integer DEFAULT 0 NOT NULL;

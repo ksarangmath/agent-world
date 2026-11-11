@@ -1,11 +1,11 @@
-import { and, asc, eq, gt, isNotNull } from 'drizzle-orm'
+import { and, asc, eq, gt, isNotNull, lt, or } from 'drizzle-orm'
 import type { Profile } from '../../shared/profile'
 import { people, profileDrafts } from '../db/schema'
 import { updateAgentConfig } from '../omnara/agents'
 import type { Services } from '../tools/run'
 import { logError } from '../log'
 import { lockPeople, markConfigSynced, updateProfile } from '../world/people'
-import { worldAgentConfig } from './agent-config'
+import { templateVersion, worldAgentConfig } from './agent-config'
 import { linkedInIdentity } from './builder'
 import { launchPerson } from './launch'
 
@@ -50,13 +50,19 @@ export async function syncAgentConfig(services: Services, personId: string) {
   await services.db.transaction(async (tx) => {
     const world = { tx, now: new Date(), deliveries: [] }
     const person = (await lockPeople(world, [personId])).get(personId)
-    if (!person?.agentId || person.profileVersion <= person.configVersion) return
+    if (!person?.agentId) return
+    const current =
+      person.profileVersion <= person.configVersion && person.templateVersion >= templateVersion
+    if (current) return
     await updateAgentConfig(
       services.omnara,
       person.agentId,
       worldAgentConfig({ id: person.id, profile: person.profile }),
     )
-    await markConfigSynced(world, person.id, person.profileVersion)
+    await markConfigSynced(world, person.id, {
+      configVersion: person.profileVersion,
+      templateVersion,
+    })
   })
 }
 
@@ -69,7 +75,10 @@ export async function syncAllAgentConfigs(services: Services) {
       .where(
         and(
           isNotNull(people.agentId),
-          gt(people.profileVersion, people.configVersion),
+          or(
+            gt(people.profileVersion, people.configVersion),
+            lt(people.templateVersion, templateVersion),
+          ),
           after ? gt(people.id, after) : undefined,
         ),
       )

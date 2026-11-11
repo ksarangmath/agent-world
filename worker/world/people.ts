@@ -39,6 +39,7 @@ export const personColumns = {
   lastNudgedAt: people.lastNudgedAt,
   profileVersion: people.profileVersion,
   configVersion: people.configVersion,
+  templateVersion: people.templateVersion,
   createdAt: people.createdAt,
 }
 
@@ -260,6 +261,10 @@ export async function updateProfile(
     .where(eq(people.id, personId))
 }
 
-export async function markConfigSynced({ tx }: World, personId: string, version: number) {
-  await tx.update(people).set({ configVersion: version }).where(eq(people.id, personId))
+export async function markConfigSynced(
+  { tx }: World,
+  personId: string,
+  versions: { configVersion: number; templateVersion: number },
+) {
+  await tx.update(people).set(versions).where(eq(people.id, personId))
 }

@@ -70,6 +70,7 @@ export const people = pgTable(
     lastNudgedAt: timestamptz(),
     profileVersion: integer().notNull().default(0),
     configVersion: integer().notNull().default(0),
+    templateVersion: integer().notNull().default(0),
     portrait: bytes(),
     createdAt: createdAt(),
   },

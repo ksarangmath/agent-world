@@ -3,6 +3,8 @@ import type { AgentConfig } from '../omnara/agents'
 import { customTools } from '../tools/tool'
 import { worldTools } from '../tools/world'
 
+export const templateVersion = 1
+
 export const memoryStoreName = (personId: string) => `agent-${personId}`
 
 const list = (items: string[]) => (items.length > 0 ? items.join(', ') : 'none given')
