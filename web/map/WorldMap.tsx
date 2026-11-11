@@ -7,7 +7,6 @@ import { Buildings } from './buildings'
 import { Camera, VisibleArea, zoomBy, type Focus } from './camera'
 import { PixelPass } from './pixel'
 import { buildCity } from './city'
-import { Crowds } from './crowds'
 import { Decor } from './decor'
 import { Ground } from './ground'
 import { Labels } from './labels'
@@ -80,9 +79,11 @@ export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
               serverOffsetMs={world.data.serverOffsetMs}
               onSelect={select}
             />
-            <Crowds />
             <Talks onOpen={read} />
-            <Labels />
+            <Labels
+              people={world.data.snapshot.people}
+              serverOffsetMs={world.data.serverOffsetMs}
+            />
           </>
         )}
         <Camera focus={view} />

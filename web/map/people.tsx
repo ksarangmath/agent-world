@@ -33,8 +33,7 @@ function facingOf(heading: number): Facing {
   return away > 0 ? 0 : 2
 }
 
-export const crowd = {
-  count: 0,
+const crowd = {
   x: new Float32Array(capacity),
   y: new Float32Array(capacity),
   shown: new Uint8Array(capacity),
@@ -123,9 +122,6 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
     })
   }, [trips, shown])
   const partners = useMemo(() => partnersOf(shown), [shown])
-  useEffect(() => {
-    crowd.count = shown.length
-  }, [shown])
   const avatars = useMemo(() => shown.map((person) => person.avatar), [shown])
 
   const screen = useRef(new Float32Array(capacity * 3).fill(Number.NaN))

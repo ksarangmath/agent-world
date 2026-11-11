@@ -2,7 +2,9 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { Vector3 } from 'three'
 import { warp } from '../../shared/map/grid'
+import type { WorldPerson } from '../../shared/api'
 import { places, regionNames, type Region } from '../../shared/map/places'
+import { flyTo } from './camera'
 import { surfaceAt } from './decks'
 import { neighborhoods } from './neighborhoods'
 
@@ -11,7 +13,7 @@ type Label = {
   x: number
   y: number
   lift: number
-  kind: 'region' | 'area' | 'place'
+  kind: 'region' | 'area'
   zooms: [number, number]
 }
 
@@ -37,19 +39,27 @@ const labels: Label[] = [
     kind: 'area',
     zooms: neighborhood.label === 'major' ? [3.5, 12] : [8, 12],
   })),
-  ...places.map((place): Label => ({
-    text: place.name,
-    x: place.center.x + 0.5,
-    y: place.center.y + 0.5,
-    lift: 1.6,
-    kind: 'place',
-    zooms: [7, Infinity],
-  })),
 ]
 
-export function Labels() {
+const namesZoom = 7
+const arrivalZoom = 30
+const placeLift = 1.6
+const pill = { width: 64, height: 32 }
+
+type Gathering = { here: number; talking: boolean }
+
+export function Labels({
+  people,
+  serverOffsetMs,
+}: {
+  people: WorldPerson[]
+  serverOffsetMs: number
+}) {
   const { gl, camera, size } = useThree()
   const elements = useRef<HTMLDivElement[]>([])
+  const markers = useRef<HTMLButtonElement[]>([])
+  const gatherings = useRef<Gathering[]>([])
+  const busiest = useRef<number[]>([])
   const projected = useMemo(() => new Vector3(), [])
 
   useEffect(() => {
@@ -61,8 +71,38 @@ export function Labels() {
       container?.appendChild(element)
       return element
     })
-    return () => elements.current.forEach((element) => element.remove())
-  }, [gl])
+    markers.current = places.map((place) => {
+      const marker = document.createElement('button')
+      marker.type = 'button'
+      marker.className = 'place-label'
+      marker.title = place.name
+      marker.append(document.createElement('span'), document.createElement('b'))
+      marker.firstChild!.textContent = place.name
+      marker.addEventListener('click', () =>
+        flyTo(place.center.x + 0.5, place.center.y + 0.5, Math.max(camera.zoom, arrivalZoom)),
+      )
+      container?.appendChild(marker)
+      return marker
+    })
+    return () => [...elements.current, ...markers.current].forEach((element) => element.remove())
+  }, [gl, camera])
+
+  useEffect(() => {
+    const now = Date.now() + serverOffsetMs
+    const byPlace = new Map<string, Gathering>()
+    for (const person of people) {
+      if (person.trip && Date.parse(person.trip.arrivesAt) > now) continue
+      const held = byPlace.get(person.placeId)
+      byPlace.set(person.placeId, {
+        here: (held?.here ?? 0) + 1,
+        talking: (held?.talking ?? false) || person.conversationId !== null,
+      })
+    }
+    gatherings.current = places.map((place) => byPlace.get(place.id) ?? { here: 0, talking: false })
+    busiest.current = places
+      .map((_, i) => i)
+      .sort((a, b) => gatherings.current[b]!.here - gatherings.current[a]!.here)
+  }, [people, serverOffsetMs])
 
   useFrame(() => {
     labels.forEach((label, i) => {
@@ -80,6 +120,59 @@ export function Labels() {
         element.style.transform = `translate(${((projected.x + 1) / 2) * size.width}px, ${((1 - projected.y) / 2) * size.height}px) translate(-50%, -100%)`
       }
     })
+    const far = camera.zoom < namesZoom
+    const shown: {
+      x: number
+      y: number
+      name: string
+      marker: HTMLButtonElement
+      here: number
+      talking: boolean
+    }[] = []
+    for (const i of busiest.current) {
+      const [place, marker, gathering] = [places[i]!, markers.current[i], gatherings.current[i]!]
+      if (!marker) continue
+      const [x, y] = [place.center.x + 0.5, place.center.y + 0.5]
+      projected.set(x, surfaceAt(x, y) + placeLift, y).project(camera)
+      const [left, top] = [
+        ((projected.x + 1) / 2) * size.width,
+        ((1 - projected.y) / 2) * size.height,
+      ]
+      const visible =
+        (!far || gathering.here > 0) && Math.abs(projected.x) < 1.05 && Math.abs(projected.y) < 1.05
+      const joined = far
+        ? shown.find(
+            (other) =>
+              Math.abs(other.x - left) < pill.width && Math.abs(other.y - top) < pill.height,
+          )
+        : undefined
+      if (joined) {
+        joined.here += gathering.here
+        joined.talking ||= gathering.talking
+      }
+      marker.style.display = visible && !joined ? 'flex' : 'none'
+      if (!visible || joined) continue
+      marker.style.transform = `translate(${left}px, ${top}px) translate(-50%, -100%)`
+      shown.push({
+        x: left,
+        y: top,
+        name: place.name,
+        marker,
+        here: gathering.here,
+        talking: gathering.talking,
+      })
+    }
+    for (const { name, marker, here, talking } of shown) {
+      const count = here > 0 ? String(here) : ''
+      const spoken =
+        here > 0
+          ? `${name}: ${here} ${here === 1 ? 'person' : 'people'}${talking ? ', someone is talking' : ''}`
+          : name
+      if (marker.lastChild!.textContent !== count) marker.lastChild!.textContent = count
+      if (marker.ariaLabel !== spoken) marker.ariaLabel = spoken
+      marker.classList.toggle('far', far)
+      marker.classList.toggle('talking', talking)
+    }
   })
   return null
 }

@@ -19,7 +19,7 @@ export const drawingNormals = { value: false }
 let ceilings: DataTexture | undefined
 
 export function revealAt(zoom: number) {
-  reveal.value = Math.min(1, Math.max(0, (zoom - 12) / 12))
+  reveal.value = Math.min(1, Math.max(0, (zoom - 12) / 2))
 }
 
 function sightlineCeilings(): DataTexture {
