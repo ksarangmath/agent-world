@@ -1,6 +1,7 @@
 import {
   DataTexture,
   FloatType,
+  MeshBasicMaterial,
   NearestFilter,
   RedFormat,
   type Material,
@@ -17,6 +18,7 @@ const open = 1e4
 const reveal = { value: 0 }
 export const drawingNormals = { value: false }
 let ceilings: DataTexture | undefined
+let programs = 0
 
 export function revealAt(zoom: number) {
   reveal.value = Math.min(1, Math.max(0, (zoom - 12) / 2))
@@ -56,13 +58,16 @@ export function seeThrough(
   also?: (shader: WebGLProgramParametersWithUniforms) => void,
 ) {
   material.allowOverride = false
+  const facing = material instanceof MeshBasicMaterial ? 'vec3(0.0, 0.0, 1.0)' : 'normal'
+  const program = `sightline-${programs++}`
+  material.customProgramCacheKey = () => program
   material.onBeforeCompile = (shader) => {
-    cutAway(shader)
+    cutAway(shader, facing)
     also?.(shader)
   }
 }
 
-function cutAway(shader: WebGLProgramParametersWithUniforms) {
+function cutAway(shader: WebGLProgramParametersWithUniforms, facing: string) {
   shader.uniforms.sightlines = { value: (ceilings ??= sightlineCeilings()) }
   shader.uniforms.reveal = reveal
   shader.uniforms.drawingNormals = drawingNormals
@@ -103,6 +108,6 @@ float bayer2(vec2 a) { a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75);
     .replace(
       '#include <dithering_fragment>',
       `#include <dithering_fragment>
-if (drawingNormals) gl_FragColor = vec4(normal * 0.5 + 0.5, 1.0);`,
+if (drawingNormals) gl_FragColor = vec4(${facing} * 0.5 + 0.5, 1.0);`,
     )
 }

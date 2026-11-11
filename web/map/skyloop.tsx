@@ -11,6 +11,7 @@ import {
 import { mapWidth } from '../../shared/map/grid'
 import { heightAt } from './elevation'
 import { toon } from './paint'
+import { seeThrough } from './sightlines'
 
 const clearance = 2.6
 const liftOver = 6
@@ -113,6 +114,8 @@ const railGlow = '#49e6ff'
 const box = new BoxGeometry(1, 1, 1)
 const solid = toon()
 const glowing = new MeshBasicMaterial()
+seeThrough(solid)
+seeThrough(glowing)
 
 function beams(): { solids: Beam[]; glows: Beam[] } {
   const [solids, glows]: [Beam[], Beam[]] = [[], []]

@@ -13,6 +13,7 @@ import { toon } from './paint'
 import { bridges } from './landmarks/bridgeworks'
 import { icons, windmillSite } from './landmarks/icons'
 import { shapes, type Light, type Part, type Shape } from './landmarks/shapes'
+import { seeThrough } from './sightlines'
 import { skyloopTiles } from './skyloop'
 
 const bridgework = bridges()
@@ -31,6 +32,9 @@ const lightMaterial = new MeshBasicMaterial()
 const lightGeometry = new BoxGeometry(0.16, 0.16, 0.16)
 const sailMaterial = toon({ color: '#efe9dc' })
 const spokeMaterial = toon({ color: '#6b4a34' })
+for (const material of [solidMaterial, lightMaterial, sailMaterial, spokeMaterial]) {
+  seeThrough(material)
+}
 
 function Solids({ shape, list }: { shape: Shape; list: Part[] }) {
   const mesh = useRef<InstancedMesh>(null)
