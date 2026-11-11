@@ -36,27 +36,51 @@ export const idleConversationMs = 10 * 60 * 1000
 export const goodbyeWaitMs = 2 * 60 * 1000
 export const wrapUpAfter = 16
 export const messagesPerConversation = 20
-export const restAfterConversationMs = 15 * 60 * 1000
+export const restAfterConversationMs = 5 * 60 * 1000
+export const conversationsPerWindow = 3
+export const conversationWindowMs = 45 * 60 * 1000
 export const conversationsPerDay = 100
 export const speakingMs = (text: string) => Math.min(20_000, 1_500 + text.length * 55)
 
 const ordered = (a: string, b: string) => (a < b ? [a, b] : [b, a]) as [string, string]
 
-const hasTalkedThisVisit = (person: Person) =>
-  person.restingUntil !== null &&
-  (person.departedAt === null ||
-    person.departedAt.getTime() < person.restingUntil.getTime() - restAfterConversationMs)
+const involving = (personId: string) =>
+  or(eq(conversations.personA, personId), eq(conversations.personB, personId))
+
+async function hasTalkedThisVisit({ tx }: World, person: Person) {
+  const [last] = await tx
+    .select({ endedAt: conversations.endedAt })
+    .from(conversations)
+    .where(involving(person.id))
+    .orderBy(desc(conversations.startedAt))
+    .limit(1)
+  return Boolean(last?.endedAt && (!person.departedAt || person.departedAt < last.endedAt))
+}
+
+async function breakAfter({ tx, now }: World, personId: string) {
+  const recent = await tx
+    .select({ startedAt: conversations.startedAt })
+    .from(conversations)
+    .where(
+      and(
+        involving(personId),
+        gt(conversations.startedAt, new Date(now.getTime() - conversationWindowMs)),
+      ),
+    )
+    .orderBy(desc(conversations.startedAt))
+    .limit(conversationsPerWindow)
+  const windowOpens =
+    recent.length === conversationsPerWindow
+      ? recent.at(-1)!.startedAt.getTime() + conversationWindowMs
+      : 0
+  return new Date(Math.max(now.getTime() + restAfterConversationMs, windowOpens))
+}
 
 async function talkedToday({ tx, now }: World, personId: string) {
   const [today] = await tx
     .select({ n: count() })
     .from(conversations)
-    .where(
-      and(
-        or(eq(conversations.personA, personId), eq(conversations.personB, personId)),
-        gte(conversations.startedAt, startOfDay(now)),
-      ),
-    )
+    .where(and(involving(personId), gte(conversations.startedAt, startOfDay(now))))
   return today!.n
 }
 
@@ -137,12 +161,12 @@ export async function requestConversation(
       'That person just finished a conversation and is taking a break. Ask someone else.',
     )
   }
-  if (hasTalkedThisVisit(me)) {
+  if (await hasTalkedThisVisit(world, me)) {
     return refuse(
       "You've already had a conversation on this visit. Go do something you like somewhere else, then meet people there.",
     )
   }
-  if (hasTalkedThisVisit(them)) {
+  if (await hasTalkedThisVisit(world, them)) {
     return refuse(
       'That person has already had a conversation on this visit and is about to head off. Ask someone else.',
     )
@@ -479,21 +503,20 @@ async function finish(
   how: { endedBy: string | null; reason: string | null; actor?: string; heardAt?: Date },
 ) {
   const { tx, now } = world
-  const restingUntil = new Date(now.getTime() + restAfterConversationMs)
   await tx
     .update(conversations)
     .set({ endedAt: now, endedBy: how.endedBy, endReason: how.reason })
     .where(eq(conversations.id, conversationId))
-  await tx
-    .update(people)
-    .set({ conversationId: null, restingUntil })
-    .where(
-      inArray(
-        people.id,
-        pair.map((person) => person.id),
-      ),
-    )
   const [first, second] = pair
+  const restingUntil = new Map<string, Date>()
+  for (const person of pair) {
+    const until = await breakAfter(world, person.id)
+    restingUntil.set(person.id, until)
+    await tx
+      .update(people)
+      .set({ conversationId: null, restingUntil: until })
+      .where(eq(people.id, person.id))
+  }
   for (const [person, other] of [
     [first, second],
     [second, first],
@@ -517,12 +540,12 @@ async function finish(
         ended_by: endedBy,
         reason: how.reason,
         time: clockTime(now),
-        next: afterConversation(restingUntil),
+        next: afterConversation(restingUntil.get(person.id)!),
       }),
       { dueAt: how.heardAt },
     )
   }
-  return restingUntil
+  return restingUntil.get(how.actor ?? first.id)!
 }
 
 export async function endConversation(

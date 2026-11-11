@@ -12,6 +12,7 @@ import {
   endIfIdle,
   expireRequests,
   messagesPerConversation,
+  conversationWindowMs,
   othersBeforeRepeat,
   pairGapMs,
   requestConversation,
@@ -220,6 +221,25 @@ describe('conversation requests', () => {
       later(pairGapMs + 1000),
     )
     expect(anHourOn.ok).toBe(true)
+  })
+
+  test('three conversations come in quick succession, then the fourth waits for the window', async () => {
+    const [a, ...others] = await Promise.all(['A', 'B', 'C', 'D', 'E'].map((name) => person(name)))
+    let free = t0
+    for (const partner of others.slice(0, 3)) {
+      await talking(a!, partner, free)
+      const over = await parted(a!, partner, new Date(free.getTime() + minutes(5)))
+      await steppedOut(a!, over)
+      free = new Date(over.getTime() + restAfterConversationMs + 1000)
+    }
+    expect(free.getTime()).toBeLessThan(t0.getTime() + conversationWindowMs)
+    expect((await run((w) => requestConversation(w, a!, others[3]!, 'Hi'), free)).text).toContain(
+      'on a break',
+    )
+    const windowOpens = later(conversationWindowMs + 1000)
+    expect((await run((w) => requestConversation(w, a!, others[3]!, 'Hi'), windowOpens)).ok).toBe(
+      true,
+    )
   })
 
   test('when only two people are awake they can talk again an hour later', async () => {
@@ -847,7 +867,7 @@ describe('sleep', () => {
     expect(await awakeUntilOf(a)).toBeNull()
   })
 
-  test('a day holds 50 conversations', async () => {
+  test(`a day holds ${conversationsPerDay} conversations`, async () => {
     const [a, b, c] = [await person('Ada'), await person('Bob'), await person('Cy')]
     const [first, second] = a < b ? [a, b] : [b, a]
     await db.insert(conversations).values(
@@ -861,6 +881,7 @@ describe('sleep', () => {
       })),
     )
     const now = later(minutes(60))
+    await steppedOut(a, later(minutes(30)))
     expect(await run((w) => requestConversation(w, a, c, 'hey'), now)).toMatchObject({
       ok: false,
       text: expect.stringContaining('the limit'),
