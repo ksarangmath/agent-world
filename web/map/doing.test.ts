@@ -28,7 +28,7 @@ test('travel and conversations take over the line', () => {
   expect(doingNow(person, [person, partner])).toBe('deep in it with Mei')
   expect(
     doingNow({ ...person, trip: { from: { x: 0, y: 0 }, departedAt: '', arrivesAt: '' } }, []),
-  ).toBe('on the way to Silicon Downtown Arcade')
+  ).toBe('on the way to The Extra Life Arcade')
 })
 
 test('someone asleep is asleep, whatever the place is for', () => {

@@ -58,8 +58,8 @@ const rows: Record<Region, Row[]> = {
   sf: [
     [
       'waterfront-market-hall',
-      'Waterfront Market Hall',
-      'Tower Row',
+      'Ferry Tale Market',
+      'The Fine Print',
       'eating',
       [37.7955, -122.3937],
       24,
@@ -68,8 +68,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'pitch-stage',
-      'Pitch Stage',
-      'Tower Row',
+      'The Elevator Pitch',
+      'The Fine Print',
       'pitching',
       [37.7945, -122.3985],
       20,
@@ -78,8 +78,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'tower-lounge',
-      'Tower Row Lounge',
-      'Tower Row',
+      'Golden Handcuffs Lounge',
+      'The Fine Print',
       'chatting',
       [37.793, -122.401],
       16,
@@ -88,8 +88,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'frontier-ai-lab',
-      'Frontier AI Lab',
-      'Startup Alley',
+      'The Gradient Descent',
+      'Pivot Alley',
       'coding',
       [37.7828, -122.3928],
       24,
@@ -98,8 +98,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'devtools-bar',
-      'Devtools Bar',
-      'Startup Alley',
+      'The Merge Conflict',
+      'Pivot Alley',
       'chatting',
       [37.779, -122.3992],
       20,
@@ -108,8 +108,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'soma-bouldering',
-      'Startup Alley Bouldering',
-      'Startup Alley',
+      'Scale-Up Climbing',
+      'Pivot Alley',
       'climbing',
       [37.7738, -122.4045],
       16,
@@ -118,8 +118,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'rooftop-club',
-      'Neon Rooftop Club',
-      'Startup Alley',
+      'Five Nines Rooftop',
+      'Pivot Alley',
       'music',
       [37.778, -122.401],
       20,
@@ -128,8 +128,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'dogpatch-robotics',
-      'Founder Garage',
-      'Founder Docks',
+      'Minimum Viable Garage',
+      'Dogfood Docks',
       'tinkering',
       [37.76, -122.388],
       20,
@@ -138,8 +138,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'biotech-labs',
-      'Biotech Bay Labs',
-      'Biotech Bay',
+      'Culture Club Labs',
+      'Petri Bay',
       'tinkering',
       [37.769, -122.392],
       16,
@@ -148,8 +148,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'valencia-coffee',
-      'Neon Bean Coffee',
-      'The Mish',
+      'Grounds for Discussion',
+      'Burrito Basin',
       'coffee',
       [37.763, -122.4216],
       20,
@@ -158,8 +158,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'mission-music-hall',
-      'Basement Music Hall',
-      'The Mish',
+      'The Noise Complaint',
+      'Burrito Basin',
       'music',
       [37.7605, -122.419],
       24,
@@ -168,8 +168,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'mural-alley',
-      'Mural Alley',
-      'The Mish',
+      'Off the Wall Alley',
+      'Burrito Basin',
       'art',
       [37.7525, -122.4135],
       16,
@@ -178,8 +178,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'dolores-park',
-      'Dolores Hill Park',
-      'The Mish',
+      'Blanket Statement Park',
+      'Burrito Basin',
       'picnic',
       [37.7596, -122.4269],
       24,
@@ -188,8 +188,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'late-night-taqueria',
-      'Midnight Taqueria',
-      'The Mish',
+      'Guac Around the Clock',
+      'Burrito Basin',
       'eating',
       [37.757, -122.4185],
       16,
@@ -198,8 +198,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'rainbow-center',
-      'Rainbow Community Center',
-      'Rainbow Castro',
+      'Roy G. Biv Hall',
+      'Over the Rainbow',
       'chatting',
       [37.7615, -122.435],
       20,
@@ -208,8 +208,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'haight-jam-space',
-      'Haight Jam Space',
-      'Haight-Ashberry',
+      'The Feedback Loop',
+      'Tie-Dye Heights',
       'music',
       [37.77, -122.44],
       16,
@@ -218,8 +218,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'corner-bookshop',
-      'Beat Poets Bookshop',
-      'Little Napoli',
+      'Prose & Cons Books',
+      'Beatnik Beach',
       'reading',
       [37.7976, -122.4066],
       16,
@@ -228,8 +228,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'washington-square',
-      'Napoli Square',
-      'Little Napoli',
+      'Check Mates Square',
+      'Beatnik Beach',
       'chess',
       [37.8009, -122.4103],
       16,
@@ -238,7 +238,7 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'piano-bar',
-      'Snob Hill Piano Bar',
+      'The Tickled Ivory',
       'Snob Hill',
       'music',
       [37.7925, -122.413],
@@ -248,8 +248,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'marina-green',
-      'Marina Sails Green',
-      'Marina Sails',
+      'Downward Dog Run',
+      'Mimosa Marina',
       'running',
       [37.8058, -122.4365],
       20,
@@ -258,8 +258,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'lawn-bowls',
-      'Golden Gate Lawn Bowls',
-      'Golden Gate Park',
+      'Roll Models Lawn Bowls',
+      'Bison Meadows',
       'picnic',
       [37.7685, -122.4575],
       12,
@@ -268,8 +268,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'ocean-beach-surf',
-      'Fogset Surf Break',
-      'Fogset Beach',
+      'Cold Shoulder Surf Break',
+      'The Fogset',
       'surfing',
       [37.76, -122.51],
       20,
@@ -278,7 +278,7 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'dumpling-night-market',
-      'Dumpling Night Market',
+      'Wonton Abandon Night Market',
       'Dumpling Flats',
       'eating',
       [37.78, -122.47],
@@ -288,8 +288,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'lands-end-lookout',
-      'Lands End Lookout',
-      'Fogset Beach',
+      'Edge Case Lookout',
+      'The Fogset',
       'hiking',
       [37.7875, -122.505],
       12,
@@ -298,7 +298,7 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'stroller-playground',
-      'Stroller Valley Playground',
+      'Sandbox Environment',
       'Stroller Valley',
       'picnic',
       [37.751, -122.433],
@@ -310,7 +310,7 @@ const rows: Record<Region, Row[]> = {
   marin: [
     [
       'waterfront-cafe',
-      'Houseboat Cove Café',
+      'Seas the Day Café',
       'Houseboat Cove',
       'coffee',
       [37.856, -122.478],
@@ -320,7 +320,7 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'houseboat-docks',
-      'Houseboat Docks',
+      'Knot Working Docks',
       'Houseboat Cove',
       'sailing',
       [37.87, -122.501],
@@ -330,7 +330,7 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'mountain-summit-trail',
-      'Mount Tam Summit',
+      'Summit Meeting',
       'Redwood Reach',
       'hiking',
       [37.9235, -122.5965],
@@ -342,7 +342,7 @@ const rows: Record<Region, Row[]> = {
   east_bay: [
     [
       'university-library',
-      'Berzerkeley Library',
+      'Stacks Overflow Library',
       'Berzerkeley',
       'reading',
       [37.8723, -122.2595],
@@ -352,7 +352,7 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'oakland-music-hall',
-      'Oaktown Music Hall',
+      'Oaktown Encore',
       'Oaktown',
       'music',
       [37.8085, -122.27],
@@ -362,7 +362,7 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'lakeside-loop',
-      'Oaktown Lake Loop',
+      'Lake Merrily Loop',
       'Oaktown',
       'running',
       [37.803, -122.258],
@@ -372,7 +372,7 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'vineyard',
-      'Golden Hills Vineyard',
+      'Grape Expectations',
       'Golden Hills',
       'eating',
       [37.86, -122.2],
@@ -384,7 +384,7 @@ const rows: Record<Region, Row[]> = {
   south_bay: [
     [
       'research-campus',
-      'Cardinal Quad',
+      'The Dropout Quad',
       'Cardinal Campus',
       'reading',
       [37.4275, -122.1697],
@@ -394,8 +394,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'big-tech-campus',
-      'Big Tech Campus',
-      'Mountain Vue',
+      'Free Lunch Campus',
+      'Moonshot View',
       'coding',
       [37.422, -122.084],
       24,
@@ -404,8 +404,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'sand-hill-offices',
-      'Sand Hill Row',
-      'Sand Hill',
+      'Dry Powder Row',
+      'Term Sheet Hill',
       'pitching',
       [37.42, -122.21],
       16,
@@ -414,7 +414,7 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'semiconductor-lab',
-      'Chip Clara Fab',
+      'Moore or Less Fab',
       'Chip Clara',
       'tinkering',
       [37.388, -121.97],
@@ -424,8 +424,8 @@ const rows: Record<Region, Row[]> = {
     ],
     [
       'arcade',
-      'Silicon Downtown Arcade',
-      'Silicon Downtown',
+      'The Extra Life Arcade',
+      'Know-the-Way',
       'chess',
       [37.335, -121.89],
       16,
