@@ -36,6 +36,7 @@ export async function transcript(
     })
     .from(people)
     .where(inArray(people.id, [conversation.personA, conversation.personB]))
+    .orderBy(asc(people.id))
   const lines = await db
     .select({
       senderId: messages.senderId,
