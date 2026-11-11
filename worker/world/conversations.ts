@@ -32,6 +32,9 @@ export const requestLifetimeMs = 5 * 60 * 1000
 export const othersBeforeRepeat = (population: number) =>
   Math.max(1, Math.min(10, Math.floor(population / 5)))
 export const idleConversationMs = 10 * 60 * 1000
+export const goodbyeWaitMs = 2 * 60 * 1000
+export const wrapUpAfter = 10
+export const messagesPerConversation = 14
 export const restAfterConversationMs = 35 * 60 * 1000
 export const conversationsPerDay = 30
 export const speakingMs = (text: string) => Math.min(20_000, 1_500 + text.length * 55)
@@ -342,9 +345,11 @@ export async function respondToRequest(
   )
 }
 
-export async function sendMessage(world: World, meId: string, text: string): Promise<Outcome> {
-  const { tx, now } = world
-  if (typeset.test(text)) return retype()
+const alreadyLeft = () => refuse('You already said goodbye. Wait for their last message.')
+const stillLanding = () => refuse('Hold on: the last message is still landing. Wait for it.')
+
+async function myConversation(world: World, meId: string) {
+  const { tx } = world
   const [row] = await tx
     .select({
       id: conversations.id,
@@ -354,50 +359,110 @@ export async function sendMessage(world: World, meId: string, text: string): Pro
     .from(people)
     .innerJoin(conversations, eq(people.conversationId, conversations.id))
     .where(eq(people.id, meId))
-  if (!row) return refuse("You're not in a conversation.")
+  if (!row) return null
   const locked = await lockPeople(world, [row.personA, row.personB])
   const me = locked.get(meId)!
-  if (me.conversationId !== row.id) return refuse("You're not in a conversation.")
-  const partnerId = row.personA === meId ? row.personB : row.personA
+  if (me.conversationId !== row.id) return null
+  const [state] = await tx
+    .select({ leaving: conversations.endedBy, reason: conversations.endReason })
+    .from(conversations)
+    .where(eq(conversations.id, row.id))
   const [last] = await tx
     .select({ senderId: messages.senderId, visibleAt: messages.visibleAt })
     .from(messages)
     .where(eq(messages.conversationId, row.id))
     .orderBy(desc(messages.id))
     .limit(1)
-  if (last && last.visibleAt > now) {
-    return refuse('Hold on: the last message is still landing. Wait for it.')
+  return {
+    id: row.id,
+    me,
+    partner: locked.get(row.personA === meId ? row.personB : row.personA)!,
+    last,
+    ...state!,
   }
-  if (last?.senderId === meId) {
-    return refuse("You just sent a message. Wait for their reply; it's their turn.")
-  }
-  const visibleAt = new Date(now.getTime() + speakingMs(text))
-  await tx
-    .insert(messages)
-    .values({ conversationId: row.id, senderId: meId, text, createdAt: now, visibleAt })
+}
+
+type Talk = NonNullable<Awaited<ReturnType<typeof myConversation>>>
+
+async function say(world: World, talk: Talk, text: string, note: object = {}) {
+  const { tx, now } = world
+  const from = Math.max(now.getTime(), talk.last?.visibleAt.getTime() ?? 0)
+  const visibleAt = new Date(from + speakingMs(text))
+  await tx.insert(messages).values({
+    conversationId: talk.id,
+    senderId: talk.me.id,
+    text,
+    createdAt: now,
+    visibleAt,
+  })
   await tx
     .update(conversations)
     .set({ lastMessageAt: sql`greatest(${conversations.lastMessageAt}, ${now.toISOString()})` })
-    .where(eq(conversations.id, row.id))
-  await deliver(world, partnerId, `[conversation] ${JSON.stringify({ person_id: meId, text })}`, {
-    actor: meId,
-    dueAt: visibleAt,
+    .where(eq(conversations.id, talk.id))
+  await deliver(
+    world,
+    talk.partner.id,
+    `[conversation] ${JSON.stringify({ person_id: talk.me.id, text, ...note })}`,
+    { actor: talk.me.id, dueAt: visibleAt },
+  )
+  return visibleAt
+}
+
+async function lastWord(world: World, talk: Talk, text: string) {
+  const heardAt = await say(world, talk, text)
+  const restingUntil = await finish(world, talk.id, [talk.me, talk.partner], {
+    endedBy: talk.leaving,
+    reason: talk.reason,
+    actor: talk.me.id,
+    heardAt,
   })
-  return done('Sent. It takes a moment to say out loud; wait for their reply.')
+  return done(
+    JSON.stringify({
+      ended: true,
+      next: afterConversation(restingUntil),
+      record_impression_for: talk.partner.id,
+    }),
+  )
+}
+
+export async function sendMessage(world: World, meId: string, text: string): Promise<Outcome> {
+  if (typeset.test(text)) return retype()
+  const talk = await myConversation(world, meId)
+  if (!talk) return refuse("You're not in a conversation.")
+  if (talk.leaving === meId) return alreadyLeft()
+  if (talk.last && talk.last.visibleAt > world.now) return stillLanding()
+  if (talk.last?.senderId === meId) {
+    return refuse("You just sent a message. Wait for their reply; it's their turn.")
+  }
+  if (talk.leaving) return lastWord(world, talk, text)
+  const [sent] = await world.tx
+    .select({ n: count() })
+    .from(messages)
+    .where(eq(messages.conversationId, talk.id))
+  if (sent!.n >= messagesPerConversation) {
+    return refuse('This conversation has run its course. Say goodbye with end_conversation.')
+  }
+  if (sent!.n + 1 < wrapUpAfter) {
+    await say(world, talk, text)
+    return done('Sent. It takes a moment to say out loud; wait for their reply.')
+  }
+  await say(world, talk, text, {
+    next: 'This has run long enough. Say goodbye with end_conversation, and name the plan if you made one.',
+  })
+  return done('Sent. Time to wrap up: when they answer, say goodbye with end_conversation.')
 }
 
 async function finish(
   world: World,
   conversationId: string,
   pair: [Person, Person],
-  endedBy: string | null,
-  reason: string | null,
+  how: { endedBy: string | null; reason: string | null; actor?: string; heardAt?: Date },
 ) {
   const { tx, now } = world
   const restingUntil = new Date(now.getTime() + restAfterConversationMs)
   await tx
     .update(conversations)
-    .set({ endedAt: now, endedBy, endReason: reason })
+    .set({ endedAt: now, endedBy: how.endedBy, endReason: how.reason })
     .where(eq(conversations.id, conversationId))
   await tx
     .update(people)
@@ -417,17 +482,20 @@ async function finish(
       placeId: person.placeId ?? undefined,
       otherId: other.id,
     })
-    if (person.id === endedBy) continue
+    if (person.id === how.actor) continue
+    const endedBy =
+      how.endedBy === null ? 'idle for 10 minutes' : how.endedBy === person.id ? 'you' : 'them'
     await deliver(
       world,
       person.id,
       worldEvent('conversation_ended', {
         with_person_id: other.id,
-        ended_by: endedBy === null ? 'idle for 10 minutes' : 'them',
-        reason,
+        ended_by: endedBy,
+        reason: how.reason,
         time: clockTime(now),
         next: afterConversation(restingUntil),
       }),
+      { dueAt: how.heardAt },
     )
   }
   return restingUntil
@@ -436,34 +504,29 @@ async function finish(
 export async function endConversation(
   world: World,
   meId: string,
+  goodbye: string,
   reason?: string,
 ): Promise<Outcome> {
-  const { tx } = world
-  const [row] = await tx
-    .select({
-      personA: conversations.personA,
-      personB: conversations.personB,
-      id: conversations.id,
-    })
-    .from(people)
-    .innerJoin(conversations, eq(people.conversationId, conversations.id))
-    .where(eq(people.id, meId))
-  if (!row) return refuse("You're not in a conversation.")
-  const locked = await lockPeople(world, [row.personA, row.personB])
-  if (locked.get(meId)?.conversationId !== row.id) return refuse("You're not in a conversation.")
-  const partner = locked.get(row.personA === meId ? row.personB : row.personA)!
-  const restingUntil = await finish(
-    world,
-    row.id,
-    [locked.get(meId)!, partner],
-    meId,
-    reason ?? null,
-  )
+  if (typeset.test(goodbye)) return retype()
+  const talk = await myConversation(world, meId)
+  if (!talk) return refuse("You're not in a conversation.")
+  if (talk.leaving === meId) return alreadyLeft()
+  if (talk.leaving) {
+    if (talk.last && talk.last.visibleAt > world.now) return stillLanding()
+    return lastWord(world, talk, goodbye)
+  }
+  await say(world, talk, goodbye, {
+    goodbye: true,
+    next: "They're leaving. Send one last message to say bye, and confirm the plan if you made one. That ends the conversation.",
+  })
+  await world.tx
+    .update(conversations)
+    .set({ endedBy: meId, endReason: reason ?? null })
+    .where(eq(conversations.id, talk.id))
   return done(
     JSON.stringify({
-      ended: true,
-      next: afterConversation(restingUntil),
-      record_impression_for: partner.id,
+      said: true,
+      next: 'They get one last message back. Wait for it: the world tells you when the conversation is over.',
     }),
   )
 }
@@ -505,7 +568,13 @@ export async function idleConversations(db: Database, now: Date) {
     .where(
       and(
         isNull(conversations.endedAt),
-        lte(conversations.lastMessageAt, new Date(now.getTime() - idleConversationMs)),
+        or(
+          lte(conversations.lastMessageAt, new Date(now.getTime() - idleConversationMs)),
+          and(
+            isNotNull(conversations.endedBy),
+            lte(conversations.lastMessageAt, new Date(now.getTime() - goodbyeWaitMs)),
+          ),
+        ),
       ),
     )
     .orderBy(desc(conversations.lastMessageAt))
@@ -521,17 +590,20 @@ export async function endIfIdle(world: World, conversationId: string) {
   if (!conversation || conversation.endedAt) return
   const locked = await lockPeople(world, [conversation.personA, conversation.personB])
   const [current] = await tx
-    .select({ endedAt: conversations.endedAt, lastMessageAt: conversations.lastMessageAt })
+    .select({
+      endedAt: conversations.endedAt,
+      lastMessageAt: conversations.lastMessageAt,
+      leaving: conversations.endedBy,
+      reason: conversations.endReason,
+    })
     .from(conversations)
     .where(eq(conversations.id, conversationId))
-  if (current!.endedAt || current!.lastMessageAt.getTime() > now.getTime() - idleConversationMs) {
-    return
-  }
+  const patience = current!.leaving ? goodbyeWaitMs : idleConversationMs
+  if (current!.endedAt || current!.lastMessageAt.getTime() > now.getTime() - patience) return
   await finish(
     world,
     conversationId,
     [locked.get(conversation.personA)!, locked.get(conversation.personB)!],
-    null,
-    null,
+    { endedBy: current!.leaving, reason: current!.reason },
   )
 }

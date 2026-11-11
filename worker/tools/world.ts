@@ -56,9 +56,9 @@ export const worldTools: Record<string, Tool<WorldCall>> = {
     ({ world, personId: me }, input) => sendMessage(world, me, input.text),
   ),
   end_conversation: tool(
-    'End your conversation when it has run its course.',
-    z.object({ reason: reason.optional() }),
-    ({ world, personId: me }, input) => endConversation(world, me, input.reason),
+    'Say goodbye and end your conversation. goodbye is the last thing you say to them: one plain line, with the plan if you made one. They get one message back, and then it is over.',
+    z.object({ goodbye: spoken, reason: reason.optional() }),
+    ({ world, personId: me }, input) => endConversation(world, me, input.goodbye, input.reason),
   ),
   record_impression: tool(
     'After a conversation, record whether your owner should meet this person, and why. Only your owner sees it.',

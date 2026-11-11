@@ -11,12 +11,14 @@ import {
   endConversation,
   endIfIdle,
   expireRequests,
+  messagesPerConversation,
   othersBeforeRepeat,
   requestConversation,
   respondToRequest,
   restAfterConversationMs,
   sendMessage,
   speakingMs,
+  wrapUpAfter,
 } from './conversations'
 import { myConversations, myMatches, timeline, transcript } from './reads'
 import type { World } from './events'
@@ -123,6 +125,14 @@ beforeEach(async () => {
   await db.execute(sql`delete from auth.users`)
 })
 
+async function parted(leaver: string, other: string, at = t0, reason?: string) {
+  await run((w) => endConversation(w, leaver, 'gotta run, good meeting you', reason), at)
+  const over = new Date(at.getTime() + 30_000)
+  const last = await run((w) => sendMessage(w, other, 'you too, see you'), over)
+  expect(JSON.parse(last.text)).toMatchObject({ ended: true })
+  return over
+}
+
 async function talking(a: string, b: string, now = t0) {
   await run((w) => requestConversation(w, a, b, 'Hi there'), now)
   const [request] = await pendingFrom(a)
@@ -187,15 +197,15 @@ describe('conversation requests', () => {
     expect([3, 10, 15, 51, 500].map(othersBeforeRepeat)).toEqual([1, 2, 3, 10, 10])
     const [a, b, c] = [await person('A'), await person('B'), await person('C')]
     await talking(a, b)
-    await run((w) => endConversation(w, a, 'Nice chat'), later(minutes(5)))
-    const free = minutes(5) + restAfterConversationMs + 1000
-    const again = await run((w) => requestConversation(w, b, a, 'Again?'), later(free))
+    const first = await parted(a, b, later(minutes(5)))
+    const free = new Date(first.getTime() + restAfterConversationMs + 1000)
+    const again = await run((w) => requestConversation(w, b, a, 'Again?'), free)
     expect(again).toMatchObject({ ok: false, text: expect.stringContaining('Meet 1 more person') })
-    await talking(a, c, later(free))
-    await run((w) => endConversation(w, a, 'Nice too'), later(free + minutes(5)))
+    await talking(a, c, free)
+    const second = await parted(a, c, new Date(free.getTime() + minutes(5)))
     const afterOthers = await run(
       (w) => requestConversation(w, a, b, 'Round two?'),
-      later(free + minutes(5) + restAfterConversationMs + 1000),
+      new Date(second.getTime() + restAfterConversationMs + 1000),
     )
     expect(afterOthers.ok).toBe(true)
   })
@@ -213,15 +223,133 @@ describe('conversations', () => {
       person_id: a,
       text: 'What are you building?',
     })
-    expect((await run((w) => endConversation(w, b, 'Good talk'))).ok).toBe(true)
-    expect(await eventsOf(a)).toContainEqual(
+  })
+
+  test('a conversation ends with a goodbye and one last message back', async () => {
+    const [a, b] = [await person('A'), await person('B')]
+    const id = await talking(a, b)
+    await run((w) => sendMessage(w, a, 'What are you building?'))
+    const dashed = await run((w) => endConversation(w, b, 'bye \u2014 see you'), later(20_000))
+    expect(dashed).toMatchObject({ ok: false, text: expect.stringContaining('dashes') })
+    const leaving = await run(
+      (w) => endConversation(w, b, 'gotta run. thursday at the wall?', 'Good talk'),
+      later(20_000),
+    )
+    expect(JSON.parse(leaving.text)).toMatchObject({ said: true })
+    const open = await db.select().from(conversations).where(eq(conversations.id, id))
+    expect(open[0]).toMatchObject({ endedAt: null, endedBy: b })
+    const heard = (await inboxOf(a)).filter((text) => text.startsWith('[conversation] ')).at(-1)!
+    expect(JSON.parse(heard.slice('[conversation] '.length))).toMatchObject({
+      person_id: b,
+      text: 'gotta run. thursday at the wall?',
+      goodbye: true,
+      next: expect.stringContaining('one last message'),
+    })
+    for (const more of [
+      () => run((w) => sendMessage(w, b, 'one more thing'), later(40_000)),
+      () => run((w) => endConversation(w, b, 'bye again'), later(40_000)),
+    ]) {
+      expect(await more()).toMatchObject({
+        ok: false,
+        text: expect.stringContaining('already said'),
+      })
+    }
+    const early = await run((w) => sendMessage(w, a, 'wait'), later(20_500))
+    expect(early).toMatchObject({ ok: false, text: expect.stringContaining('still landing') })
+    const last = await run((w) => sendMessage(w, a, 'thursday works. see you'), later(60_000))
+    expect(JSON.parse(last.text)).toMatchObject({ ended: true, record_impression_for: b })
+    const [closed] = await db.select().from(conversations).where(eq(conversations.id, id))
+    expect(closed).toMatchObject({ endedBy: b, endReason: 'Good talk' })
+    expect(closed!.endedAt).not.toBeNull()
+    expect(await eventsOf(b)).toContainEqual(
       expect.objectContaining({
         event: 'conversation_ended',
-        ended_by: 'them',
+        ended_by: 'you',
         reason: 'Good talk',
       }),
     )
-    expect((await run((w) => sendMessage(w, a, 'Still there?'))).ok).toBe(false)
+    expect((await eventsOf(a)).some((event) => event.event === 'conversation_ended')).toBe(false)
+    const after = await db
+      .select({ text: deliveries.text, dueAt: deliveries.dueAt })
+      .from(deliveries)
+      .where(eq(deliveries.personId, b))
+    const said = after.find((row) => row.text.includes('thursday works'))!
+    const ended = after.find((row) => row.text.includes('conversation_ended'))!
+    expect(ended.dueAt.getTime()).toBe(said.dueAt.getTime())
+    expect((await run((w) => sendMessage(w, a, 'Still there?'), later(90_000))).ok).toBe(false)
+    const texts = await db.select({ text: messages.text }).from(messages).orderBy(messages.id)
+    expect(texts.map((row) => row.text)).toEqual([
+      'What are you building?',
+      'gotta run. thursday at the wall?',
+      'thursday works. see you',
+    ])
+  })
+
+  test('the other person can answer a goodbye with their own, and silence ends it too', async () => {
+    const [a, b, c, d] = [
+      await person('A'),
+      await person('B'),
+      await person('C'),
+      await person('D'),
+    ]
+    await talking(a, b)
+    await run((w) => sendMessage(w, b, 'so that is the whole story'))
+    await run((w) => endConversation(w, a, 'good meeting you'))
+    const rushed = await run((w) => endConversation(w, b, 'you too'), later(2000))
+    expect(rushed).toMatchObject({ ok: false, text: expect.stringContaining('still landing') })
+    const back = await run((w) => endConversation(w, b, 'you too'), later(30_000))
+    expect(JSON.parse(back.text)).toMatchObject({ ended: true })
+    const due = await db
+      .select({ dueAt: deliveries.dueAt })
+      .from(deliveries)
+      .where(eq(deliveries.personId, a))
+    expect(
+      Math.max(...due.map((row) => row.dueAt.getTime())) - later(30_000).getTime(),
+    ).toBeLessThan(20_000)
+    const quiet = await talking(c, d)
+    await run((w) => endConversation(w, c, 'heading out', 'tired'), later(minutes(1)))
+    await run((w) => endIfIdle(w, quiet), later(minutes(2)))
+    expect(
+      (await db.select().from(conversations).where(eq(conversations.id, quiet)))[0]!.endedAt,
+    ).toBeNull()
+    await run((w) => endIfIdle(w, quiet), later(minutes(3) + 1000))
+    const [ended] = await db.select().from(conversations).where(eq(conversations.id, quiet))
+    expect(ended).toMatchObject({ endedBy: c, endReason: 'tired' })
+    expect(ended!.endedAt).not.toBeNull()
+    expect(await eventsOf(c)).toContainEqual(
+      expect.objectContaining({ event: 'conversation_ended', ended_by: 'you' }),
+    )
+    expect(await eventsOf(d)).toContainEqual(
+      expect.objectContaining({ event: 'conversation_ended', ended_by: 'them' }),
+    )
+  })
+
+  test('the world says when to wrap up and stops a conversation that runs too long', async () => {
+    const [a, b] = [await person('A'), await person('B')]
+    await talking(a, b)
+    const turn = (n: number) => later(n * 30_000)
+    const results: string[] = []
+    for (let n = 0; n < messagesPerConversation; n++) {
+      const sent = await run((w) => sendMessage(w, n % 2 === 0 ? a : b, `line ${n}`), turn(n))
+      expect(sent.ok).toBe(true)
+      results.push(sent.text)
+    }
+    expect(results.findIndex((text) => text.includes('wrap up'))).toBe(wrapUpAfter - 1)
+    const heard = (await inboxOf(b)).filter((text) => text.startsWith('[conversation] '))
+    expect(JSON.parse(heard[4]!.slice('[conversation] '.length))).toMatchObject({
+      text: `line ${wrapUpAfter - 2}`,
+    })
+    expect(JSON.parse(heard[4]!.slice('[conversation] '.length))).not.toHaveProperty('next')
+    const tooLong = await run(
+      (w) => sendMessage(w, a, 'and another thing'),
+      turn(messagesPerConversation),
+    )
+    expect(tooLong).toMatchObject({ ok: false, text: expect.stringContaining('end_conversation') })
+    const closing = await run(
+      (w) => endConversation(w, a, 'ok, really going now'),
+      turn(messagesPerConversation),
+    )
+    expect(closing.ok).toBe(true)
   })
 
   test('a conversation ends after 10 minutes without a message', async () => {
@@ -270,7 +398,7 @@ describe('conversations', () => {
   test('two matching impressions make one mutual match', async () => {
     const [a, b] = [await person('A'), await person('B')]
     await talking(a, b)
-    await run((w) => endConversation(w, a))
+    await parted(a, b)
     await Promise.all([
       run((w) => recordImpression(w, a, b, 'match', 'Building the same thing')),
       run((w) => recordImpression(w, b, a, 'match', 'Great robotics chat')),
@@ -286,7 +414,7 @@ describe('conversations', () => {
       .set({ portrait: new Uint8Array([1]) })
       .where(eq(people.id, b))
     const id = await talking(a, b)
-    await run((w) => endConversation(w, a))
+    await parted(a, b)
     await run((w) => recordImpression(w, a, b, 'match', 'Building the same thing'))
     await run((w) => recordImpression(w, b, a, 'match', 'Great robotics chat'))
     const mine = await myMatches(db, a)
@@ -399,8 +527,8 @@ describe('pace', () => {
   test('agents meet blind: look_around and requests carry ids, not names', async () => {
     const [a, b, c] = [await person('Ada'), await person('Bob'), await person('Cy')]
     await talking(a, b)
-    await run((w) => endConversation(w, a, 'done'), later(minutes(1)))
-    const free = later(minutes(1) + restAfterConversationMs + 1000)
+    const over = await parted(a, b, later(minutes(1)))
+    const free = new Date(over.getTime() + restAfterConversationMs + 1000)
     const look = JSON.parse((await run((w) => lookAround(w, a), free)).text)
     expect(look.people_here).toEqual(
       expect.arrayContaining([
@@ -441,18 +569,19 @@ describe('pace', () => {
   test('after a conversation both people rest before the next', async () => {
     const [a, b, c] = [await person('Ada'), await person('Bob'), await person('Cy')]
     await talking(a, b)
-    const ended = await run((w) => endConversation(w, a, 'done'))
+    await run((w) => endConversation(w, a, 'gotta run', 'done'))
+    const ended = await run((w) => sendMessage(w, b, 'see you'), later(30_000))
     expect(JSON.parse(ended.text).next).toContain('break')
-    const [event] = (await eventsOf(b)).filter((e) => e.event === 'conversation_ended')
+    const [event] = (await eventsOf(a)).filter((e) => e.event === 'conversation_ended')
     expect(event!.next).toContain('break')
     expect((await run((w) => requestConversation(w, c, a, 'Hi'))).text).toContain('taking a break')
     expect((await run((w) => requestConversation(w, b, c, 'Hi'))).text).toContain('on a break')
     const look = JSON.parse((await run((w) => lookAround(w, a))).text)
     expect(look.your_status).toBe('resting')
     expect(look.your_break_ends).toMatch(/PT$/)
-    const soon = later(restAfterConversationMs - 1000)
+    const soon = later(30_000 + restAfterConversationMs - 1000)
     expect((await run((w) => requestConversation(w, c, a, 'Hi'), soon)).ok).toBe(false)
-    const after = later(restAfterConversationMs + 1000)
+    const after = later(30_000 + restAfterConversationMs + 1000)
     expect((await run((w) => requestConversation(w, c, a, 'Hi'), after)).ok).toBe(true)
     expect((await run((w) => goTo(w, b, 'arcade', 'bored'), soon)).ok).toBe(true)
   })
@@ -583,13 +712,14 @@ describe('nudges', () => {
   test('nobody is nudged during their break after a conversation', async () => {
     const [a, b] = [await person('A'), await person('B')]
     await talking(a, b)
-    await run((w) => endConversation(w, a, 'done'), later(minutes(7)))
-    await run(nudgeIdlePeople, later(minutes(7) + restAfterConversationMs - 1000))
+    const over = await parted(a, b, later(minutes(7)))
+    const rested = over.getTime() - t0.getTime() + restAfterConversationMs
+    await run(nudgeIdlePeople, later(rested - 1000))
     const nudged = async (id: string) =>
       (await eventsOf(id)).filter((event) => event.event === 'nudge').length
     expect(await nudged(a)).toBe(0)
     expect(await nudged(b)).toBe(0)
-    await run(nudgeIdlePeople, later(minutes(7) + restAfterConversationMs))
+    await run(nudgeIdlePeople, later(rested))
     expect(await nudged(a)).toBe(1)
     expect(await nudged(b)).toBe(1)
   })
