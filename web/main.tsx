@@ -3,6 +3,7 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  Link,
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router'
@@ -12,6 +13,7 @@ import { z } from 'zod'
 import { queryClient, useMe, useWorld } from './api'
 import { signIn, signOut, useSession } from './auth'
 import { ConversationOverlay } from './screens/Conversation'
+import { HowItWorks } from './screens/HowItWorks'
 import { CreateAgent } from './screens/Onboarding'
 import { tour } from './map/watching'
 import { MyAgent, tabs, You } from './screens/MyAgent'
@@ -66,9 +68,22 @@ const personRoute = createRoute({
   component: PersonOverlay,
 })
 
+const howRoute = createRoute({
+  getParentRoute: () => worldRoute,
+  path: '/how-it-works',
+  component: HowItWorks,
+})
+
 const router = createRouter({
   routeTree: rootRoute.addChildren([
-    worldRoute.addChildren([homeRoute, conversationRoute, personRoute, meRoute, termsRoute]),
+    worldRoute.addChildren([
+      homeRoute,
+      conversationRoute,
+      personRoute,
+      meRoute,
+      termsRoute,
+      howRoute,
+    ]),
   ]),
 })
 
@@ -118,6 +133,17 @@ function World() {
         {session && me.data && !me.data.person && <CreateAgent userId={session.user.id} />}
       </header>
       {session && person && <Notices userId={session.user.id} />}
+      <footer className="foot">
+        <a href="https://github.com/omnara-ai/omnara" target="_blank" rel="noopener">
+          Powered by Omnara
+        </a>
+        <Link to="/how-it-works" search={true}>
+          How it works
+        </Link>
+        <Link to="/terms" search={true}>
+          Terms
+        </Link>
+      </footer>
       <Outlet />
     </main>
   )

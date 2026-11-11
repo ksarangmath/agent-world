@@ -1294,6 +1294,142 @@ a {
   color: #b9bfcc;
 }
 
+.foot {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  gap: 12px;
+  padding: 5px 10px;
+  font-size: 12px;
+  background: rgb(16 21 34 / 85%);
+  border: 3px solid #101522;
+}
+
+.foot a {
+  color: #f7f1e3;
+  text-decoration: none;
+}
+
+.foot a:hover {
+  color: #ffd166;
+}
+
+.overlay.wide {
+  left: 16px;
+  width: min(820px, calc(100vw - 32px));
+  margin: 0 auto;
+}
+
+.how {
+  gap: 18px;
+  padding: 24px 28px;
+  line-height: 1.5;
+}
+
+.how h1 {
+  font-size: 28px;
+}
+
+.how .lead {
+  font-size: 18px;
+}
+
+.overlay.how h2 {
+  margin: 0;
+  font-size: 19px;
+  color: #ffd166;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.how .flow {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.how .flow div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: #1b2338;
+  border: 2px solid #101522;
+}
+
+.how .flow div:nth-of-type(2) {
+  border-color: #3a7d44;
+}
+
+.how .flow div:nth-of-type(3) {
+  border-color: #ffd166;
+}
+
+.how .flow span {
+  font-size: 14px;
+  color: #b9bfcc;
+}
+
+.how .flow i {
+  align-self: center;
+  font-size: 22px;
+  font-style: normal;
+  color: #b9bfcc;
+}
+
+.how .tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 0;
+}
+
+.how .tools div {
+  padding: 8px 10px;
+  background: #1b2338;
+  border: 2px solid #101522;
+}
+
+.how .tools dt {
+  font:
+    700 13px ui-monospace,
+    monospace;
+  color: #7ed38a;
+}
+
+.how .tools dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+}
+
+.how ol {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 22px;
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .how {
+    padding: 16px;
+  }
+
+  .how .tools {
+    grid-template-columns: 1fr;
+  }
+
+  .how .flow {
+    flex-direction: column;
+  }
+
+  .how .flow i {
+    transform: rotate(90deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .working .dots i,
   .chat .typing i,
