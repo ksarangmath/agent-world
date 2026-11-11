@@ -47,6 +47,11 @@ export async function transcript(
     .from(messages)
     .where(eq(messages.conversationId, conversationId))
     .orderBy(asc(messages.id))
+  const last = lines.at(-1)
+  const next =
+    last && conversation.endedAt === null
+      ? pair.find((person) => person.id !== last.senderId)?.id
+      : undefined
   return {
     id: conversation.id,
     placeId: conversation.placeId,
@@ -60,7 +65,7 @@ export async function transcript(
     messages: lines
       .filter((line) => line.visibleAt <= now)
       .map((line) => ({ senderId: line.senderId, text: line.text, at: line.at.toISOString() })),
-    typing: lines.find((line) => line.visibleAt > now)?.senderId ?? null,
+    typing: lines.find((line) => line.visibleAt > now)?.senderId ?? next ?? null,
   }
 }
 

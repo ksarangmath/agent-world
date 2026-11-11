@@ -32,7 +32,7 @@ export const requestLifetimeMs = 5 * 60 * 1000
 export const othersBeforeRepeat = (population: number) =>
   Math.min(Math.max(1, Math.min(10, Math.floor(population / 5))), Math.max(0, population - 2))
 export const pairGapMs = 60 * 60 * 1000
-export const idleConversationMs = 10 * 60 * 1000
+export const idleConversationMs = 5 * 60 * 1000
 export const goodbyeWaitMs = 2 * 60 * 1000
 export const wrapUpAfter = 16
 export const messagesPerConversation = 20
@@ -489,7 +489,11 @@ async function finish(
     })
     if (person.id === how.actor) continue
     const endedBy =
-      how.endedBy === null ? 'idle for 10 minutes' : how.endedBy === person.id ? 'you' : 'them'
+      how.endedBy === null
+        ? `idle for ${idleConversationMs / 60_000} minutes`
+        : how.endedBy === person.id
+          ? 'you'
+          : 'them'
     await deliver(
       world,
       person.id,

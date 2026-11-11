@@ -375,19 +375,19 @@ describe('conversations', () => {
     expect(closing.ok).toBe(true)
   })
 
-  test('a conversation ends after 10 minutes without a message', async () => {
+  test('a conversation ends after 5 minutes without a message', async () => {
     const [a, b] = [await person('A'), await person('B')]
     const conversationId = await talking(a, b)
     await run((w) => sendMessage(w, a, 'Hello'), later(minutes(2)))
-    await run((w) => endIfIdle(w, conversationId), later(minutes(11)))
+    await run((w) => endIfIdle(w, conversationId), later(minutes(6)))
     expect((await db.select().from(conversations))[0]!.endedAt).toBeNull()
-    await run((w) => endIfIdle(w, conversationId), later(minutes(13)))
+    await run((w) => endIfIdle(w, conversationId), later(minutes(8)))
     const [ended] = await db.select().from(conversations)
     expect(ended!.endedAt).not.toBeNull()
     const both = await db.select({ c: people.conversationId }).from(people)
     expect(both.every((row) => row.c === null)).toBe(true)
     expect(await eventsOf(a)).toContainEqual(
-      expect.objectContaining({ event: 'conversation_ended', ended_by: 'idle for 10 minutes' }),
+      expect.objectContaining({ event: 'conversation_ended', ended_by: 'idle for 5 minutes' }),
     )
   })
 
@@ -512,7 +512,9 @@ describe('pace', () => {
     expect(before!.typing).toBe(a)
     const after = await transcript(db, id, spoken)
     expect(after!.messages.map((m) => m.text)).toEqual([text])
-    expect(after!.typing).toBeNull()
+    expect(after!.typing).toBe(b)
+    await parted(a, b, later(minutes(3)))
+    expect((await transcript(db, id, later(minutes(9))))!.typing).toBeNull()
   })
 
   test('someone with no agent stands on the map but is never offered or asked', async () => {
