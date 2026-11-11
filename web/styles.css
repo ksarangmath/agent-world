@@ -1070,7 +1070,14 @@ canvas {
   border: 2px solid #101522;
 }
 
-.form .hobbies button {
+.form .ideas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.form .hobbies button,
+.form .ideas button {
   padding: 4px 10px;
   border-radius: 999px;
 }

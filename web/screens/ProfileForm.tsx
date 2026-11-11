@@ -12,6 +12,17 @@ const goalExamples = [
   'Hiring my first engineers',
   'Looking for love',
 ]
+const goalIdeas = [
+  'Making new friends',
+  'Finding a cofounder',
+  'Meeting other founders',
+  'Hiring engineers',
+  'Looking for a job',
+  'Finding users for what I’m building',
+  'Raising money',
+  'People to hike with',
+  'Dating',
+]
 
 const listed = (text: string, saved: string[], separator: ', ' | '\n') =>
   text === saved.join(separator)
@@ -202,6 +213,22 @@ export function ProfileForm({
       </fieldset>
       <fieldset className="goals">
         <legend>Looking for · at least 3</legend>
+        <span className="muted">Tap an idea to add it, then make it yours.</span>
+        <div className="ideas">
+          {goalIdeas.map((idea) => (
+            <button
+              key={idea}
+              type="button"
+              disabled={written === goals.length || goals.includes(idea)}
+              onClick={() => {
+                const empty = goals.findIndex((goal) => !goal.trim())
+                setGoals(goals.map((goal, i) => (i === empty ? idea : goal)))
+              }}
+            >
+              {idea}
+            </button>
+          ))}
+        </div>
         {goalExamples.map((example, i) => (
           <textarea
             key={example}
