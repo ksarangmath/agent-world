@@ -1,14 +1,15 @@
-import { QueryClient, useQuery } from '@tanstack/react-query'
-import type {
-  Matches,
-  MeResponse,
-  MyConversation,
-  OnboardingStatus,
-  PersonCard,
-  ThreadMessage,
-  TimelineEvent,
-  Transcript,
-  WorldSnapshot,
+import { QueryClient, useMutation, useQuery } from '@tanstack/react-query'
+import {
+  pageSize,
+  type Matches,
+  type MeResponse,
+  type MyConversation,
+  type OnboardingStatus,
+  type PersonCard,
+  type ThreadMessage,
+  type TimelineEvent,
+  type Transcript,
+  type WorldSnapshot,
 } from '../shared/api'
 import type { Editable } from '../shared/profile'
 import { supabase } from './auth'
@@ -95,12 +96,70 @@ export const usePrivate = <T>(path: string, userId: string | undefined, refetchI
     refetchInterval,
   })
 
-export const useMyConversations = (userId: string | undefined) =>
-  usePrivate<MyConversation[]>('/api/me/conversations', userId)
+type History<T> = { items: T[]; more: boolean }
+
+function useHistory<T extends { id: string | number }>(
+  path: string,
+  userId: string,
+  at: (item: T) => string,
+  cursor: (oldest: T) => string,
+) {
+  const key = ['history', path, userId]
+  const newestFirst = (a: T, b: T) => {
+    const [first, second] = [at(a), at(b)]
+    if (first !== second) return first < second ? 1 : -1
+    return a.id < b.id ? 1 : a.id > b.id ? -1 : 0
+  }
+  const merged = (known: T[], page: T[]) =>
+    [...new Map([...known, ...page].map((item) => [item.id, item])).values()].sort(newestFirst)
+  const history = useQuery({
+    queryKey: key,
+    queryFn: async (): Promise<History<T>> => {
+      const page = await getJson<T[]>(path)
+      const known = queryClient.getQueryData<History<T>>(key)
+      return {
+        items: merged(known?.items ?? [], page),
+        more: known ? known.more : page.length >= pageSize,
+      }
+    },
+    refetchInterval: 5000,
+  })
+  const earlier = useMutation({
+    mutationFn: (before: string) => getJson<T[]>(`${path}?before=${encodeURIComponent(before)}`),
+    onSuccess: (page) =>
+      queryClient.setQueryData<History<T>>(key, (known) => ({
+        items: merged(known?.items ?? [], page),
+        more: page.length >= pageSize,
+      })),
+  })
+  const items = history.data?.items ?? []
+  const oldest = items.at(-1)
+  return {
+    items,
+    loaded: history.data !== undefined,
+    more: history.data?.more === true && oldest !== undefined,
+    loading: earlier.isPending,
+    failed: earlier.isError,
+    showEarlier: () => oldest && earlier.mutate(cursor(oldest)),
+  }
+}
+
+export const useMyConversations = (userId: string) =>
+  useHistory<MyConversation>(
+    '/api/me/conversations',
+    userId,
+    (conversation) => conversation.startedAt,
+    (oldest) => oldest.startedAt,
+  )
 export const useMatches = (userId: string | undefined, every?: number) =>
   usePrivate<Matches>('/api/me/matches', userId, every)
-export const useTimeline = (userId: string | undefined) =>
-  usePrivate<TimelineEvent[]>('/api/me/timeline', userId)
+export const useTimeline = (userId: string) =>
+  useHistory<TimelineEvent>(
+    '/api/me/timeline',
+    userId,
+    (event) => event.at,
+    (oldest) => `${oldest.at}_${oldest.id}`,
+  )
 export const useThread = (userId: string | undefined, every?: number) =>
   usePrivate<ThreadMessage[]>('/api/me/thread', userId, every)
 

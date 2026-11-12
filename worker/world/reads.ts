@@ -1,11 +1,12 @@
-import { and, asc, desc, eq, inArray, lte, or, sql } from 'drizzle-orm'
-import type {
-  Matches,
-  MyConversation,
-  PersonCard,
-  ThreadMessage,
-  TimelineEvent,
-  Transcript,
+import { and, asc, desc, eq, inArray, lt, lte, or, sql } from 'drizzle-orm'
+import {
+  pageSize,
+  type Matches,
+  type MyConversation,
+  type PersonCard,
+  type ThreadMessage,
+  type TimelineEvent,
+  type Transcript,
 } from '../../shared/api'
 import { alias } from 'drizzle-orm/pg-core'
 import type { Database, Transaction } from '../db/client'
@@ -84,13 +85,22 @@ async function facesOf(db: Database | Transaction, ids: string[]) {
   return new Map(rows.map(({ id, ...face }) => [id, face]))
 }
 
-export async function myConversations(db: Database, personId: string): Promise<MyConversation[]> {
+export async function myConversations(
+  db: Database,
+  personId: string,
+  before?: Date,
+): Promise<MyConversation[]> {
   const rows = await db
     .select()
     .from(conversations)
-    .where(or(eq(conversations.personA, personId), eq(conversations.personB, personId)))
+    .where(
+      and(
+        or(eq(conversations.personA, personId), eq(conversations.personB, personId)),
+        before ? lt(conversations.startedAt, before) : undefined,
+      ),
+    )
     .orderBy(desc(conversations.startedAt))
-    .limit(100)
+    .limit(pageSize)
   const others = rows.map((row) => (row.personA === personId ? row.personB : row.personA))
   const faces = await facesOf(db, others)
   return rows.map((row, i) => ({
@@ -214,6 +224,7 @@ export async function timeline(
   db: Database,
   personId: string,
   now = new Date(),
+  before?: { at: Date; id: number },
 ): Promise<TimelineEvent[]> {
   const rows = await db
     .select({
@@ -228,9 +239,17 @@ export async function timeline(
     })
     .from(worldEvents)
     .leftJoin(others, eq(worldEvents.otherId, others.id))
-    .where(and(eq(worldEvents.personId, personId), lte(worldEvents.createdAt, now)))
+    .where(
+      and(
+        eq(worldEvents.personId, personId),
+        lte(worldEvents.createdAt, now),
+        before
+          ? sql`(${worldEvents.createdAt}, ${worldEvents.id}) < (${before.at.toISOString()}::timestamptz, ${before.id})`
+          : undefined,
+      ),
+    )
     .orderBy(desc(worldEvents.createdAt), desc(worldEvents.id))
-    .limit(100)
+    .limit(pageSize)
   return rows.map((row) => ({
     id: row.id,
     kind: row.kind,

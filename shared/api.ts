@@ -35,6 +35,8 @@ export type Transcript = {
   typing: string | null
 }
 
+export const pageSize = 100
+
 export type MyConversation = {
   id: string
   with: string

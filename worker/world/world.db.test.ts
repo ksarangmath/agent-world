@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import { afterAll, beforeEach, describe, expect, test } from 'vitest'
+import { pageSize } from '../../shared/api'
 import { placesById } from '../../shared/map/places'
 import { spots } from '../../shared/map/spots'
 import type { Profile } from '../../shared/profile'
@@ -1000,5 +1001,50 @@ describe('removing a person', () => {
     expect(await run((w) => removePerson(w, crypto.randomUUID(), stopped('Nobody')))).toBe(
       'removed',
     )
+  })
+})
+
+describe('long histories', () => {
+  test('the timeline pages back through events, even ones that share a time', async () => {
+    const a = await person('Ada')
+    const total = pageSize + 30
+    await db.insert(worldEvents).values(
+      Array.from({ length: total }, (_, i) => ({
+        personId: a,
+        kind: 'looked_around' as const,
+        placeId,
+        createdAt: later(Math.floor(i / 7) * 1000),
+      })),
+    )
+    const now = later(minutes(60))
+    const first = await timeline(db, a, now)
+    expect(first).toHaveLength(pageSize)
+    const oldest = first.at(-1)!
+    const rest = await timeline(db, a, now, { at: new Date(oldest.at), id: oldest.id })
+    expect(rest).toHaveLength(30)
+    expect(new Set([...first, ...rest].map((event) => event.id)).size).toBe(total)
+    expect(
+      await timeline(db, a, now, { at: new Date(rest.at(-1)!.at), id: rest.at(-1)!.id }),
+    ).toEqual([])
+  })
+
+  test('older conversations come a page at a time', async () => {
+    const [a, b] = [await person('Ada'), await person('Bob')]
+    const [first, second] = a < b ? [a, b] : [b, a]
+    await db.insert(conversations).values(
+      Array.from({ length: pageSize + 5 }, (_, i) => ({
+        personA: first,
+        personB: second,
+        placeId,
+        startedAt: later(i * 1000),
+        lastMessageAt: later(i * 1000),
+        endedAt: later(i * 1000),
+      })),
+    )
+    const newest = await myConversations(db, a)
+    expect(newest).toHaveLength(pageSize)
+    const earlier = await myConversations(db, a, new Date(newest.at(-1)!.startedAt))
+    expect(earlier).toHaveLength(5)
+    expect(new Set([...newest, ...earlier].map((one) => one.id)).size).toBe(pageSize + 5)
   })
 })

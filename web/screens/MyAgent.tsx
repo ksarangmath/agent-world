@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import {
+  Fragment,
   useEffect,
   useRef,
   useState,
@@ -23,6 +24,7 @@ import {
 } from '../api'
 import type { Matches as MatchList, MeResponse, TimelineEvent } from '../../shared/api'
 import { useSession } from '../auth'
+import { byDay, clock, dayLabel } from '../days'
 import { doingNow } from '../map/doing'
 import { visit, watch } from '../map/watching'
 import { markSeen, useNews } from '../news'
@@ -42,6 +44,10 @@ const starters = [
 ]
 
 const answerWithinMs = 3 * 60 * 1000
+const threadLimit = 200
+const verdictsShown = 6
+
+const when = (iso: string) => (dayLabel(iso) === 'Today' ? ago(iso) : clock(iso))
 
 function Chat({ userId, face, hidden }: { userId: string; face: ReactNode; hidden: boolean }) {
   const thread = useThread(userId)
@@ -90,20 +96,29 @@ function Chat({ userId, face, hidden }: { userId: string; face: ReactNode; hidde
             to go and who to look for.
           </p>
         </li>
-        {messages.map((message) => (
-          <li
-            key={`${message.at}-${message.direction}`}
-            className={message.direction === 'to_agent' ? 'right' : 'left'}
-          >
-            {message.direction === 'to_owner' && face}
-            <p>
-              <span className="sr-only">
-                {message.direction === 'to_agent' ? 'You: ' : 'Your agent: '}
-              </span>
-              {message.text}
-            </p>
-          </li>
-        ))}
+        {thread.data?.length === threadLimit && (
+          <li className="day">Earlier messages aren’t shown</li>
+        )}
+        {messages.map((message, i) => {
+          const day = (at: string) => (at === 'now' ? 'Today' : dayLabel(at))
+          const previous = messages[i - 1]
+          return (
+            <Fragment key={`${message.at}-${message.direction}`}>
+              {(!previous || day(previous.at) !== day(message.at)) && (
+                <li className="day">{day(message.at)}</li>
+              )}
+              <li className={message.direction === 'to_agent' ? 'right' : 'left'}>
+                {message.direction === 'to_owner' && face}
+                <p>
+                  <span className="sr-only">
+                    {message.direction === 'to_agent' ? 'You: ' : 'Your agent: '}
+                  </span>
+                  {message.text}
+                </p>
+              </li>
+            </Fragment>
+          )
+        })}
         {waiting && (
           <li className="left typing">
             {face}
@@ -148,31 +163,42 @@ function Chat({ userId, face, hidden }: { userId: string; face: ReactNode; hidde
 }
 
 function Verdicts({ verdicts }: { verdicts: MatchList['verdicts'] }) {
+  const [all, setAll] = useState(false)
+  const shown = all ? verdicts : verdicts.slice(0, verdictsShown)
   return (
-    <ul className="verdicts">
-      {verdicts.map((verdict) => (
-        <li key={verdict.aboutId} className={verdict.verdict}>
-          <Link
-            to="/conversations/$conversationId"
-            params={{ conversationId: verdict.conversationId }}
-            search={true}
-          >
-            <Portrait
-              person={{ id: verdict.aboutId, name: verdict.about, portrait: verdict.portrait }}
-              size="small"
-            />
-            <span>
-              <strong>{verdict.about}</strong>
-              <span className="mark">
-                <Pixel name={verdict.verdict === 'match' ? 'heart' : 'no'} />
-                {verdict.verdict === 'match' ? 'match' : 'not a match'}
+    <>
+      <ul className="verdicts">
+        {shown.map((verdict) => (
+          <li key={verdict.aboutId} className={verdict.verdict}>
+            <Link
+              to="/conversations/$conversationId"
+              params={{ conversationId: verdict.conversationId }}
+              search={true}
+            >
+              <Portrait
+                person={{ id: verdict.aboutId, name: verdict.about, portrait: verdict.portrait }}
+                size="small"
+              />
+              <span>
+                <strong>{verdict.about}</strong>
+                <span className="mark">
+                  <Pixel name={verdict.verdict === 'match' ? 'heart' : 'no'} />
+                  {verdict.verdict === 'match' ? 'match' : 'not a match'}
+                </span>
+                <span className="why">{verdict.reason}</span>
               </span>
-              <span className="why">{verdict.reason}</span>
-            </span>
-          </Link>
-        </li>
-      ))}
-    </ul>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {verdicts.length > verdictsShown && (
+        <p className="earlier">
+          <button type="button" onClick={() => setAll(!all)}>
+            {all ? 'Show fewer' : `Show all ${verdicts.length}`}
+          </button>
+        </p>
+      )}
+    </>
   )
 }
 
@@ -312,66 +338,112 @@ function Story({ event }: { event: TimelineEvent }) {
   }
 }
 
+type History = { more: boolean; loading: boolean; failed: boolean; showEarlier: () => void }
+
+function Earlier({ history, what }: { history: History; what: string }) {
+  if (!history.more) return null
+  return (
+    <p className="earlier">
+      <button type="button" disabled={history.loading} onClick={history.showEarlier}>
+        {history.loading ? 'Loading…' : `Show earlier ${what}`}
+      </button>
+      {history.failed && <span className="error"> That didn’t load. Try again.</span>}
+    </p>
+  )
+}
+
 function Activity({ userId, hidden }: { userId: string; hidden: boolean }) {
   const timeline = useTimeline(userId)
   const conversations = useMyConversations(userId)
-  const events = (timeline.data ?? []).filter(
-    (event, i, all) =>
-      !(
-        event.kind === 'looked_around' &&
-        all[i + 1]?.kind === 'looked_around' &&
-        all[i + 1]?.placeId === event.placeId
-      ),
-  )
+  const [peopleOnly, setPeopleOnly] = useState(false)
+  const events = timeline.items
+    .filter(
+      (event, i, all) =>
+        !(
+          event.kind === 'looked_around' &&
+          all[i + 1]?.kind === 'looked_around' &&
+          all[i + 1]?.placeId === event.placeId
+        ),
+    )
+    .filter((event) => !peopleOnly || event.other)
   return (
     <div className="pane" hidden={hidden}>
       <section>
         <h2>Conversations</h2>
-        {conversations.data?.length === 0 && <p className="muted">None yet.</p>}
-        <ul className="faces">
-          {conversations.data?.map((conversation) => (
-            <li key={conversation.id}>
-              <Link
-                to="/conversations/$conversationId"
-                params={{ conversationId: conversation.id }}
-                search={true}
-              >
-                <Portrait
-                  person={{ ...conversation, id: conversation.withId, name: conversation.with }}
-                  size="small"
-                />
-                <strong>{conversation.with.split(' ')[0]}</strong>
-                <span className={conversation.endedAt === null ? 'live' : 'muted'}>
-                  {conversation.endedAt === null ? 'now' : ago(conversation.startedAt)}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        {conversations.loaded && conversations.items.length === 0 && (
+          <p className="muted">None yet.</p>
+        )}
+        {byDay(conversations.items, (conversation) => conversation.startedAt).map((day) => (
+          <div key={day.label} className="day">
+            <h3>
+              {day.label} <span className="muted">· {day.items.length}</span>
+            </h3>
+            <ul className="faces">
+              {day.items.map((conversation) => (
+                <li key={conversation.id}>
+                  <Link
+                    to="/conversations/$conversationId"
+                    params={{ conversationId: conversation.id }}
+                    search={true}
+                  >
+                    <Portrait
+                      person={{ ...conversation, id: conversation.withId, name: conversation.with }}
+                      size="small"
+                    />
+                    <strong>{conversation.with.split(' ')[0]}</strong>
+                    <span className={conversation.endedAt === null ? 'live' : 'muted'}>
+                      {conversation.endedAt === null ? 'now' : when(conversation.startedAt)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+        <Earlier history={conversations} what="conversations" />
       </section>
       <section>
-        <h2>Everything it did</h2>
-        {events.length === 0 && <p className="muted">Nothing yet.</p>}
-        <ol className="feed">
-          {events.map((event) => (
-            <li key={event.id} className={event.kind}>
-              <span className="node">
-                {event.other && <Portrait person={event.other} size="small" />}
-                <Pixel name={icons[event.kind]} />
-              </span>
-              <div>
-                <p>
-                  <Story event={event} /> <span className="muted">{ago(event.at)}</span>
-                </p>
-                {event.note && (
-                  <q className={mine.includes(event.kind) ? 'said mine' : 'said theirs'}>
-                    {event.note}
-                  </q>
-                )}
-              </div>
-            </li>
-          ))}
-        </ol>
+        <div className="heading">
+          <h2>What it did</h2>
+          <fieldset className="filter">
+            <legend className="sr-only">Which activity to show</legend>
+            <button type="button" aria-pressed={!peopleOnly} onClick={() => setPeopleOnly(false)}>
+              Everything
+            </button>
+            <button type="button" aria-pressed={peopleOnly} onClick={() => setPeopleOnly(true)}>
+              People only
+            </button>
+          </fieldset>
+        </div>
+        {timeline.loaded && events.length === 0 && (
+          <p className="muted">{peopleOnly ? 'Nobody yet.' : 'Nothing yet.'}</p>
+        )}
+        {byDay(events, (event) => event.at).map((day) => (
+          <div key={day.label} className="day">
+            <h3>{day.label}</h3>
+            <ol className="feed">
+              {day.items.map((event) => (
+                <li key={event.id} className={event.kind}>
+                  <span className="node">
+                    {event.other && <Portrait person={event.other} size="small" />}
+                    <Pixel name={icons[event.kind]} />
+                  </span>
+                  <div>
+                    <p>
+                      <Story event={event} /> <span className="muted">{when(event.at)}</span>
+                    </p>
+                    {event.note && (
+                      <q className={mine.includes(event.kind) ? 'said mine' : 'said theirs'}>
+                        {event.note}
+                      </q>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        ))}
+        <Earlier history={timeline} what="activity" />
       </section>
     </div>
   )

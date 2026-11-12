@@ -16,6 +16,15 @@ import { messageAgent } from '../world/owner-thread'
 import { isAwake, wake } from '../world/people'
 import { myConversations, myMatches, thread, timeline } from '../world/reads'
 
+const timelineCursor = z
+  .string()
+  .regex(/^[^_]+_\d{1,15}$/)
+  .transform((cursor) => {
+    const [at, id] = cursor.split('_')
+    return { at: new Date(at!), id: Number(id) }
+  })
+  .refine((cursor) => !Number.isNaN(cursor.at.getTime()))
+
 const personOf = async (db: Database, userId: string) =>
   (await db.select({ id: people.id }).from(people).where(eq(people.userId, userId)))[0]
 
@@ -71,9 +80,12 @@ export const me = new Hono<SignedIn>()
     return c.json({ person: { id } })
   })
   .get('/conversations', async (c) => {
+    const before = z.iso.datetime().optional().safeParse(c.req.query('before'))
+    if (!before.success) return c.json({ error: 'before must be a time.' }, 400)
     const db = database(c.env)
     const person = await personOf(db, c.var.userId)
-    return c.json(person ? await myConversations(db, person.id) : [])
+    const earlier = before.data ? new Date(before.data) : undefined
+    return c.json(person ? await myConversations(db, person.id, earlier) : [])
   })
   .get('/matches', async (c) => {
     const db = database(c.env)
@@ -81,9 +93,11 @@ export const me = new Hono<SignedIn>()
     return c.json(person ? await myMatches(db, person.id) : { verdicts: [], mutual: [] })
   })
   .get('/timeline', async (c) => {
+    const before = timelineCursor.optional().safeParse(c.req.query('before'))
+    if (!before.success) return c.json({ error: 'before must be a time and an id.' }, 400)
     const db = database(c.env)
     const person = await personOf(db, c.var.userId)
-    return c.json(person ? await timeline(db, person.id) : [])
+    return c.json(person ? await timeline(db, person.id, new Date(), before.data) : [])
   })
   .post('/wake', async (c) => {
     const services = { db: database(c.env), omnara: omnara(c.env) }

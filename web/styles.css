@@ -645,6 +645,68 @@ canvas {
   overflow-x: auto;
 }
 
+.day > h3 {
+  margin: 6px 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #f7f1e3;
+}
+
+.day .faces {
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  overflow-x: visible;
+}
+
+.chat .day {
+  align-self: center;
+  max-width: none;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: #b9bfcc;
+}
+
+.heading {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.overlay .filter {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.overlay .filter button {
+  min-height: 0;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: #b9bfcc;
+  background: none;
+  box-shadow: none;
+}
+
+.overlay .filter button[aria-pressed='true'] {
+  color: #101522;
+  background: #ffd166;
+}
+
+.earlier {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.overlay .earlier button {
+  font-size: 13px;
+}
+
 .faces a {
   display: flex;
   flex-direction: column;
