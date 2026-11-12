@@ -116,7 +116,7 @@ export async function linkedInIdentity(db: Database, userId: string) {
   return identity.success ? identity.data : null
 }
 
-const verificationAttemptsPerDay = 10
+export const verificationAttemptsPerDay = 30
 
 export async function claimVerificationAttempt(db: Database, userId: string, now: Date) {
   const expired = sql`${verificationAttempts.since} < ${new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()}::timestamptz`

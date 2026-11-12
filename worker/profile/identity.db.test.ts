@@ -6,7 +6,12 @@ import { editableSchema, type Profile } from '../../shared/profile'
 import { signInWithLinkedIn } from '../db/linkedin.fixture'
 import * as schema from '../db/schema'
 import { runBuilderCall } from '../tools/run'
-import { claimVerificationAttempt, linkedInIdentity, noteVerification } from './builder'
+import {
+  claimVerificationAttempt,
+  linkedInIdentity,
+  noteVerification,
+  verificationAttemptsPerDay,
+} from './builder'
 import { saveProfile } from './save'
 
 const client = postgres('postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 4 })
@@ -194,12 +199,14 @@ describe('LinkedIn identity', () => {
     })
   })
 
-  test('allows ten verification attempts a day, even when they race', async () => {
+  test(`allows ${verificationAttemptsPerDay} verification attempts a day, even when they race`, async () => {
     const now = new Date('2026-11-09T12:00:00Z')
     const claims = await Promise.all(
-      Array.from({ length: 15 }, () => claimVerificationAttempt(db, userId, now)),
+      Array.from({ length: verificationAttemptsPerDay + 5 }, () =>
+        claimVerificationAttempt(db, userId, now),
+      ),
     )
-    expect(claims.filter(Boolean)).toHaveLength(10)
+    expect(claims.filter(Boolean)).toHaveLength(verificationAttemptsPerDay)
     const nextDay = new Date(now.getTime() + 25 * 60 * 60 * 1000)
     expect(await claimVerificationAttempt(db, userId, nextDay)).toBe(true)
   })
