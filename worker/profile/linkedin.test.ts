@@ -89,24 +89,27 @@ describe('verifying a pasted LinkedIn profile', () => {
 
   test("rejects a profile with someone else's photo, but only on a live fetch", async () => {
     const calls = exa([{ url, image: photo('D5603AQsomeoneelse') }])
-    expect(await verify()).toBe('not-yours')
+    expect(await verify()).toEqual({ problem: 'not-yours', failures: '' })
     expect(calls).toEqual([stored, fresh])
   })
 
   test('asks for a public photo when the public profile shows none', async () => {
     exa([{ url }])
-    expect(await verify()).toBe('no-public-photo')
+    expect(await verify()).toEqual({ problem: 'no-public-photo', failures: '' })
   })
 
   test('blocks a sign-in without a LinkedIn photo before fetching anything', async () => {
     const calls = exa([])
-    expect(await verify({ name: 'Ada Lovelace', picture: null })).toBe('no-sign-in-photo')
+    expect(await verify({ name: 'Ada Lovelace', picture: null })).toEqual({
+      problem: 'no-sign-in-photo',
+      failures: '',
+    })
     expect(calls).toHaveLength(0)
   })
 
   test('says there is no public profile only after two live fetches say so', async () => {
     const calls = exa('not found')
-    expect(await verify()).toBe('not-found')
+    expect(await verify()).toEqual({ problem: 'not-found', failures: 'CRAWL_NOT_FOUND' })
     expect(calls).toEqual([stored, fresh, fresh])
   })
 
@@ -116,22 +119,17 @@ describe('verifying a pasted LinkedIn profile', () => {
   })
 
   test('does not trust a fetch that landed on a different profile', async () => {
-    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     exa([{ url: 'https://www.linkedin.com/in/someone-else', image: photo('D5603AQsignedin') }])
-    expect(await verify()).toBe('unreachable')
-    expect(log).toHaveBeenCalledWith('LinkedIn check failed', 'no profile')
+    expect(await verify()).toEqual({ problem: 'unreachable', failures: 'no profile' })
   })
 
   test('reports LinkedIn as unreachable after five live fetches that come back empty or fail', async () => {
-    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const calls = exa([], [], new Error('network down'))
-    expect(await verify()).toBe('unreachable')
+    expect(await verify()).toEqual({ problem: 'unreachable', failures: 'no profile, Error' })
     expect(calls).toHaveLength(6)
-    expect(log).toHaveBeenCalledWith('LinkedIn check failed', 'no profile, Error')
   })
 
-  test('logs what kind of failure it was, never what Exa or the network said', async () => {
-    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  test('reports what kind of failure it was, never what Exa or the network said', async () => {
     exa(
       [],
       new Response('<html>Ada Lovelace, ada@example.com</html>'),
@@ -142,10 +140,9 @@ describe('verifying a pasted LinkedIn profile', () => {
       }),
       new TypeError('fetch failed for https://www.linkedin.com/in/ada'),
     )
-    expect(await verify()).toBe('unreachable')
-    expect(log).toHaveBeenCalledWith(
-      'LinkedIn check failed',
-      'SyntaxError, Error 429, CRAWL_LIVECRAWL_TIMEOUT, TypeError',
-    )
+    expect(await verify()).toEqual({
+      problem: 'unreachable',
+      failures: 'SyntaxError, Error 429, CRAWL_LIVECRAWL_TIMEOUT, TypeError',
+    })
   })
 })

@@ -1,4 +1,4 @@
-import type { LinkedInProblem } from '../../shared/world'
+import { maxFailuresLength, type LinkedInProblem } from '../../shared/world'
 import type { LinkedInIdentity } from './builder'
 import { exaContents, exaFreshContents } from './exa'
 
@@ -49,15 +49,21 @@ function failure(error: unknown) {
   return typeof status === 'number' ? `${error.name} ${status}` : error.name
 }
 
+export type Refusal = { problem: LinkedInProblem; failures: string }
+
 export async function verifyLinkedIn(
   apiKey: string,
   identity: LinkedInIdentity,
   url: string,
-): Promise<{ url: string; photoUrl: string } | LinkedInProblem> {
-  const signedIn = photoId(identity.picture)
-  if (!signedIn) return 'no-sign-in-photo'
-  const stop = new AbortController()
+): Promise<{ url: string; photoUrl: string } | Refusal> {
   const failures = new Set<string>()
+  const refuse = (problem: LinkedInProblem): Refusal => ({
+    problem,
+    failures: [...failures].join(', ').slice(0, maxFailuresLength),
+  })
+  const signedIn = photoId(identity.picture)
+  if (!signedIn) return refuse('no-sign-in-photo')
+  const stop = new AbortController()
   let missing = 0
   const stored = async () => {
     const copies = await exaContents(apiKey, [url], stop.signal)
@@ -83,13 +89,12 @@ export async function verifyLinkedIn(
       stored(),
       ...Array.from({ length: tries }, (_, attempt) => read(attempt)),
     ])
-    if (!profile) return 'not-found'
+    if (!profile) return refuse('not-found')
     const photo = photoId(profile.image)
-    if (!profile.image || !photo) return 'no-public-photo'
-    return photo === signedIn ? { url, photoUrl: profile.image } : 'not-yours'
+    if (!profile.image || !photo) return refuse('no-public-photo')
+    return photo === signedIn ? { url, photoUrl: profile.image } : refuse('not-yours')
   } catch {
-    console.error('LinkedIn check failed', [...failures].join(', '))
-    return 'unreachable'
+    return refuse('unreachable')
   } finally {
     stop.abort()
   }

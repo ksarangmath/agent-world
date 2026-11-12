@@ -16,6 +16,7 @@ export const linkedInProblems = [
   'unreachable',
 ] as const
 export type LinkedInProblem = (typeof linkedInProblems)[number]
+export const maxFailuresLength = 300
 
 export const deliveryModes = ['queued', 'steering'] as const
 export type DeliveryMode = (typeof deliveryModes)[number]

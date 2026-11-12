@@ -12,7 +12,7 @@ import {
   onboardingStatus,
   startBuilder,
 } from '../profile/builder'
-import { problemMessages, profileUrl, verifyLinkedIn } from '../profile/linkedin'
+import { problemMessages, profileUrl, verifyLinkedIn, type Refusal } from '../profile/linkedin'
 
 const startSchema = z.object({
   linkedin: z.string().trim().min(1).max(300),
@@ -47,14 +47,14 @@ export const onboarding = new Hono<SignedIn>()
       return c.json({ error: 'Too many tries today. Try again tomorrow.' }, 429)
     }
     const linkedIn = await verifyLinkedIn(c.env.EXA_API_KEY, identity, linkedinUrl)
-    const refused = typeof linkedIn === 'string' ? linkedIn : null
-    await noteVerification(services.db, c.var.userId, refused)
-    if (refused === 'unreachable') return c.json({ error: problemMessages.unreachable }, 503)
-    if (typeof linkedIn === 'string') return c.json({ error: problemMessages[linkedIn] }, 422)
-    const started = await startBuilder(services, c.env, c.var.userId, identity.name, linkedIn)
-    if (started === 'no photo') {
-      await noteVerification(services.db, c.var.userId, 'unreachable')
-      return c.json({ error: problemMessages.unreachable }, 503)
+    const refuse = async (refusal: Refusal) => {
+      await noteVerification(services.db, c.var.userId, refusal)
+      const status = refusal.problem === 'unreachable' ? 503 : 422
+      return c.json({ error: problemMessages[refusal.problem] }, status)
     }
+    if ('problem' in linkedIn) return refuse(linkedIn)
+    await noteVerification(services.db, c.var.userId, null)
+    const started = await startBuilder(services, c.env, c.var.userId, identity.name, linkedIn)
+    if (started === 'no photo') return refuse({ problem: 'unreachable', failures: 'photo' })
     return c.json({ status: 'building' })
   })

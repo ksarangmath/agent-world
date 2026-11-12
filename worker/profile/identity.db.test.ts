@@ -6,14 +6,14 @@ import { editableSchema, type Profile } from '../../shared/profile'
 import { signInWithLinkedIn } from '../db/linkedin.fixture'
 import * as schema from '../db/schema'
 import { runBuilderCall } from '../tools/run'
-import { claimVerificationAttempt, linkedInIdentity } from './builder'
+import { claimVerificationAttempt, linkedInIdentity, noteVerification } from './builder'
 import { saveProfile } from './save'
 
 const client = postgres('postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 4 })
 const db = drizzle(client, { schema, casing: 'snake_case' })
 afterAll(() => client.end())
 
-const { people, profileDrafts } = schema
+const { people, profileDrafts, verificationAttempts } = schema
 const services = { db, omnara: {} as never }
 const userId = '00000000-0000-4000-8000-0000000000cc'
 const agentId = 'builder-identity'
@@ -202,5 +202,23 @@ describe('LinkedIn identity', () => {
     expect(claims.filter(Boolean)).toHaveLength(10)
     const nextDay = new Date(now.getTime() + 25 * 60 * 60 * 1000)
     expect(await claimVerificationAttempt(db, userId, nextDay)).toBe(true)
+  })
+
+  test('keeps why the last check was refused, and clears it when one passes', async () => {
+    const last = () =>
+      db
+        .select({
+          problem: verificationAttempts.lastProblem,
+          failures: verificationAttempts.lastFailures,
+        })
+        .from(verificationAttempts)
+        .where(eq(verificationAttempts.userId, userId))
+    await claimVerificationAttempt(db, userId, new Date())
+    await noteVerification(db, userId, { problem: 'unreachable', failures: 'CRAWL_TIMEOUT' })
+    expect(await last()).toEqual([{ problem: 'unreachable', failures: 'CRAWL_TIMEOUT' }])
+    await noteVerification(db, userId, { problem: 'not-yours', failures: '' })
+    expect(await last()).toEqual([{ problem: 'not-yours', failures: null }])
+    await noteVerification(db, userId, null)
+    expect(await last()).toEqual([{ problem: null, failures: null }])
   })
 })

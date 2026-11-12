@@ -1,7 +1,6 @@
 import { and, eq, isNotNull, isNull, lt, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import type { OnboardingStatus } from '../../shared/api'
-import type { LinkedInProblem } from '../../shared/world'
 import { profileSchema, type Profile } from '../../shared/profile'
 import type { Database, Transaction } from '../db/client'
 import { profileDrafts, verificationAttempts } from '../db/schema'
@@ -10,6 +9,7 @@ import type { AgentConfig } from '../omnara/agents'
 import { archiveAgent, launchAgent } from '../omnara/agents'
 import { sendInput, type Image } from '../omnara/inputs'
 import { builderTools, portraitTools } from '../tools/builder'
+import type { Refusal } from './linkedin'
 import { customTools } from '../tools/tool'
 import type { Services } from '../tools/run'
 
@@ -134,14 +134,10 @@ export async function claimVerificationAttempt(db: Database, userId: string, now
   return row!.attempts <= verificationAttemptsPerDay
 }
 
-export const noteVerification = (
-  db: Database,
-  userId: string,
-  lastProblem: LinkedInProblem | null,
-) =>
+export const noteVerification = (db: Database, userId: string, refusal: Refusal | null) =>
   db
     .update(verificationAttempts)
-    .set({ lastProblem })
+    .set({ lastProblem: refusal?.problem ?? null, lastFailures: refusal?.failures || null })
     .where(eq(verificationAttempts.userId, userId))
 
 export async function startBuilder(

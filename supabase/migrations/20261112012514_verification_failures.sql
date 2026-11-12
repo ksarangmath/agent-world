@@ -1,0 +1,2 @@
+ALTER TABLE "verification_attempts" ADD COLUMN "last_failures" text;--> statement-breakpoint
+ALTER TABLE "verification_attempts" ADD CONSTRAINT "verification_attempts_last_failures_length" CHECK (char_length("verification_attempts"."last_failures") <= 300);

@@ -20,6 +20,7 @@ import type { Profile } from '../../shared/profile'
 import {
   deliveryModes,
   linkedInProblems,
+  maxFailuresLength,
   maxMessageLength,
   maxOpenerLength,
   maxOwnerMessageLength,
@@ -265,14 +266,24 @@ export const worldEvents = pgTable(
   ],
 ).enableRLS()
 
-export const verificationAttempts = pgTable('verification_attempts', {
-  userId: uuid()
-    .primaryKey()
-    .references(() => authUsers.id, { onDelete: 'cascade' }),
-  attempts: integer().notNull(),
-  since: timestamptz().notNull(),
-  lastProblem: linkedInProblem(),
-}).enableRLS()
+export const verificationAttempts = pgTable(
+  'verification_attempts',
+  {
+    userId: uuid()
+      .primaryKey()
+      .references(() => authUsers.id, { onDelete: 'cascade' }),
+    attempts: integer().notNull(),
+    since: timestamptz().notNull(),
+    lastProblem: linkedInProblem(),
+    lastFailures: text(),
+  },
+  (t) => [
+    check(
+      'verification_attempts_last_failures_length',
+      maxLength(t.lastFailures, maxFailuresLength),
+    ),
+  ],
+).enableRLS()
 
 export const profileDrafts = pgTable(
   'profile_drafts',
