@@ -28,7 +28,7 @@ const naturalHair = [
   'black',
   'raven',
 ]
-const grayHair = new Set(['ash', 'platinum', 'white', 'gray'])
+const grayHair = new Set(['white', 'gray'])
 
 const hairParts: Record<Avatar['hair_style'], Part | null> = {
   bald: null,

@@ -4,6 +4,7 @@ import { dirname } from 'node:path'
 const commit = '124dd3af4aa3b60e2dd1c507bd4db3f7f80934cc'
 const source = `https://raw.githubusercontent.com/LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator/${commit}`
 const bodies = ['male', 'female'] as const
+const slim = 'teen'
 const animations = ['walk', 'idle', 'sit', 'emote', 'spellcast', 'thrust', 'slash'] as const
 const optional = ['jump', 'climb'] as const
 const materials = ['body', 'hair', 'cloth', 'eye'] as const
@@ -61,7 +62,9 @@ const parts = {
 type Definition = {
   recolors?: { material?: string; color_1?: { material: string } }
   credits: { file: string; authors: string[]; licenses: string[]; urls: string[] }[]
-  [layer: `layer_${number}`]: { zPos: number } & Partial<Record<(typeof bodies)[number], string>>
+  [layer: `layer_${number}`]: { zPos: number } & Partial<
+    Record<(typeof bodies)[number] | typeof slim, string>
+  >
 }
 
 async function fetchOk(path: string) {
@@ -91,7 +94,7 @@ for (const [id, definition] of Object.entries(parts)) {
   const layers = Object.entries(json)
     .filter(([key]) => key.startsWith('layer_'))
     .map(([, layer]) => layer as Definition[`layer_${number}`])
-    .map((layer) => ({ z: layer.zPos, male: layer.male!, female: layer.female! }))
+    .map((layer) => ({ z: layer.zPos, male: layer.male!, female: (layer[slim] ?? layer.female)! }))
   if (layers.some((layer) => !layer.male || !layer.female))
     throw new Error(`${definition}: missing a body`)
   for (const layer of layers) for (const body of bodies) sheets.add(layer[body])
