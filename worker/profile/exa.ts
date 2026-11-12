@@ -72,8 +72,15 @@ export const exaSearch = async (apiKey: string, query: string, results: number) 
     })
   ).results
 
-export const exaContents = async (apiKey: string, urls: string[], signal?: AbortSignal) =>
-  (await exa(apiKey, 'contents', { urls, text: { maxCharacters } }, signal)).results
+export const exaContents = async (apiKey: string, urls: string[], stop?: AbortSignal) =>
+  (
+    await exa(
+      apiKey,
+      'contents',
+      { urls, text: { maxCharacters } },
+      stop && AbortSignal.any([stop, AbortSignal.timeout(timeoutMs)]),
+    )
+  ).results
 
 // https://exa.ai/docs/reference/get-contents
 // https://exa.ai/docs/admin/error-codes

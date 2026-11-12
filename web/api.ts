@@ -56,6 +56,8 @@ async function send<T>(path: string, method: 'POST' | 'PUT', body: unknown): Pro
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(body),
+  }).catch(() => {
+    throw new Error('The connection dropped before we got an answer. Try again.')
   })
   const json = (await response.json().catch(() => ({}))) as { error?: string }
   if (!response.ok) {

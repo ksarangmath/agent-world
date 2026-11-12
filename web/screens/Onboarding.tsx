@@ -14,10 +14,12 @@ const checkingLines = [
   'Opening your LinkedIn…',
   'Matching your photo…',
   'LinkedIn is slow to answer. Still trying…',
-  'Still trying. Nothing you need to do…',
+  'Still trying. Keep this page open…',
 ]
 const triesOnOurOwn = 2
 const unreachable = 503
+const worthAnotherTry = (error: { status?: number }) =>
+  error.status === unreachable || error.status === undefined
 
 const stageCopy: Record<BuildStage, { title: string; lines: string[] }> = {
   researching: {
@@ -94,9 +96,9 @@ function LinkedInForm({ userId }: { userId: string }) {
   const start = useMutation({
     mutationFn: startOnboarding,
     retry: (failures, error: Error & { status?: number }) =>
-      error.status === unreachable && failures < triesOnOurOwn,
+      worthAnotherTry(error) && failures < triesOnOurOwn,
     retryDelay: 2000,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['onboarding', userId] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['onboarding', userId] }),
   })
   const submit = (event: FormEvent) => {
     event.preventDefault()
