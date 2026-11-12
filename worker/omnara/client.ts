@@ -20,3 +20,6 @@ export function omnara(env: Env): Omnara {
 
 export const isPermanent = (error: unknown) =>
   error instanceof ApiError && [400, 404, 410, 422].includes(error.status)
+
+export const isGone = (error: unknown) =>
+  error instanceof ApiError && [404, 410].includes(error.status)

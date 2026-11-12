@@ -3,7 +3,8 @@ import { useNavigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 import { hobbies, popularHobbies } from '../../shared/hobbies'
 import type { Profile } from '../../shared/profile'
-import { saveProfile, useMyPortrait } from '../api'
+import { deleteAccount, saveProfile, useMyPortrait } from '../api'
+import { signOut } from '../auth'
 
 const goalExamples = [
   'Raising seed money for my startup',
@@ -35,6 +36,49 @@ const listed = (text: string, saved: string[], separator: ', ' | '\n') =>
             .filter(Boolean),
         ),
       ]
+
+function DeleteAccount() {
+  const [asking, setAsking] = useState(false)
+  const navigate = useNavigate()
+  const remove = useMutation({
+    mutationFn: deleteAccount,
+    onSuccess: async () => {
+      await signOut()
+      await navigate({ to: '/', search: true })
+    },
+  })
+  if (!asking) {
+    return (
+      <section className="danger">
+        <button type="button" className="ask" onClick={() => setAsking(true)}>
+          Delete account
+        </button>
+      </section>
+    )
+  }
+  return (
+    <section className="danger">
+      <p>
+        This removes your agent, your profile, and every conversation your agent had, for you and
+        for the people it talked to. It can’t be undone.
+      </p>
+      <div className="choice">
+        <button
+          type="button"
+          className="delete"
+          disabled={remove.isPending}
+          onClick={() => remove.mutate()}
+        >
+          {remove.isPending ? 'Deleting…' : 'Yes, delete my account'}
+        </button>
+        <button type="button" disabled={remove.isPending} onClick={() => setAsking(false)}>
+          Keep my account
+        </button>
+      </div>
+      {remove.error && <p className="error">{remove.error.message}</p>}
+    </section>
+  )
+}
 
 export function ProfileForm({
   draft,
@@ -113,175 +157,178 @@ export function ProfileForm({
       setAbout({ ...about, [name]: event.target.value }),
   })
   return (
-    <form className="form profile" onSubmit={submit}>
-      {!saved && (
-        <p className="steps">
-          Almost there. Check this is you, then scroll down to pick hobbies and say what you’re
-          looking for.
-        </p>
-      )}
-      {portrait.data && <img className="portrait" src={portrait.data} alt="" />}
-      <h2>{draft.name}</h2>
-      {editing ? (
-        <>
-          <label>
-            Headline
-            <input maxLength={120} {...field('headline')} />
-          </label>
-          <label>
-            City (optional)
-            <input maxLength={80} {...field('city')} />
-          </label>
-          <label>
-            Bio
-            <textarea rows={5} maxLength={600} {...field('bio')} />
-          </label>
-          <label>
-            Working on
-            <textarea rows={3} maxLength={300} {...field('current_work')} />
-          </label>
-          <label>
-            Expertise
-            <span className="muted">Up to 10, separated by commas.</span>
-            <textarea rows={2} {...field('expertise')} />
-          </label>
-          <label>
-            Interests
-            <span className="muted">Up to 15, separated by commas.</span>
-            <textarea rows={2} {...field('interests')} />
-          </label>
-          <label>
-            Fun facts
-            <span className="muted">Up to 5, one per line.</span>
-            <textarea rows={4} {...field('fun_facts')} />
-          </label>
-          <label>
-            Background
-            <span className="muted">
-              Where you grew up, schools, past jobs, clubs, awards. Up to 12, one per line.
-            </span>
-            <textarea rows={6} {...field('background')} />
-          </label>
-        </>
-      ) : (
-        <>
-          <p>{about.headline}</p>
-          {about.city && <p className="muted">{about.city}</p>}
-          <p>{about.bio}</p>
-          {about.current_work && (
-            <p>
-              <strong>Working on:</strong> {about.current_work}
-            </p>
-          )}
-          {list('Expertise', expertise)}
-          {list('Interests', interests)}
-          {list('Fun facts', funFacts)}
-          {list('Background', background)}
-        </>
-      )}
-      <button type="button" aria-pressed={editing} onClick={() => setEditing(!editing)}>
-        {editing ? 'Done editing' : 'Something wrong? Edit it'}
-      </button>
-      <fieldset className="hobbies">
-        <legend>Pick 3–5 hobbies · {picked.length}/5</legend>
-        <input
-          type="search"
-          placeholder="Search, or scroll the list"
-          aria-label="Search hobbies"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => event.key === 'Enter' && event.preventDefault()}
-        />
-        <div className="choices">
-          {[...picked, ...shown.filter((hobby) => !picked.includes(hobby))].map((hobby) => {
-            const chosen = picked.includes(hobby)
-            return (
-              <button
-                key={hobby}
-                type="button"
-                className={chosen ? 'picked' : undefined}
-                aria-pressed={chosen}
-                disabled={!chosen && picked.length >= 5}
-                onClick={() => toggle(hobby)}
-              >
-                {hobby}
-              </button>
-            )
-          })}
-          {search && shown.length === 0 && <p className="muted">No matches</p>}
-        </div>
-      </fieldset>
-      <fieldset className="goals">
-        <legend>Looking for · at least 3</legend>
-        <span className="muted">Tap an idea to add it, then make it yours.</span>
-        <div className="ideas">
-          {goalIdeas.map((idea) => (
-            <button
-              key={idea}
-              type="button"
-              disabled={written === goals.length || goals.includes(idea)}
-              onClick={() => {
-                const empty = goals.findIndex((goal) => !goal.trim())
-                setGoals(goals.map((goal, i) => (i === empty ? idea : goal)))
-              }}
-            >
-              {idea}
-            </button>
-          ))}
-        </div>
-        {goalExamples.map((example, i) => (
-          <textarea
-            key={example}
-            rows={2}
-            maxLength={100}
-            placeholder={example}
-            aria-label={`Looking for, ${i + 1} of 5${i < 3 ? ', required' : ''}`}
-            value={goals[i]}
-            onChange={(event) =>
-              setGoals(goals.map((goal, j) => (j === i ? event.target.value : goal)))
-            }
+    <>
+      <form className="form profile" onSubmit={submit}>
+        {!saved && (
+          <p className="steps">
+            Almost there. Check this is you, then scroll down to pick hobbies and say what you’re
+            looking for.
+          </p>
+        )}
+        {portrait.data && <img className="portrait" src={portrait.data} alt="" />}
+        <h2>{draft.name}</h2>
+        {editing ? (
+          <>
+            <label>
+              Headline
+              <input maxLength={120} {...field('headline')} />
+            </label>
+            <label>
+              City (optional)
+              <input maxLength={80} {...field('city')} />
+            </label>
+            <label>
+              Bio
+              <textarea rows={5} maxLength={600} {...field('bio')} />
+            </label>
+            <label>
+              Working on
+              <textarea rows={3} maxLength={300} {...field('current_work')} />
+            </label>
+            <label>
+              Expertise
+              <span className="muted">Up to 10, separated by commas.</span>
+              <textarea rows={2} {...field('expertise')} />
+            </label>
+            <label>
+              Interests
+              <span className="muted">Up to 15, separated by commas.</span>
+              <textarea rows={2} {...field('interests')} />
+            </label>
+            <label>
+              Fun facts
+              <span className="muted">Up to 5, one per line.</span>
+              <textarea rows={4} {...field('fun_facts')} />
+            </label>
+            <label>
+              Background
+              <span className="muted">
+                Where you grew up, schools, past jobs, clubs, awards. Up to 12, one per line.
+              </span>
+              <textarea rows={6} {...field('background')} />
+            </label>
+          </>
+        ) : (
+          <>
+            <p>{about.headline}</p>
+            {about.city && <p className="muted">{about.city}</p>}
+            <p>{about.bio}</p>
+            {about.current_work && (
+              <p>
+                <strong>Working on:</strong> {about.current_work}
+              </p>
+            )}
+            {list('Expertise', expertise)}
+            {list('Interests', interests)}
+            {list('Fun facts', funFacts)}
+            {list('Background', background)}
+          </>
+        )}
+        <button type="button" aria-pressed={editing} onClick={() => setEditing(!editing)}>
+          {editing ? 'Done editing' : 'Something wrong? Edit it'}
+        </button>
+        <fieldset className="hobbies">
+          <legend>Pick 3–5 hobbies · {picked.length}/5</legend>
+          <input
+            type="search"
+            placeholder="Search, or scroll the list"
+            aria-label="Search hobbies"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && event.preventDefault()}
           />
-        ))}
-      </fieldset>
-      <label>
-        Anything else? (optional)
-        <span className="muted">Not shown on your profile.</span>
-        <textarea
-          rows={5}
-          maxLength={1000}
-          placeholder="Things the internet doesn’t know. For example: I grew up on a farm in Iowa and still love being outside. I’m 6'5&quot;, quiet in big groups, and funnier one on one. I love long walks on the beach and I can’t stand avocados."
-          value={aboutMe}
-          onChange={(event) => setAboutMe(event.target.value)}
-        />
-      </label>
-      {draft.sources.length > 0 && (
-        <details>
-          <summary>Where this came from</summary>
-          <ul>
-            {draft.sources.map((source) => (
-              <li key={`${source.field}-${source.url}`}>
-                {source.field}: {source.url}
-              </li>
+          <div className="choices">
+            {[...picked, ...shown.filter((hobby) => !picked.includes(hobby))].map((hobby) => {
+              const chosen = picked.includes(hobby)
+              return (
+                <button
+                  key={hobby}
+                  type="button"
+                  className={chosen ? 'picked' : undefined}
+                  aria-pressed={chosen}
+                  disabled={!chosen && picked.length >= 5}
+                  onClick={() => toggle(hobby)}
+                >
+                  {hobby}
+                </button>
+              )
+            })}
+            {search && shown.length === 0 && <p className="muted">No matches</p>}
+          </div>
+        </fieldset>
+        <fieldset className="goals">
+          <legend>Looking for · at least 3</legend>
+          <span className="muted">Tap an idea to add it, then make it yours.</span>
+          <div className="ideas">
+            {goalIdeas.map((idea) => (
+              <button
+                key={idea}
+                type="button"
+                disabled={written === goals.length || goals.includes(idea)}
+                onClick={() => {
+                  const empty = goals.findIndex((goal) => !goal.trim())
+                  setGoals(goals.map((goal, i) => (i === empty ? idea : goal)))
+                }}
+              >
+                {idea}
+              </button>
             ))}
-          </ul>
-        </details>
-      )}
-      <button
-        type="submit"
-        className="big primary"
-        disabled={
-          save.isPending ||
-          picked.length < 3 ||
-          picked.length > 5 ||
-          written < 3 ||
-          !about.headline.trim() ||
-          !about.bio.trim()
-        }
-      >
-        {saved ? 'Save changes' : 'Send my agent in'}
-      </button>
-      {missing.length > 0 && <p className="muted">Still needed: {missing.join(' and ')}.</p>}
-      {save.error && <p className="error">{save.error.message}</p>}
-    </form>
+          </div>
+          {goalExamples.map((example, i) => (
+            <textarea
+              key={example}
+              rows={2}
+              maxLength={100}
+              placeholder={example}
+              aria-label={`Looking for, ${i + 1} of 5${i < 3 ? ', required' : ''}`}
+              value={goals[i]}
+              onChange={(event) =>
+                setGoals(goals.map((goal, j) => (j === i ? event.target.value : goal)))
+              }
+            />
+          ))}
+        </fieldset>
+        <label>
+          Anything else? (optional)
+          <span className="muted">Not shown on your profile.</span>
+          <textarea
+            rows={5}
+            maxLength={1000}
+            placeholder="Things the internet doesn’t know. For example: I grew up on a farm in Iowa and still love being outside. I’m 6'5&quot;, quiet in big groups, and funnier one on one. I love long walks on the beach and I can’t stand avocados."
+            value={aboutMe}
+            onChange={(event) => setAboutMe(event.target.value)}
+          />
+        </label>
+        {draft.sources.length > 0 && (
+          <details>
+            <summary>Where this came from</summary>
+            <ul>
+              {draft.sources.map((source) => (
+                <li key={`${source.field}-${source.url}`}>
+                  {source.field}: {source.url}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        <button
+          type="submit"
+          className="big primary"
+          disabled={
+            save.isPending ||
+            picked.length < 3 ||
+            picked.length > 5 ||
+            written < 3 ||
+            !about.headline.trim() ||
+            !about.bio.trim()
+          }
+        >
+          {saved ? 'Save changes' : 'Send my agent in'}
+        </button>
+        {missing.length > 0 && <p className="muted">Still needed: {missing.join(' and ')}.</p>}
+        {save.error && <p className="error">{save.error.message}</p>}
+      </form>
+      <DeleteAccount />
+    </>
   )
 }

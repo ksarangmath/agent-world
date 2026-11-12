@@ -27,6 +27,7 @@ import type { World } from './events'
 import { recordImpression } from './impressions'
 import { messageAgent, messageOwner } from './owner-thread'
 import { nudgeIdlePeople, touch, wake, wakeAtDawn } from './people'
+import { removePerson } from './removal'
 import { goTo, listPlaces, lookAround } from './travel'
 
 const client = postgres('postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 12 })
@@ -892,5 +893,112 @@ describe('sleep', () => {
     })
     const tomorrow = new Date('2026-10-28T18:00:00Z')
     expect((await run((w) => requestConversation(w, c, a, 'hey'), tomorrow)).ok).toBe(true)
+  })
+})
+
+describe('removing a person', () => {
+  const stopped = (name: string) => ({ agentId: `agent-${name}`, memoryStoreId: null })
+  const rowsAbout = async (id: string) => {
+    const count = async (query: ReturnType<typeof sql>) =>
+      Number((await db.execute<{ n: number }>(query))[0]!.n)
+    return {
+      people: await count(sql`select count(*)::int as n from people where id = ${id}`),
+      conversations: await count(
+        sql`select count(*)::int as n from conversations where ${id} in (person_a, person_b)`,
+      ),
+      requests: await count(
+        sql`select count(*)::int as n from conversation_requests where ${id} in (from_id, to_id)`,
+      ),
+      impressions: await count(
+        sql`select count(*)::int as n from impressions where ${id} in (owner_id, about_id)`,
+      ),
+      events: await count(
+        sql`select count(*)::int as n from world_events where ${id} in (person_id, other_id)`,
+      ),
+      deliveries: await count(
+        sql`select count(*)::int as n from deliveries where ${id} in (person_id, actor_id)`,
+      ),
+      ownerMessages: await count(
+        sql`select count(*)::int as n from owner_messages where person_id = ${id}`,
+      ),
+    }
+  }
+  const nothing = {
+    people: 0,
+    conversations: 0,
+    requests: 0,
+    impressions: 0,
+    events: 0,
+    deliveries: 0,
+    ownerMessages: 0,
+  }
+
+  test('takes their conversations, verdicts, requests, and messages with them and leaves the rest', async () => {
+    const [a, b, c] = [await person('Ada'), await person('Bob'), await person('Cy')]
+    await talking(a, b)
+    await run((w) => sendMessage(w, a, 'hello Bob'))
+    const over = await parted(a, b, later(minutes(1)))
+    await run((w) => recordImpression(w, a, b, 'match', 'We both like chess.'), over)
+    await run((w) => recordImpression(w, b, a, 'match', 'Chess partner.'), over)
+    await run((w) => messageOwner(w, a, 'Met Bob, worth a coffee.'), over)
+    const kept = later(minutes(120))
+    await steppedOut(b, later(minutes(90)))
+    await steppedOut(c, later(minutes(90)))
+    await talking(b, c, kept)
+    await parted(b, c, later(minutes(121)))
+
+    expect(await run((w) => removePerson(w, a, stopped('Ada')), later(minutes(130)))).toBe(
+      'removed',
+    )
+
+    expect(await rowsAbout(a)).toEqual(nothing)
+    expect((await myConversations(db, b)).map((one) => one.withId)).toEqual([c])
+    expect(await myMatches(db, b)).toMatchObject({ mutual: [] })
+    expect(await db.select({ n: sql<number>`count(*)::int` }).from(messages)).toEqual([{ n: 2 }])
+    expect((await rowsAbout(c)).conversations).toBe(1)
+  })
+
+  test('frees whoever they were talking to and tells them', async () => {
+    const [a, b] = [await person('Ada'), await person('Bob')]
+    await talking(a, b)
+    const world = { now: later(minutes(1)), deliveries: [] as string[] }
+    expect(await db.transaction((tx) => removePerson({ ...world, tx }, a, stopped('Ada')))).toBe(
+      'removed',
+    )
+    const [bob] = await db
+      .select({ conversationId: people.conversationId, restingUntil: people.restingUntil })
+      .from(people)
+      .where(eq(people.id, b))
+    expect(bob).toEqual({ conversationId: null, restingUntil: null })
+    expect((await eventsOf(b)).at(-1)).toMatchObject({
+      event: 'conversation_ended',
+      reason: 'They left Agent World.',
+    })
+    expect(world.deliveries).toHaveLength(1)
+    expect(await rowsAbout(a)).toEqual(nothing)
+  })
+
+  test('tells someone who was waiting on their answer', async () => {
+    const [a, b] = [await person('Ada'), await person('Bob')]
+    await run((w) => requestConversation(w, b, a, 'Hi Ada'))
+    expect(await run((w) => removePerson(w, a, stopped('Ada')))).toBe('removed')
+    expect(await pendingFrom(b)).toEqual([])
+    expect((await eventsOf(b)).at(-1)).toMatchObject({
+      event: 'request_expired',
+      why: 'they left Agent World',
+    })
+    expect((await run((w) => lookAround(w, b))).text).not.toContain(a)
+  })
+
+  test('refuses when their agent is not the one that was stopped', async () => {
+    const a = await person('Ada')
+    expect(await run((w) => removePerson(w, a, stopped('Someone else')))).toBe('moved')
+    expect((await rowsAbout(a)).people).toBe(1)
+  })
+
+  test('removing someone who is already gone does nothing', async () => {
+    expect(await run((w) => removePerson(w, crypto.randomUUID(), stopped('Nobody')))).toBe(
+      'removed',
+    )
   })
 })

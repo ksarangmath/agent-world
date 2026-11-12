@@ -9,6 +9,7 @@ import { database } from '../db/client'
 import type { Database } from '../db/client'
 import { people, profileDrafts } from '../db/schema'
 import { omnara } from '../omnara/client'
+import { deleteAccount } from '../profile/delete'
 import { saveProfile } from '../profile/save'
 import { sendDeliveries } from '../tools/run'
 import { messageAgent } from '../world/owner-thread'
@@ -39,6 +40,10 @@ export const me = new Hono<SignedIn>()
       awakeUntil: isAwake(row, new Date()) ? row.awakeUntil!.toISOString() : null,
     }
     return c.json<MeResponse>({ person: person ?? null })
+  })
+  .delete('/', async (c) => {
+    await deleteAccount({ db: database(c.env), omnara: omnara(c.env) }, c.var.userId)
+    return c.body(null, 204)
   })
   .get('/portrait', async (c) => {
     const db = database(c.env)

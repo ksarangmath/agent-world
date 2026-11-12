@@ -1,5 +1,5 @@
 import type { Profile } from '../../shared/profile'
-import { ensureMemoryStore, launchAgent } from '../omnara/agents'
+import { archiveAgent, deleteMemoryStore, ensureMemoryStore, launchAgent } from '../omnara/agents'
 import type { Services } from '../tools/run'
 import { createPerson, setAgent } from '../world/people'
 import { memoryReadme, memoryStoreName, worldAgentConfig } from './agent-config'
@@ -20,9 +20,14 @@ export async function launchPerson(
   const person = await inWorld((tx) =>
     createPerson({ tx, now, deliveries: [] }, userId, profile, portrait),
   )
+  const kept = (agent: Parameters<typeof setAgent>[2]) =>
+    inWorld((tx) => setAgent({ tx, now, deliveries: [] }, person.id, agent))
   if (!person.memoryStoreId) {
     const memoryStoreId = await ensureMemoryStore(omnara, memoryStoreName(person.id), memoryReadme)
-    await inWorld((tx) => setAgent({ tx, now, deliveries: [] }, person.id, { memoryStoreId }))
+    if (!(await kept({ memoryStoreId }))) {
+      await deleteMemoryStore(omnara, memoryStoreId)
+      return null
+    }
   }
   if (!person.agentId) {
     const agentId = await launchAgent(omnara, {
@@ -32,7 +37,10 @@ export async function launchPerson(
       message: arrivalMessage,
       key: `launch-${person.id}`,
     })
-    await inWorld((tx) => setAgent({ tx, now, deliveries: [] }, person.id, { agentId }))
+    if (!(await kept({ agentId }))) {
+      await archiveAgent(omnara, agentId)
+      return null
+    }
   }
   return person.id
 }

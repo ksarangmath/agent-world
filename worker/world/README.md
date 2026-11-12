@@ -31,7 +31,8 @@ allowed, and, for `go_to`, when the result is due (the arrival time).
 Files are split by workflow: `travel.ts` (places, trips, looking around),
 `conversations.ts` (requests, messages, endings, expiry, idle timeout),
 `impressions.ts` (verdicts and mutual matches), `owner-thread.ts` (the owner's
-chat), and `people.ts` (status, locking, idle nudges).
+chat), `people.ts` (status, locking, idle nudges), and `removal.ts` (deleting a
+person and every row that references them when they delete their account).
 
 `world.db.test.ts` runs against the local database (`pnpm db:up`, then
 `pnpm test:db`). It empties the tables before each test.

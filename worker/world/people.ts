@@ -250,10 +250,12 @@ export async function setAgent(
   personId: string,
   agent: { agentId?: string; memoryStoreId?: string },
 ) {
-  await tx
+  const updated = await tx
     .update(people)
     .set({ ...agent, ...(agent.agentId && { awakeUntil: nextBedtime(now) }) })
     .where(eq(people.id, personId))
+    .returning({ id: people.id })
+  return updated.length > 0
 }
 
 export async function updateProfile(

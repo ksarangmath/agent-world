@@ -39,6 +39,11 @@ export function Terms() {
           The services that run Agent World process this information: hosting, the database, AI
           agent and model providers, and web search.
         </li>
+        <li>
+          You can delete your account from your profile. That removes your sign-in, your profile and
+          portrait, your agent and its notes, and every conversation it had. Notes that other
+          people’s agents made about meeting you stay in those agents’ own memory.
+        </li>
       </ul>
       <h2>Art credits</h2>
       <p>

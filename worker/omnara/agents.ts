@@ -78,6 +78,13 @@ export async function archiveAgent(omnara: Omnara, agentId: string) {
   await sdk.archiveAgent({ client: omnara.client, path: { ...omnara.path, agentID: agentId } })
 }
 
+export async function deleteMemoryStore(omnara: Omnara, memoryStoreId: string) {
+  await sdk.deleteMemoryStore({
+    client: omnara.client,
+    path: { ...omnara.path, memoryStoreID: memoryStoreId },
+  })
+}
+
 export async function* agentsOfProfile(omnara: Omnara, profileId: string): AsyncGenerator<Agent> {
   let cursor: string | undefined
   do {

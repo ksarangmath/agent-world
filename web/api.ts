@@ -46,16 +46,20 @@ export const useWorld = () =>
     refetchInterval: 1000,
   })
 
-async function send<T>(path: string, method: 'POST' | 'PUT', body: unknown): Promise<T> {
+async function send<T>(
+  path: string,
+  method: 'POST' | 'PUT' | 'DELETE',
+  body?: unknown,
+): Promise<T> {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   const response = await fetch(path, {
     method,
     headers: {
-      'Content-Type': 'application/json',
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify(body),
+    body: body === undefined ? undefined : JSON.stringify(body),
   }).catch(() => {
     throw new Error('The connection dropped before we got an answer. Try again.')
   })
@@ -80,6 +84,8 @@ export const startOnboarding = (linkedin: string) =>
   send<OnboardingStatus>('/api/onboarding', 'POST', { linkedin, consent: true })
 
 export const saveProfile = (edits: Editable) => send<unknown>('/api/me/profile', 'PUT', edits)
+
+export const deleteAccount = () => send<unknown>('/api/me', 'DELETE')
 
 export const usePrivate = <T>(path: string, userId: string | undefined, refetchInterval = 5000) =>
   useQuery({

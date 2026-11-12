@@ -984,6 +984,43 @@ canvas {
   font-family: system-ui, sans-serif;
 }
 
+.danger {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 2px solid #26314d;
+}
+
+.danger p {
+  margin: 0;
+}
+
+.danger .choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.danger .ask {
+  padding: 4px 0;
+  font-size: 13px;
+  color: #ff9aa5;
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.danger .delete {
+  background: #9b2c3c;
+}
+
+.danger .delete:hover:not(:disabled) {
+  background: #b83a4b;
+}
+
 .big.primary {
   color: #fff;
   background: #3a7d44;
