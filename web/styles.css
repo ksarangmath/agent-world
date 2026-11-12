@@ -1763,16 +1763,22 @@ a {
     box-shadow: none;
   }
 
+  :root {
+    background: #101522;
+  }
+
   .panel {
-    top: 8px;
-    right: 8px;
-    left: 8px;
+    top: 0;
+    right: 0;
+    left: 0;
     flex-flow: row wrap;
     gap: 6px 8px;
     align-items: center;
     justify-content: center;
-    max-height: calc(100% - 68px);
+    max-height: calc(100% - 60px);
     padding: 6px 8px;
+    background: #101522;
+    border-width: 0 0 3px;
   }
 
   .lockup {
