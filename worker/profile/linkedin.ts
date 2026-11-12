@@ -14,7 +14,7 @@ export const problemMessages: Record<LinkedInProblem, string> = {
   'not-yours':
     "That isn't the LinkedIn profile you signed in with: its photo doesn't match yours. Paste the address of your own profile. If you changed your LinkedIn photo recently, sign out and join again.",
   unreachable:
-    "We couldn't reach LinkedIn after several tries. Nothing is wrong on your side. Try again in a few minutes.",
+    'We couldn\'t read your LinkedIn profile after several tries. Check that it\'s public: on LinkedIn, open "Edit public profile & URL" and turn on your public profile. Then try again in a few minutes.',
 }
 
 export const photoId = (url: string | null | undefined) =>
