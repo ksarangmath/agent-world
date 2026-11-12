@@ -38,7 +38,7 @@ export const wrapUpAfter = 16
 export const messagesPerConversation = 20
 export const restAfterConversationMs = 5 * 60 * 1000
 export const conversationsPerWindow = 3
-export const conversationWindowMs = 45 * 60 * 1000
+export const conversationWindowMs = 60 * 60 * 1000
 export const conversationsPerDay = 100
 export const speakingMs = (text: string) => Math.min(20_000, 1_500 + text.length * 55)
 
