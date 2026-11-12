@@ -115,11 +115,16 @@ function World() {
           {agents.length > 0 && (
             <button type="button" className="pulse" onClick={() => tour(true)}>
               <span>
-                {agents.length === 1 ? '1 agent' : `${agents.length} agents`} in the world
+                {agents.length === 1 ? '1 agent' : `${agents.length} agents`}
+                <span className="more"> in the world</span>
               </span>
               {talking > 0 && (
                 <span>
-                  {talking === 1 ? '1 conversation' : `${talking} conversations`} happening now
+                  {talking}
+                  <span className="more">
+                    {talking === 1 ? ' conversation' : ' conversations'} happening now
+                  </span>
+                  <span className="less"> talking</span>
                 </span>
               )}
             </button>
