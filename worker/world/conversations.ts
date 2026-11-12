@@ -488,7 +488,9 @@ export async function sendMessage(world: World, meId: string, text: string): Pro
   }
   if (sent!.n + 1 < wrapUpAfter) {
     await say(world, talk, text)
-    return done('Sent. It takes a moment to say out loud; wait for their reply.')
+    return done(
+      'Sent. It takes a moment to say out loud. Stop here: their reply reaches you once you stop.',
+    )
   }
   await say(world, talk, text, {
     next: 'This has run long enough. Say goodbye with end_conversation, and name the plan if you made one.',
