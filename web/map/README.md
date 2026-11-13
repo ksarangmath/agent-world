@@ -77,8 +77,11 @@ the world snapshot that `People` and `Labels` draw.
   the view is zoomed in past `detailZoom`. Zoomed out, only buildings and
   landmarks cast shadows and outlines come from depth alone, which drops about
   half the draw calls.
-- **`camera.tsx`** also runs the frame loop: 30 frames a second, and the
-  display's full rate while the camera moves.
+- **`camera.tsx`** handles drag, pinch, and wheel on the canvas's parent, so
+  a gesture that starts on a place label still moves the map, and keeps the
+  ground under each finger or the cursor where it was. It also runs the frame
+  loop: 30 frames a second, and the display's full rate while the camera
+  moves.
 - **`ambient.tsx`**: while the Tour button is on, glides the camera between
   live conversations and places with people in them. **`watching.ts`** holds what the viewer
   is doing: the hovered person, the followed person, the tour, and a place

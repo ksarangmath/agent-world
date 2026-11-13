@@ -1,7 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect } from 'react'
 import { Vector3, type OrthographicCamera } from 'three'
-import { MapControls } from 'three/examples/jsm/controls/MapControls.js'
 import { mapHeight, mapWidth } from '../../shared/map/grid'
 import { detailZoom, showDetail, view, viewFrom } from './clock'
 import { surfaceAt } from './decks'
@@ -17,11 +16,28 @@ const flightSeconds = 0.7
 const watchZoom = 30
 const dragPixels = 5
 const trackEase = 0.12
+const zoomRange = { min: 1.4, max: 140 }
+const wheel = {
+  perHundredPixels: 0.95,
+  pinchBoost: 10,
+  linePixels: 16,
+  pagePixels: 100,
+  sameGestureMs: 200,
+}
 const glide = { tilesPerSecond: 9, shortest: 5, longest: 16, dipPerTile: 1 / 120, deepest: 0.7 }
 
 export type Focus = { x: number; y: number; zoom: number }
 
-let active: MapControls | null = null
+type Rig = {
+  camera: OrthographicCamera
+  surface: HTMLElement
+  x: number
+  y: number
+  movedAt: number
+}
+type Pinch = Event & { scale: number; clientX: number; clientY: number }
+
+let active: Rig | null = null
 const flight = {
   start: -1,
   seconds: flightSeconds,
@@ -31,13 +47,38 @@ const flight = {
 }
 const held = new Set<string>()
 
-const zoomOf = (controls: MapControls) => (controls.object as OrthographicCamera).zoom
+const lens = new Vector3()
+const aim = new Vector3()
 
-function moveBy(controls: MapControls, dx: number, dz: number) {
-  controls.target.x += dx
-  controls.target.z += dz
-  controls.object.position.x += dx
-  controls.object.position.z += dz
+function place(rig: Rig, x: number, y: number, zoom = rig.camera.zoom) {
+  rig.x = Math.min(mapWidth, Math.max(0, x))
+  rig.y = Math.min(mapHeight, Math.max(0, y))
+  rig.camera.position.set(
+    rig.x + viewFrom.x * distance,
+    viewFrom.y * distance,
+    rig.y + viewFrom.z * distance,
+  )
+  rig.camera.zoom = Math.min(zoomRange.max, Math.max(zoomRange.min, zoom))
+  rig.camera.updateProjectionMatrix()
+  rig.camera.updateMatrixWorld()
+  rig.movedAt = performance.now()
+}
+
+function groundAt(rig: Rig, clientX: number, clientY: number) {
+  const box = rig.surface.getBoundingClientRect()
+  lens
+    .set(((clientX - box.left) / box.width) * 2 - 1, 1 - ((clientY - box.top) / box.height) * 2, -1)
+    .unproject(rig.camera)
+  rig.camera.getWorldDirection(aim)
+  const reach = -lens.y / aim.y
+  return { x: lens.x + aim.x * reach, y: lens.z + aim.z * reach }
+}
+
+function carry(rig: Rig, from: [x: number, y: number], to = from, factor = 1) {
+  const held = groundAt(rig, ...from)
+  place(rig, rig.x, rig.y, rig.camera.zoom * factor)
+  const now = groundAt(rig, ...to)
+  place(rig, rig.x + held.x - now.x, rig.y + held.y - now.y)
 }
 
 export const stopFlight = () => {
@@ -52,7 +93,7 @@ const sightOf = (x: number, y: number, height = surfaceAt(x, y)) => ({
 export function glideTo(x: number, y: number, zoom: number) {
   if (!active) return 0
   const at = sightOf(x, y)
-  const far = Math.hypot(at.x - active.target.x, at.y - active.target.z)
+  const far = Math.hypot(at.x - active.x, at.y - active.y)
   const seconds = Math.min(glide.longest, Math.max(glide.shortest, far / glide.tilesPerSecond))
   fly(at.x, at.y, zoom, seconds, Math.min(glide.deepest, far * glide.dipPerTile))
   return seconds
@@ -65,18 +106,18 @@ export function flyTo(x: number, y: number, zoom: number) {
 
 function fly(x: number, y: number, zoom: number, seconds = flightSeconds, dip = 0) {
   if (!active) return
-  const from = { x: active.target.x, y: active.target.z, zoom: zoomOf(active) }
+  const from = { x: active.x, y: active.y, zoom: active.camera.zoom }
   const to = {
     x: Math.min(mapWidth, Math.max(0, x)),
     y: Math.min(mapHeight, Math.max(0, y)),
-    zoom: Math.min(active.maxZoom, Math.max(active.minZoom, zoom)),
+    zoom: Math.min(zoomRange.max, Math.max(zoomRange.min, zoom)),
   }
   Object.assign(flight, { start: performance.now() / 1000, seconds, dip, from, to })
 }
 
 export function closeIn(x: number, y: number, height: number) {
   const at = sightOf(x, y, height)
-  if (active) fly(at.x, at.y, Math.max(zoomOf(active), watchZoom))
+  if (active) fly(at.x, at.y, Math.max(active.camera.zoom, watchZoom))
 }
 
 export function track(x: number, y: number, height: number) {
@@ -86,14 +127,12 @@ export function track(x: number, y: number, height: number) {
     Object.assign(flight.to, at)
     return
   }
-  moveBy(active, (at.x - active.target.x) * trackEase, (at.y - active.target.z) * trackEase)
-  active.update()
+  place(active, active.x + (at.x - active.x) * trackEase, active.y + (at.y - active.y) * trackEase)
 }
 
 export function zoomBy(factor: number) {
   if (!active) return
-  const from =
-    flight.start < 0 ? { x: active.target.x, y: active.target.z, zoom: zoomOf(active) } : flight.to
+  const from = flight.start < 0 ? { x: active.x, y: active.y, zoom: active.camera.zoom } : flight.to
   fly(from.x, from.y, from.zoom * factor)
 }
 
@@ -133,67 +172,103 @@ const releaseKeys = () => held.clear()
 export function Camera({ focus }: { focus: Focus }) {
   const get = useThree((state) => state.get)
   useEffect(() => {
-    const { camera, gl, advance } = get()
-    camera.position.set(
-      focus.x + viewFrom.x * distance,
-      viewFrom.y * distance,
-      focus.y + viewFrom.z * distance,
-    )
-    camera.zoom = focus.zoom
-    camera.updateProjectionMatrix()
-    const controls = new MapControls(camera, gl.domElement)
-    controls.target.set(focus.x, 0, focus.y)
-    controls.enableRotate = false
-    controls.screenSpacePanning = false
-    controls.minZoom = 1.4
-    controls.maxZoom = 140
-    controls.zoomToCursor = true
-    const keepInside = () => {
-      const { target } = controls
-      moveBy(
-        controls,
-        Math.min(mapWidth, Math.max(0, target.x)) - target.x,
-        Math.min(mapHeight, Math.max(0, target.z)) - target.z,
+    const { gl, advance } = get()
+    const camera = get().camera as OrthographicCamera
+    const surface = gl.domElement.parentElement!
+    const rig: Rig = { camera, surface, x: focus.x, y: focus.y, movedAt: -Infinity }
+    place(rig, focus.x, focus.y, focus.zoom)
+    camera.lookAt(rig.x, 0, rig.y)
+    camera.updateMatrixWorld()
+    active = rig
+
+    const fingers = new Map<number, { x: number; y: number }>()
+    let travelled = 0
+    const move = (event: PointerEvent) => {
+      const finger = fingers.get(event.pointerId)
+      if (!finger) return
+      if (event.pointerType === 'mouse' && event.buttons === 0) return lift(event)
+      const [other] = [...fingers.values()].filter((each) => each !== finger)
+      const before = other ? Math.hypot(finger.x - other.x, finger.y - other.y) : 0
+      const after = other ? Math.hypot(event.clientX - other.x, event.clientY - other.y) : 0
+      const middle = (x: number, y: number): [number, number] =>
+        other ? [(x + other.x) / 2, (y + other.y) / 2] : [x, y]
+      const wasDragging = travelled >= dragPixels
+      travelled += Math.hypot(event.clientX - finger.x, event.clientY - finger.y)
+      if (!wasDragging && travelled >= dragPixels) steer()
+      carry(
+        rig,
+        middle(finger.x, finger.y),
+        middle(event.clientX, event.clientY),
+        before > 0 && after > 0 ? after / before : 1,
       )
+      finger.x = event.clientX
+      finger.y = event.clientY
     }
-    let movedAt = -Infinity
-    let drawnAt = -Infinity
-    const moved = () => {
-      movedAt = performance.now()
+    const lift = (event: PointerEvent) => {
+      if (!fingers.delete(event.pointerId) || fingers.size > 0) return
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', lift)
+      window.removeEventListener('pointercancel', lift)
     }
-    controls.addEventListener('change', keepInside)
-    controls.addEventListener('change', moved)
-    controls.addEventListener('start', stopFlight)
-    let pressed: { x: number; y: number } | null = null
     const press = (event: PointerEvent) => {
-      const panning =
-        event.isPrimary && event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey
-      pressed = panning ? { x: event.clientX, y: event.clientY } : null
+      if (event.pointerType === 'mouse' && event.button !== 0) return
+      if (fingers.size === 0) {
+        travelled = 0
+        window.addEventListener('pointermove', move)
+        window.addEventListener('pointerup', lift)
+        window.addEventListener('pointercancel', lift)
+      }
+      fingers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+      stopFlight()
     }
-    const drag = (event: PointerEvent) => {
-      if (!pressed) return
-      if (Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) < dragPixels) return
-      pressed = null
-      steer()
+    const afterDrag = (event: MouseEvent) => {
+      if (event.detail === 0 || travelled < dragPixels) return
+      event.stopPropagation()
+      event.preventDefault()
     }
-    const lift = () => {
-      pressed = null
+    const scrolled = { x: 0, y: 0, at: -Infinity }
+    const scroll = (event: WheelEvent) => {
+      event.preventDefault()
+      if (event.timeStamp - scrolled.at > wheel.sameGestureMs) {
+        scrolled.x = event.clientX
+        scrolled.y = event.clientY
+      }
+      scrolled.at = event.timeStamp
+      const unit =
+        event.deltaMode === WheelEvent.DOM_DELTA_LINE
+          ? wheel.linePixels
+          : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+            ? wheel.pagePixels
+            : 1
+      const pixels = event.deltaY * unit * (event.ctrlKey ? wheel.pinchBoost : 1)
+      stopFlight()
+      carry(rig, [scrolled.x, scrolled.y], undefined, wheel.perHundredPixels ** (pixels / 100))
     }
-    const gestures = [
-      ['pointerdown', press],
-      ['pointermove', drag],
-      ['pointerup', lift],
-      ['pointercancel', lift],
-    ] as const
-    for (const [type, handle] of gestures) gl.domElement.addEventListener(type, handle)
-    controls.update()
-    active = controls
+    let pinched = 1
+    const pinchStart = () => {
+      pinched = 1
+    }
+    const pinch = (event: Event) => {
+      if (fingers.size > 0) return
+      const { scale, clientX, clientY } = event as Pinch
+      stopFlight()
+      carry(rig, [clientX, clientY], undefined, scale / pinched)
+      pinched = scale
+    }
+    const touchAction = surface.style.touchAction
+    surface.style.touchAction = 'none'
+    surface.addEventListener('pointerdown', press)
+    surface.addEventListener('click', afterDrag, true)
+    surface.addEventListener('wheel', scroll, { passive: false })
+    surface.addEventListener('gesturestart', pinchStart)
+    surface.addEventListener('gesturechange', pinch)
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
     window.addEventListener('blur', releaseKeys)
+    let drawnAt = -Infinity
     let frame = requestAnimationFrame(function draw(now) {
       frame = requestAnimationFrame(draw)
-      const moving = held.size > 0 || flight.start >= 0 || now - movedAt < movingFor
+      const moving = held.size > 0 || flight.start >= 0 || now - rig.movedAt < movingFor
       if (!moving && now - drawnAt < idleFrameInterval - 2) return
       drawnAt = now
       advance(now / 1000)
@@ -203,14 +278,18 @@ export function Camera({ focus }: { focus: Focus }) {
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
       window.removeEventListener('blur', releaseKeys)
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', lift)
+      window.removeEventListener('pointercancel', lift)
       releaseKeys()
       active = null
       stopFlight()
-      controls.removeEventListener('change', keepInside)
-      controls.removeEventListener('change', moved)
-      controls.removeEventListener('start', stopFlight)
-      for (const [type, handle] of gestures) gl.domElement.removeEventListener(type, handle)
-      controls.dispose()
+      surface.style.touchAction = touchAction
+      surface.removeEventListener('pointerdown', press)
+      surface.removeEventListener('click', afterDrag, true)
+      surface.removeEventListener('wheel', scroll)
+      surface.removeEventListener('gesturestart', pinchStart)
+      surface.removeEventListener('gesturechange', pinch)
     }
   }, [get, focus.x, focus.y, focus.zoom])
   useFrame(({ camera }, delta) => {
@@ -225,27 +304,24 @@ export function Camera({ focus }: { focus: Focus }) {
       }
       const seconds = Math.min(delta, 0.1)
       const step = (panSpeed * seconds) / camera.zoom / (Math.hypot(right, up) || 1)
-      moveBy(active, (fx * up - fy * right) * step, (fy * up + fx * right) * step)
-      camera.zoom = Math.min(
-        active.maxZoom,
-        Math.max(active.minZoom, camera.zoom * 2 ** (zoom * zoomSpeed * seconds)),
+      place(
+        active,
+        active.x + (fx * up - fy * right) * step,
+        active.y + (fy * up + fx * right) * step,
+        camera.zoom * 2 ** (zoom * zoomSpeed * seconds),
       )
-      camera.updateProjectionMatrix()
-      active.update()
       return
     }
     if (flight.start < 0) return
     const t = Math.min(1, (performance.now() / 1000 - flight.start) / flight.seconds)
     const eased = t * t * (3 - 2 * t)
     const { from, to } = flight
-    const [x, y] = [from.x + (to.x - from.x) * eased, from.y + (to.y - from.y) * eased]
-    moveBy(active, x - active.target.x, y - active.target.z)
-    camera.zoom = Math.max(
-      active.minZoom,
+    place(
+      active,
+      from.x + (to.x - from.x) * eased,
+      from.y + (to.y - from.y) * eased,
       from.zoom * (to.zoom / from.zoom) ** eased * (1 - flight.dip * Math.sin(Math.PI * t)),
     )
-    camera.updateProjectionMatrix()
-    active.update()
     if (t === 1) flight.start = -1
   })
   return null
