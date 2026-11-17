@@ -4,6 +4,7 @@ import type { City } from '../city'
 import { surfaceAt } from '../decks'
 import { hash, heightAt, noise, shoreDistance } from '../elevation'
 import { reservedTiles } from '../landmarks'
+import { pastureSite } from '../landmarks/austin'
 import type { Metro } from '../../../shared/metros'
 import { metro } from '../../metro'
 import { accessRoad, groundAt, named, places, roads, spots, warp } from '../atlas'
@@ -557,18 +558,41 @@ export function scatter(city: City) {
       )
     },
     austin: () => {
-      const pasture = warp(-98.004, 30.1385)
       const [pw, pd] = [6, 3]
+      const pasture = pastureSite()
       for (let i = 0; i < pw; i++) {
-        put('fence', pasture[0] - pw / 2 + i + 0.5, pasture[1] - pd / 2, 0)
-        put('fence', pasture[0] - pw / 2 + i + 0.5, pasture[1] + pd / 2, 0)
+        put('fence', pasture.x - pw / 2 + i + 0.5, pasture.y - pd / 2, 0)
+        put('fence', pasture.x - pw / 2 + i + 0.5, pasture.y + pd / 2, 0)
       }
       for (let i = 0; i < pd; i++) {
-        put('fence', pasture[0] - pw / 2, pasture[1] - pd / 2 + i + 0.5, Math.PI / 2)
-        put('fence', pasture[0] + pw / 2, pasture[1] - pd / 2 + i + 0.5, Math.PI / 2)
+        put('fence', pasture.x - pw / 2, pasture.y - pd / 2 + i + 0.5, Math.PI / 2)
+        put('fence', pasture.x + pw / 2, pasture.y - pd / 2 + i + 0.5, Math.PI / 2)
       }
       for (let i = 0; i < 5; i++) {
-        put('longhorn', pasture[0] - 2 + i, pasture[1] + (i % 2 ? 0.6 : -0.5), 0.8 + i * 1.7)
+        put('longhorn', pasture.x - 2 + i, pasture.y + (i % 2 ? 0.6 : -0.5), 0.8 + i * 1.7)
+      }
+      const pit = places.find((place) => place.id === 'pit-school')
+      if (pit) {
+        const queue = ['#2a9d8f', '#e9c46a', '#e76f51', '#457b9d', '#bc4749', '#6a994e', '#f4a261']
+        const curb = accessRoad(spots(pit)[0]!)
+        const eastWest = isRoad(curb.x + 1, curb.y) || isRoad(curb.x - 1, curb.y)
+        const [alongX, alongY] = eastWest ? [1, 0] : [0, 1]
+        const side = Math.sign(eastWest ? pit.center.y - curb.y : pit.center.x - curb.x) || 1
+        const [inX, inY] = eastWest ? [0, side] : [side, 0]
+        const seat = (k: number): [number, number] => {
+          const along = (k - queue.length / 2) * 0.44
+          return [
+            curb.x + 0.5 + alongX * along + inX * 0.45,
+            curb.y + 0.5 + alongY * along + inY * 0.45,
+          ]
+        }
+        const facing = Math.atan2(-inX, -inY)
+        queue.forEach((tint, k) => put('campChair', ...seat(k), facing, tint))
+        put('cooler', ...seat(queue.length), facing)
+      }
+      const [sx, sy] = warp(-97.7464, 30.2611)
+      if (groundAt(Math.floor(sx), Math.floor(sy)) === 'water') {
+        put('scooter', sx, sy, 0.7, '#ffffff', [1, 1, 1], -0.15)
       }
       for (const [lon, lat] of [
         [-97.8722, 30.1848],

@@ -5,6 +5,8 @@ import { box, makePath, model, sample, Vehicles, type Fleet, type Pose } from '.
 import type { Metro } from '../../shared/metros'
 import { metro } from '../metro'
 import { accessRoad, warp } from './atlas'
+import { downstream } from './course'
+import { peacockSite } from './landmarks/austin'
 
 type LonLat = [lon: number, lat: number]
 
@@ -26,16 +28,17 @@ const scenes: Record<
     ],
   },
   austin: {
-    alley: [-97.7242, 30.2618],
-    hydrant: [-97.7282, 30.3042],
+    alley: [-97.7214, 30.2632],
+    hydrant: [-97.7296, 30.3064],
     corners: [
-      [-97.7418, 30.2725],
-      [-97.7248, 30.4012],
-      [-97.7605, 30.219],
+      [-97.7363, 30.2761],
+      [-97.721, 30.3936],
+      [-97.7578, 30.22],
+      [-97.8888, 30.0976],
     ],
     watcher: [
-      [-97.7572, 30.2625],
-      [-97.7572, 30.2648],
+      [-97.7115, 30.2456],
+      [-97.7115, 30.2482],
     ],
   },
 }
@@ -194,6 +197,7 @@ function manInBlack(): Fleet[] {
 function oceanWatcher(): Fleet[] {
   const [streetX, streetZ] = warp(...scene.watcher[0])
   const [shoreX, shoreZ] = warp(...scene.watcher[1])
+  const toward = Math.atan2(streetZ - shoreZ, shoreX - streetX)
   const [outing, gazing] = [70, 45]
   const trip = (seconds: number) => {
     const moment = seconds % (outing * 2 + gazing * 2)
@@ -218,15 +222,159 @@ function oceanWatcher(): Fleet[] {
       place: (_, seconds, out) => {
         const along = trip(seconds)
         stand(out, streetX + (shoreX - streetX) * along, streetZ + (shoreZ - streetZ) * along)
-        out.heading = along === 1 || along > trip(seconds - 1) ? Math.PI : 0
+        out.heading = along === 1 || along > trip(seconds - 1) ? toward : toward - Math.PI
       },
     },
   ]
 }
 
+function peacocks(): Fleet[] {
+  const { x: cx, y: cz } = peacockSite()
+  const [every, lasts] = [26, 10]
+  const showing = (seconds: number) => seconds % every < lasts
+  const strut = (i: number, seconds: number, out: Pose) => {
+    const turn = (i % 2 ? 1 : -1) * 0.22
+    const around = seconds * turn + i * 2.1
+    const reach = 0.28 + 0.16 * i
+    stand(out, cx + reach * Math.cos(around), cz + reach * Math.sin(around))
+    out.heading = Math.atan2(-Math.cos(around) * turn, -Math.sin(around) * turn)
+  }
+  const display = (out: Pose) => {
+    stand(out, cx, cz)
+    out.heading = -Math.PI / 2
+  }
+  return [
+    {
+      count: 3,
+      model: model(
+        box(0.22, 0.13, 0.12, 0, 0.12, 0, '#1b6ca8'),
+        box(0.05, 0.2, 0.05, 0.1, 0.2, 0, '#1b6ca8'),
+        box(0.08, 0.06, 0.06, 0.12, 0.38, 0, '#1b6ca8'),
+        box(0.02, 0.07, 0.06, 0.11, 0.44, 0, '#2ec4b6'),
+        box(0.04, 0.02, 0.03, 0.18, 0.4, 0, '#f2cc8f'),
+        box(0.02, 0.12, 0.02, 0.02, 0, 0.03, '#8d6e54'),
+        box(0.02, 0.12, 0.02, 0.02, 0, -0.03, '#8d6e54'),
+        box(0.46, 0.05, 0.1, -0.32, 0.13, 0, '#2a9d6f'),
+      ),
+      place: (i, seconds, out) => {
+        if (i === 0 && showing(seconds)) display(out)
+        else strut(i, seconds, out)
+      },
+    },
+    {
+      count: 1,
+      model: model(
+        box(0.04, 0.5, 0.74, -0.1, 0.14, 0, '#2a9d6f'),
+        ...[-0.26, 0, 0.26].map((z) => box(0.05, 0.08, 0.08, -0.1, 0.5, z, '#1b6ca8')),
+        ...[-0.13, 0.13].map((z) => box(0.05, 0.08, 0.08, -0.1, 0.32, z, '#ffd166')),
+      ),
+      place: (_, seconds, out) => {
+        display(out)
+        const since = seconds % every
+        out.scale = showing(seconds) ? Math.min(1, since, lasts - since) : 0
+      },
+    },
+  ]
+}
+
+function armadillo(): Fleet[] {
+  const [ax, az] = warp(-97.7885, 30.2005)
+  let [start, nearest] = [0, Infinity]
+  roadEdges.forEach(({ line, roadClass }, n) => {
+    if (roadClass === 'freeway') return
+    for (let p = 0; p < line.length; p += 2) {
+      const away = (line[p]! - ax) ** 2 + (line[p + 1]! - az) ** 2
+      if (away < nearest) [start, nearest] = [n, away]
+    }
+  })
+  const path = makePath(journey(start, 9, 24), 0.5)
+  const [pace, sniffing, shoulder] = [0.3, 7, 0.44]
+  const there = path.length / pace
+  return [
+    {
+      count: 1,
+      model: model(
+        box(0.3, 0.13, 0.2, 0, 0.04, 0, '#8d8478'),
+        ...[-0.08, 0, 0.08].map((x) => box(0.025, 0.14, 0.21, x, 0.04, 0, '#6f675c')),
+        box(0.12, 0.07, 0.1, 0.2, 0.04, 0, '#a39a8c'),
+        box(0.07, 0.04, 0.05, 0.29, 0.04, 0, '#a39a8c'),
+        box(0.02, 0.06, 0.03, 0.17, 0.11, 0.03, '#a39a8c'),
+        box(0.02, 0.06, 0.03, 0.17, 0.11, -0.03, '#a39a8c'),
+        box(0.16, 0.03, 0.03, -0.22, 0.05, 0, '#a39a8c'),
+      ),
+      place: (_, seconds, out) => {
+        const moment = seconds % (2 * (there + sniffing))
+        const back = moment >= there + sniffing
+        const walked = back ? moment - there - sniffing : moment
+        const moving = walked < there
+        const along = Math.min(walked, there) * pace
+        sample(path, back ? path.length - along : along, out)
+        if (back) out.heading += Math.PI
+        out.x += Math.sin(out.heading) * shoulder
+        out.z += Math.cos(out.heading) * shoulder
+        out.y = surfaceAt(out.x, out.z) + (moving ? 0.015 * Math.abs(Math.sin(seconds * 9)) : 0)
+        out.pitch = moving ? 0 : 0.25 * Math.max(0, Math.sin(seconds * 3))
+      },
+    },
+  ]
+}
+
+function tubers(): Fleet[] {
+  const path = makePath(downstream(warp(-97.7865, 30.2899), 30).flat())
+  const float = { tubes: 7, gap: 0.6, speed: 0.22, rest: 4 }
+  const drift = (i: number, seconds: number, out: Pose) => {
+    const lap = path.length + float.rest
+    const along = (((seconds * float.speed - i * float.gap) % lap) + lap) % lap
+    sample(path, along, out)
+    out.y = 0.02 + 0.02 * Math.sin(seconds * 1.4 + i)
+    out.heading += 0.5 * Math.sin(seconds * 0.3 + i * 1.3)
+    out.scale = along < path.length ? Math.min(1, along, path.length - along) : 0
+  }
+  const colors = ['#ff5d5d', '#ffd166', '#06d6a0', '#4cc9f0', '#b28dff', '#ff8fab']
+  return [
+    {
+      count: float.tubes,
+      model: model(
+        box(0.36, 0.09, 0.36, 0, 0, 0, '#ffffff'),
+        box(0.17, 0.095, 0.17, 0, 0, 0, '#10202c'),
+      ),
+      colors: Array.from({ length: float.tubes }, (_, i) => colors[i % colors.length]!),
+      place: drift,
+    },
+    {
+      count: float.tubes - 1,
+      model: model(
+        box(0.1, 0.1, 0.1, 0.13, 0.09, 0, '#e3b48f'),
+        box(0.26, 0.06, 0.12, -0.04, 0.08, 0, '#f4f1ea'),
+      ),
+      place: drift,
+    },
+    {
+      count: 1,
+      model: model(
+        box(0.2, 0.12, 0.14, 0, 0.08, 0, '#e63946'),
+        box(0.21, 0.03, 0.15, 0, 0.2, 0, '#f4f1ea'),
+      ),
+      place: (_, seconds, out) => drift(float.tubes - 1, seconds, out),
+    },
+  ]
+}
+
+const locals: Record<Metro, () => Fleet[]> = {
+  bay: () => [],
+  austin: () => [...peacocks(), ...armadillo(), ...tubers()],
+}
+
 export function Eggs() {
   const fleets = useMemo(
-    () => [...catFight(), ...hydrant(), ...driverlessTaxi(), ...manInBlack(), ...oceanWatcher()],
+    () => [
+      ...catFight(),
+      ...hydrant(),
+      ...driverlessTaxi(),
+      ...manInBlack(),
+      ...oceanWatcher(),
+      ...locals[metro](),
+    ],
     [],
   )
   return fleets.map((fleet, i) => <Vehicles key={i} fleet={fleet} />)

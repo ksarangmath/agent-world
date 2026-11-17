@@ -51,10 +51,14 @@ metros loads the page again.
   lanes and a pod on the Skyloop, with the walk on and off at each stop.
 - **`eggs.tsx`**: small things to find on the ground: fighting cats, a
   broken hydrant, a driverless taxi, men in black, and a robot that watches
-  the ocean.
+  the water. Austin adds peacocks that fan their tails, an armadillo working
+  its way down a road shoulder, and a chain of inner tubes drifting down the
+  lake with the cooler in the last one.
 - **`wonders.tsx`**: balloons, airships, the big wheel, the rocket, fireworks,
   and the saucer, plus the fog dragon and whales in the Bay and the bats that
   pour out from under the bridge at dusk in Austin.
+  **`course.ts`** follows the lake downstream for the bats and the inner
+  tubes.
 - **`wings.tsx`**: the canopies over people who are paragliding or
   skydiving. They follow each flyer every frame.
 - **`traffic.tsx`**, **`fog.tsx`**: road vehicles on journeys through the road

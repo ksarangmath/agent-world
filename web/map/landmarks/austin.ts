@@ -13,6 +13,10 @@ const beacon = '#ff3b2f'
 
 export const wheelSite = () => clearSite(-97.6404, 30.1379, 3, 6)
 
+export const pastureSite = () => clearSite(-98.004, 30.1385, 3.6, 8)
+
+export const peacockSite = () => clearSite(-97.7716, 30.3158, 1.2, 3)
+
 export function austinIcons() {
   const parts: Part[] = []
   const lights: Light[] = []
@@ -218,6 +222,8 @@ export function austinIcons() {
   const circuit = clearSite(-97.6366, 30.1356, 4.2, 6)
   add(circuit, 5.5)
   add(wheelSite(), 4.6)
+  add(pastureSite(), 3.8)
+  add(peacockSite(), 1.6)
   parts.push(solid('cylinder', '#3d414b', at(circuit, 0.01), [8.4, 0.05, 5]))
   parts.push(solid('cylinder', '#6fb35a', at(circuit, 0.03), [6.6, 0.05, 3.3]))
   parts.push(solid('box', '#d9dde2', at(circuit, 0, 0, 3), [4.2, 0.9, 0.6]))

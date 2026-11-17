@@ -164,7 +164,7 @@ function World() {
         {session && me.data && !me.data.person && <CreateAgent userId={session.user.id} />}
       </header>
       {session && person && <Notices userId={session.user.id} />}
-      <footer className="foot">
+      <footer className="foot" ref={measureFoot}>
         <a href="https://github.com/omnara-ai/omnara" target="_blank" rel="noopener">
           Powered by Omnara
         </a>
@@ -190,6 +190,15 @@ function World() {
       <Outlet />
     </main>
   )
+}
+
+function measureFoot(foot: HTMLElement | null) {
+  if (!foot) return
+  const watch = new ResizeObserver(() => {
+    document.documentElement.style.setProperty('--foot-height', `${foot.offsetHeight}px`)
+  })
+  watch.observe(foot)
+  return () => watch.disconnect()
 }
 
 const screen = window.visualViewport

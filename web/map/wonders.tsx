@@ -2,8 +2,9 @@ import { useMemo } from 'react'
 import { BoxGeometry, CatmullRomCurve3, Vector3 } from 'three'
 import type { Metro } from '../../shared/metros'
 import { metro } from '../metro'
-import { groundAt, warp } from './atlas'
+import { warp } from './atlas'
 import { sky } from './clock'
+import { downstream } from './course'
 import { hash } from './elevation'
 import { wheelSite } from './landmarks/austin'
 import { colored } from './paint'
@@ -211,29 +212,12 @@ const scenes: Record<
     airships: [232, 250, 140, 150],
     dragon: null,
     whales: [],
-    saucer: over(-97.905, 30.105),
+    saucer: over(-97.895, 30.105),
     launch: over(-97.565, 30.395),
     fireworks: [over(-97.7475, 30.2628), over(-97.7575, 30.2658), over(-97.739, 30.2598)],
     wheel: [wheelSite().x, wheelSite().y],
     bats: downstream(over(-97.7452, 30.2612), 60),
   }),
-}
-
-function downstream([x, z]: Spot, tiles: number): Spot[] {
-  const wet = (tx: number, tz: number) => groundAt(Math.floor(tx), Math.floor(tz)) === 'water'
-  const course: Spot[] = [[x, z]]
-  for (let step = 3; step <= tiles; step += 3) {
-    const column = x + step
-    const reach = Array.from({ length: 25 }, (_, k) => z + (k % 2 ? (k + 1) / 2 : -k / 2))
-    const near = reach.find((row) => wet(column, row))
-    if (near === undefined) break
-    let [top, bottom] = [near, near]
-    while (wet(column, top - 1)) top--
-    while (wet(column, bottom + 1)) bottom++
-    z = (top + bottom) / 2
-    course.push([column + 0.5, z + 0.5])
-  }
-  return course
 }
 
 const scene = scenes[metro]()

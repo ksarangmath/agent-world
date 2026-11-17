@@ -1874,7 +1874,7 @@ a {
     gap: 6px 8px;
     align-items: center;
     justify-content: center;
-    max-height: calc(100% - 60px);
+    max-height: calc(100% - var(--foot-height, 47px) - 13px);
     padding: 6px 8px;
     background: #101522;
     border-width: 0 0 3px;
@@ -1950,7 +1950,7 @@ a {
   }
 
   .dock {
-    bottom: 56px;
+    bottom: calc(var(--foot-height, 47px) + 9px);
   }
 
   .how {

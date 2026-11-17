@@ -159,6 +159,42 @@ describe('the Austin map view', () => {
     }
   })
 
+  test('keeps the bats and the inner tubes over the lake the whole way down it', async () => {
+    const { downstream } = await import('./course')
+    for (const [lon, lat] of [
+      [-97.7452, 30.2612],
+      [-97.7865, 30.2899],
+    ] as const) {
+      const course = downstream(map.atlas.warp(lon, lat), 30)
+      expect(course.length).toBeGreaterThan(8)
+      for (const [x, z] of course) {
+        expect(map.atlas.groundAt(Math.floor(x), Math.floor(z)), `${x},${z}`).toBe('water')
+      }
+    }
+  })
+
+  test('queues lawn chairs at the barbecue school and sinks a scooter in the lake', () => {
+    const { lit } = map.scatter.scatter(map.city.buildCity())
+    const of = (kit: string) => lit.filter((prop) => prop.kit === kit)
+    const spotTiles = new Set(
+      map.atlas.places.flatMap((place) =>
+        map.atlas.spots(place).map((spot) => spot.y * mapWidth + spot.x),
+      ),
+    )
+    expect(of('campChair')).toHaveLength(7)
+    expect(of('cooler')).toHaveLength(1)
+    expect(of('longhorn')).toHaveLength(5)
+    for (const prop of [...of('campChair'), ...of('cooler'), ...of('longhorn')]) {
+      const tile = Math.floor(prop.y) * mapWidth + Math.floor(prop.x)
+      expect(spotTiles.has(tile), `${prop.kit} at ${prop.x},${prop.y}`).toBe(false)
+      expect(map.atlas.groundAt(Math.floor(prop.x), Math.floor(prop.y))).not.toBe('water')
+    }
+    const sunk = of('scooter').filter(
+      (prop) => map.atlas.groundAt(Math.floor(prop.x), Math.floor(prop.y)) === 'water',
+    )
+    expect(sunk).toHaveLength(1)
+  })
+
   test('crosses the lake on bridge decks that people and cars can stand on', () => {
     const { decks, surfaceAt } = map.decks
     expect(decks.length).toBeGreaterThan(10)

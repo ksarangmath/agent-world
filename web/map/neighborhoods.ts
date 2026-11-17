@@ -573,7 +573,7 @@ const lists: Record<Metro, Row[]> = {
     ['South Shore', 30.2524, -97.7424, 'midrise', 'hidden'],
     ['Travis Shore', 30.2485, -97.7364, 'victorian', 'hidden'],
     ['Travis Heights', 30.2465, -97.74, 'victorian', 'hidden'],
-    ['Boardwalk Bend', 30.2455, -97.7265, 'midrise'],
+    ['Boardwalk Bend', 30.2435, -97.727, 'midrise'],
     ['East Riverside', 30.238, -97.7165, 'boxes', 'hidden'],
     ['Montopolis', 30.2325, -97.7005, 'ranch', 'hidden'],
     ['SoCo Loco', 30.2492, -97.7495, 'psychedelic', 'major'],
