@@ -1,9 +1,11 @@
 import type { WorldPerson } from '../../shared/api'
 import { placesById } from '../../shared/map/places'
+import { austinDoing } from './doing-austin'
 
 const changeEveryMs = 4 * 60 * 1000
 
 export const doing: Record<string, string[]> = {
+  ...austinDoing,
   'waterfront-market-hall': [
     'grazing the sample trays like it’s a sport',
     'choosing between two loaves and buying both',

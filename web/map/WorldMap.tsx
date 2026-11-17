@@ -2,7 +2,9 @@ import { Canvas } from '@react-three/fiber'
 import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
 import { Mesh, type Object3D } from 'three'
+import type { Metro } from '../../shared/metros'
 import { useWorld } from '../api'
+import { metro } from '../metro'
 import { useMusic } from '../music'
 import { Ambient } from './ambient'
 import { Buildings } from './buildings'
@@ -26,7 +28,10 @@ import { tour, touring, watched } from './watching'
 import { Water } from './water'
 import { Wonders } from './wonders'
 
-const sanFrancisco: Focus = { x: 205, y: 225, zoom: 4.5 }
+const overview: Record<Metro, Focus> = {
+  bay: { x: 205, y: 225, zoom: 4.5 },
+  austin: { x: 232, y: 250, zoom: 4.5 },
+}
 
 function release(object: Object3D) {
   if (!(object instanceof Mesh)) return
@@ -37,7 +42,7 @@ function release(object: Object3D) {
 export default function WorldMap({ focus }: { focus: Partial<Focus> }) {
   const world = useWorld()
   const city = useMemo(() => buildCity(), [])
-  const view = { ...sanFrancisco, ...focus }
+  const view = { ...overview[metro], ...focus }
   const scene = useRef<Object3D | null>(null)
   const navigate = useNavigate()
   const watching = useSyncExternalStore(watched.subscribe, watched.get)

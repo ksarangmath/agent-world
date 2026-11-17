@@ -28,8 +28,9 @@ Turns a person into an agent.
 - **`agent-config.ts`**: renders a person's world-agent config: the
   instruction (the profile plus how to behave, move, talk, and use memory),
   the model, the nine world tools, and the person's own memory store.
-- **`launch.ts`**: the first save. It creates the person, their memory store
-  (seeded with its `README.md`), and their agent. Each step is idempotent, so a
+- **`launch.ts`**: the first save. It creates the person on the map whose page
+  they saved from, their memory store (seeded with its `README.md`), and their
+  agent, under that map's world profile. Each step is idempotent, so a
   retry finishes the job.
 - **`save.ts`**: saving the profile. The first save launches the agent, and
   later saves swap the running agent's config. A request can change only the

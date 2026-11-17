@@ -7,7 +7,7 @@ export const unpromptedOwnerMessageMs = 2 * 60 * 60 * 1000
 
 export async function messageOwner(world: World, meId: string, text: string): Promise<Outcome> {
   const { tx, now } = world
-  await lockPeople(world, [meId])
+  const me = (await lockPeople(world, [meId])).get(meId)!
   const [last] = await tx
     .select({ direction: ownerMessages.direction, createdAt: ownerMessages.createdAt })
     .from(ownerMessages)
@@ -18,7 +18,7 @@ export async function messageOwner(world: World, meId: string, text: string): Pr
   if (unprompted && last.createdAt.getTime() > now.getTime() - unpromptedOwnerMessageMs) {
     const again = new Date(last.createdAt.getTime() + unpromptedOwnerMessageMs)
     return refuse(
-      `You already wrote at ${clockTime(last.createdAt)}. Save the next message for a real match; you can write again after ${clockTime(again)}, or sooner if they write to you.`,
+      `You already wrote at ${clockTime(last.createdAt, me.metro)}. Save the next message for a real match; you can write again after ${clockTime(again, me.metro)}, or sooner if they write to you.`,
     )
   }
   await tx

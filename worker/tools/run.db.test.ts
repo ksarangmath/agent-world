@@ -3,11 +3,13 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
 import { afterAll, beforeEach, describe, expect, test } from 'vitest'
 import { placesById } from '../../shared/map/places'
-import { spots } from '../../shared/map/spots'
+import { atlasOf } from '../../shared/map/atlas'
 import type { Profile } from '../../shared/profile'
 import * as schema from '../db/schema'
 import { deferred } from '../omnara/tool-calls'
 import { runWorldCall, sendDeliveries } from './run'
+
+const { spots } = atlasOf('bay')
 
 const client = postgres('postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 8 })
 const db = drizzle(client, { schema, casing: 'snake_case' })

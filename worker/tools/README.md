@@ -10,7 +10,7 @@ Connects Omnara's custom tool calls to the world.
 - **`builder.ts`**: the onboarding builder's tools: Exa search and page
   contents, `draw_portrait`, and `submit_profile`.
 - **`run.ts`**: one handler per tool, registered with the SDK's custom tool
-  worker for the world and builder profiles. The webhook and the every-minute
+  worker for each map's world profile and for the builder profile. The webhook and the every-minute
   job both run calls through these handlers.
   1. Return the stored result if the call was already handled.
   2. Otherwise take a transaction-scoped lock on the tool-call ID, run the

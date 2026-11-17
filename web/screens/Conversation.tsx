@@ -2,6 +2,7 @@ import { Link, useParams } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
 import { placesById } from '../../shared/map/places'
 import { useTranscript } from '../api'
+import { useHomeMetro } from '../elsewhere'
 import { Overlay, Portrait } from './Overlay'
 
 export function ConversationOverlay() {
@@ -13,6 +14,7 @@ export function ConversationOverlay() {
   useEffect(() => {
     list.current?.lastElementChild?.scrollIntoView({ block: 'nearest' })
   }, [count, typing])
+  const elsewhere = useHomeMetro(transcript.data?.metro, `conversations/${conversationId}`)
   if (!transcript.data) {
     return (
       <Overlay label="Conversation">
@@ -20,6 +22,7 @@ export function ConversationOverlay() {
       </Overlay>
     )
   }
+  if (elsewhere) return null
   const [left, right] = transcript.data.people
   if (!left || !right) return null
   const live = transcript.data.endedAt === null

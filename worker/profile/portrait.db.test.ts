@@ -110,7 +110,7 @@ describe('portrait lifecycle', () => {
 
   test('the portrait survives later profile edits', async () => {
     const person = await db.transaction((tx) =>
-      createPerson({ tx, now: t0, deliveries: [] }, userId, profile, image),
+      createPerson({ tx, now: t0, deliveries: [] }, userId, profile, image, 'bay'),
     )
     await db.transaction((tx) =>
       updateProfile({ tx, now: t0, deliveries: [] }, person.id, profile, null),
@@ -129,7 +129,7 @@ describe('portrait lifecycle', () => {
       .update(profileDrafts)
       .set({ profile, portrait: new Uint8Array([7]) })
       .where(eq(profileDrafts.userId, userId))
-    await expect(saveProfile(services, env, userId, edits)).rejects.toThrow()
+    await expect(saveProfile(services, env, userId, edits, 'bay')).rejects.toThrow()
     const portraitOf = async () =>
       (
         await db.select({ portrait: people.portrait }).from(people).where(eq(people.userId, userId))
@@ -140,7 +140,7 @@ describe('portrait lifecycle', () => {
       .update(profileDrafts)
       .set({ profile: null, portrait: new Uint8Array([9]) })
       .where(eq(profileDrafts.userId, userId))
-    await saveProfile(services, env, userId, edits)
+    await saveProfile(services, env, userId, edits, 'bay')
     expect([...(await portraitOf())!]).toEqual([7])
   })
 })

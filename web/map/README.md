@@ -7,6 +7,12 @@ lights glow after dark, each in its own color) and seen from the south-southwest
 orthographic camera. One world unit is one tile. Nothing here talks to the server except
 the world snapshot that `People` and `Labels` draw.
 
+The page shows one metro, chosen by its address (`web/metro.ts`): the Bay Area at `/`
+and Austin at `/austin`. **`atlas.ts`** holds that metro's ground, roads, places, and
+routes, and each module below keeps a small table per metro for what differs: hills,
+neighborhoods, landmarks, the Skyloop's stops, boats, planes, and so on. Moving between
+metros loads the page again.
+
 - **`elevation.ts`**: named hills raise a height grid under the land, and the
   distance from shore shades the water.
 - **`decks.ts`**: every bridge deck as slabs, each a sloped plank between two
@@ -17,7 +23,9 @@ the world snapshot that `People` and `Labels` draw.
   sinks into it. **`lines.ts`** joins road lines end to end, for traffic and
   for finding where a road crosses water.
 - **`city.ts`**: derives the city from the ground and roads. Each tile takes
-  the style of its nearest neighborhood (`neighborhoods.ts`): Victorian rows in
+  the style of its nearest neighborhood (`neighborhoods.ts`; in Austin, where
+  the road grid is sparser, a block also stops at the edge of its neighborhood,
+  so downtown's towers stay downtown): Victorian rows in
   the Mission, stucco in the Sunset, towers downtown, warehouses in Dogpatch,
   houses along the suburbs' main streets. Each block is split into a few big
   lots, one building each; parks, courtyards, and wild hills get trees.
@@ -27,13 +35,16 @@ the world snapshot that `People` and `Labels` draw.
   drifting cloud shadows, and lights the streets after dark; windows,
   shopfronts, and roof lights come from the wall shader and light up at night
   in the colors `paint.ts` shares (`nightLights`).
-- **`landmarks.tsx`**: bridges and the Bay Area's icons. Its `reservedTiles`
-  keep procedural buildings off their footprints.
+- **`landmarks.tsx`**: bridges and each metro's icons (`landmarks/icons.ts` for the
+  Bay, `landmarks/austin.ts` for Austin). Its `reservedTiles` keep procedural
+  buildings off their footprints.
 - **`roads.ts`**: rounds the corners of the road lines and bakes the road
   field (a texture of distance to the road edge and center, distance to the
   nearest junction, and dash phase) that the ground shader paints asphalt,
   curbs, sidewalks, lane lines, and crossings from.
-- **`skyloop.tsx`**: the elevated maglev around the bay: its route, the
+- **`skyloop.tsx`**: the elevated maglev around the metro, with a station at
+  each end of every rail ride and a route that keeps off the spots people stand
+  on: its route, the
   corridor it keeps clear of buildings, the viaduct with a track for trains
   and one for pods, and the stations.
 - **`rides.tsx`**: what a travelling person rides: a boat along the ferry
@@ -41,13 +52,14 @@ the world snapshot that `People` and `Labels` draw.
 - **`eggs.tsx`**: small things to find on the ground: fighting cats, a
   broken hydrant, a driverless taxi, men in black, and a robot that watches
   the ocean.
-- **`wonders.tsx`**: balloons, airships, the fog dragon, whales, the big
-  wheel, the rocket, fireworks, and the saucer.
+- **`wonders.tsx`**: balloons, airships, the big wheel, the rocket, fireworks,
+  and the saucer, plus the fog dragon and whales in the Bay and the bats that
+  pour out from under the bridge at dusk in Austin.
 - **`wings.tsx`**: the canopies over people who are paragliding or
   skydiving. They follow each flyer every frame.
 - **`traffic.tsx`**, **`fog.tsx`**: road vehicles on journeys through the road
   network, the maglev trains, cable cars, streetcars, boats,
-  planes, gulls, and the fog that hugs the coast mornings and
+  planes, gulls (grackles in Austin), and, in the Bay, the fog that hugs the coast mornings and
   evenings, all derived from the wall clock so every viewer sees the same
   thing.
 - **`places.tsx`**, **`people.tsx`**, **`labels.tsx`**: the props at each
@@ -69,7 +81,7 @@ the world snapshot that `People` and `Labels` draw.
 - **`sightlines.ts`**: a per-tile height above which buildings, trees, and
   decorations would hide a place's spots from the camera; their shaders dither
   those fragments away when zoomed in.
-- **`sky.tsx`**: lighting from the real sun height over San Francisco, with
+- **`sky.tsx`**: lighting from the real sun height over the metro's city, with
   the sun at a fixed bearing so shadows fall toward the camera, and moonlight
   at night. **`paint.ts`** holds the shared toon material.
   **`clock.ts`** shares the time, daylight, the visible area (set once a

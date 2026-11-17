@@ -8,10 +8,9 @@ import {
   type WebGLProgramParametersWithUniforms,
 } from 'three'
 import { mapHeight, mapWidth } from '../../shared/map/grid'
-import { places } from '../../shared/map/places'
-import { spots } from '../../shared/map/spots'
 import { viewFrom } from './clock'
 import { surfaceAt } from './decks'
+import { places, spots } from './atlas'
 
 const reach = 14
 const open = 1e4

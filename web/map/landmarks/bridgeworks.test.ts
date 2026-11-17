@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import geography from '../../../shared/map/geography.json'
+import geography from '../../../shared/map/bay/geography.json'
 import { roadClasses } from '../../../shared/map/route'
 import { decks, routes, slabs, surfaceAt } from '../decks'
 import { heightAt, shoreHeight } from '../elevation'
@@ -27,7 +27,7 @@ function drawnUnder(x: number, y: number) {
 }
 
 describe.each(['goldenGate', 'bayWest', 'bayEast'] as const)('%s', (span) => {
-  const route = routes[span]
+  const route = routes.get(span)!
   test('meets dry ground at both ends', () => {
     for (const s of [0, route.length]) {
       const end = route.at(s)

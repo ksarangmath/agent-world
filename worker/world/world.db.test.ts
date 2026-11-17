@@ -4,7 +4,7 @@ import postgres from 'postgres'
 import { afterAll, beforeEach, describe, expect, test } from 'vitest'
 import { pageSize } from '../../shared/api'
 import { placesById } from '../../shared/map/places'
-import { spots } from '../../shared/map/spots'
+import { atlasOf } from '../../shared/map/atlas'
 import type { Profile } from '../../shared/profile'
 import * as schema from '../db/schema'
 import {
@@ -29,6 +29,7 @@ import { recordImpression } from './impressions'
 import { messageAgent, messageOwner } from './owner-thread'
 import { nudgeIdlePeople, touch, wake, wakeAtDawn } from './people'
 import { removePerson } from './removal'
+import { worldSnapshot } from './snapshot'
 import { goTo, listPlaces, lookAround } from './travel'
 
 const client = postgres('postgresql://postgres:postgres@127.0.0.1:54322/postgres', { max: 12 })
@@ -84,12 +85,14 @@ let nextSpot = 0
 async function person(name: string, at: string | null = placeId): Promise<string> {
   const userId = crypto.randomUUID()
   await db.execute(sql`insert into auth.users (id) values (${userId})`)
-  const spot = at ? spots(placesById.get(at)!)[nextSpot++]! : null
+  const place = at ? placesById.get(at)! : null
+  const spot = place ? atlasOf(place.metro).spots(place)[nextSpot++]! : null
   const [row] = await db
     .insert(people)
     .values({
       userId,
       profile: profile(name),
+      metro: place?.metro,
       agentId: `agent-${name}`,
       placeId: at,
       tileX: spot?.x ?? null,
@@ -1046,5 +1049,49 @@ describe('long histories', () => {
     const earlier = await myConversations(db, a, new Date(newest.at(-1)!.startedAt))
     expect(earlier).toHaveLength(5)
     expect(new Set([...newest, ...earlier].map((one) => one.id)).size).toBe(pageSize + 5)
+  })
+})
+
+describe('two cities', () => {
+  const austinPlace = 'sixth-street-stage'
+
+  test('an agent is offered only the places on its own map', async () => {
+    const [ada, tex] = [await person('Ada'), await person('Tex', austinPlace)]
+    const offered = async (id: string) =>
+      (
+        JSON.parse((await run((world) => listPlaces(world, id, 'music'))).text) as { id: string }[]
+      ).map((place) => placesById.get(place.id)!.metro)
+    expect(new Set(await offered(ada))).toEqual(new Set(['bay']))
+    expect(new Set(await offered(tex))).toEqual(new Set(['austin']))
+  })
+
+  test('an agent cannot travel to a place on the other map', async () => {
+    const tex = await person('Tex', austinPlace)
+    const refused = await run((world) => goTo(world, tex, placeId, 'curious'))
+    expect(refused).toMatchObject({ ok: false })
+    expect(refused.text).toContain("There's no place")
+    const allowed = await run((world) => goTo(world, tex, 'soco-dance-hall', 'dancing'))
+    expect(allowed.ok).toBe(true)
+    expect(allowed.dueAt!.getTime()).toBeGreaterThan(t0.getTime())
+    const [row] = await db.select().from(people).where(eq(people.id, tex))
+    expect(row).toMatchObject({ placeId: 'soco-dance-hall', metro: 'austin' })
+  })
+
+  test("each map's snapshot shows only the people who live on it", async () => {
+    const [ada, tex] = [await person('Ada'), await person('Tex', austinPlace)]
+    const ids = async (metro: 'bay' | 'austin') =>
+      (await worldSnapshot(db, t0, metro)).people.map((one) => one.id)
+    expect(await ids('bay')).toEqual([ada])
+    expect(await ids('austin')).toEqual([tex])
+  })
+
+  test('clocks and bedtime follow the time zone of the map a person lives on', async () => {
+    const [ada, tex] = [await person('Ada'), await person('Tex', austinPlace)]
+    await db.update(people).set({ awakeUntil: null })
+    const until = async (id: string) => run((world) => wake(world, id))
+    expect(await until(ada)).toEqual(new Date('2026-10-28T07:00:00Z'))
+    expect(await until(tex)).toEqual(new Date('2026-10-28T05:00:00Z'))
+    expect((await eventsOf(ada))[0]).toMatchObject({ time: 'Tue, Oct 27, 11:00 AM PT' })
+    expect((await eventsOf(tex))[0]).toMatchObject({ time: 'Tue, Oct 27, 1:00 PM CT' })
   })
 })

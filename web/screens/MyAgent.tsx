@@ -26,6 +26,8 @@ import type { Matches as MatchList, MeResponse, TimelineEvent } from '../../shar
 import { useSession } from '../auth'
 import { byDay, clock, dayLabel } from '../days'
 import { doingNow } from '../map/doing'
+import { useHomeMetro } from '../elsewhere'
+import { here } from '../metro'
 import { visit, watch } from '../map/watching'
 import { markSeen, useNews } from '../news'
 import { ago, Overlay, Portrait } from './Overlay'
@@ -469,7 +471,7 @@ function Sleep({ userId, awakeUntil }: { userId: string; awakeUntil: string | nu
       <button type="button" disabled={wake.isPending} onClick={() => wake.mutate()}>
         Wake up
       </button>{' '}
-      <span className="muted">Lasts until midnight in San Francisco.</span>
+      <span className="muted">Lasts until midnight in {here.city}.</span>
       {wake.error && <span className="error"> {wake.error.message}</span>}
     </p>
   )
@@ -552,6 +554,7 @@ export function MyAgent() {
     if (tab === 'Matches' && news.latestMatch) markSeen(userId, 'matches', news.latestMatch)
     if (tab === 'Chat' && news.latestReply) markSeen(userId, 'chat', news.latestReply)
   }, [userId, tab, news.latestMatch, news.latestReply])
+  const elsewhere = useHomeMetro(me.data?.person?.metro, 'me')
   if (session === null) {
     return (
       <Overlay label="Your agent">
@@ -573,6 +576,7 @@ export function MyAgent() {
       </Overlay>
     )
   }
+  if (elsewhere) return null
   const { id, profile, awakeUntil } = me.data.person
   const people = world.data?.snapshot.people ?? []
   const live = people.find((person) => person.id === id)

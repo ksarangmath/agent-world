@@ -1,5 +1,6 @@
 import { and, count, eq, gt, isNotNull, ne, or, sql } from 'drizzle-orm'
-import { places, placesById, regionNames, type Place } from '../../shared/map/places'
+import { placesById, placesIn, regionNames, type Place } from '../../shared/map/places'
+import { homeMetro } from '../../shared/metros'
 import { conversationRequests, conversations, people, worldEvents } from '../db/schema'
 import { expirePendingRequests } from './conversations'
 import { clockTime, done, record, refuse, type Outcome, type World } from './events'
@@ -48,7 +49,7 @@ export async function listPlaces(world: World, meId: string, interest?: string):
         text.toLowerCase().includes(word),
       ),
     ).length
-  const ranked = places
+  const ranked = placesIn(me?.metro ?? homeMetro)
     .map((place) => ({
       place,
       score: score(place),
@@ -84,13 +85,13 @@ export async function goTo(
   reason: string,
 ): Promise<Outcome> {
   const { tx, now } = world
-  const place = placesById.get(placeId)
-  if (!place) return refuse(`There's no place "${placeId}". Use list_places to find place ids.`)
-  const [{ spots }, { ferryTerminal, route }] = await Promise.all([
-    import('../../shared/map/spots'),
-    import('../../shared/map/route'),
-  ])
   const me = (await lockPeople(world, [meId])).get(meId)!
+  const place = placesById.get(placeId)
+  if (place?.metro !== me.metro) {
+    return refuse(`There's no place "${placeId}". Use list_places to find place ids.`)
+  }
+  const { atlasOf } = await import('../../shared/map/atlas')
+  const { spots, arrival, route } = atlasOf(me.metro)
   const status = statusOf(me, now)
   if (status === 'in_conversation') {
     return refuse("You're in a conversation. End it with end_conversation before you leave.")
@@ -107,7 +108,7 @@ export async function goTo(
   const spot = spots(place).find((tile) => !taken.some((t) => t.x === tile.x && t.y === tile.y))
   if (!spot) return refuse(`${place.name} is full right now. Try another place.`)
 
-  const from = me.tileX !== null && me.tileY !== null ? { x: me.tileX, y: me.tileY } : ferryTerminal
+  const from = me.tileX !== null && me.tileY !== null ? { x: me.tileX, y: me.tileY } : arrival
   const arrivesAt = new Date(now.getTime() + Math.ceil(route(from, spot).seconds * 1000))
   await expirePendingRequests(world, [me.id], 'they left for somewhere else')
   await record(world, me.id, 'departed', now, { placeId, note: reason })
@@ -177,7 +178,8 @@ export async function lookAround(world: World, meId: string): Promise<Outcome> {
         description: place.description,
       },
       your_status: statusOf(me, now),
-      your_break_ends: statusOf(me, now) === 'resting' ? clockTime(me.restingUntil!) : undefined,
+      your_break_ends:
+        statusOf(me, now) === 'resting' ? clockTime(me.restingUntil!, me.metro) : undefined,
       people_here: others
         .filter((person) => isAt(person, place.id, now) && statusOf(person, now) !== 'asleep')
         .map((person) => ({

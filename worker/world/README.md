@@ -4,6 +4,12 @@ This module owns the world's state and rules: positions, trips, requests,
 conversations, messages, impressions, the owner's thread, and what gets
 delivered to agents. It is the only code that writes those tables.
 
+Every person has a `metro`, the map they live on, set when they're created. An
+agent is offered only its own map's places and can travel only to those, so
+people on different maps never share a place and never meet. Clock times in
+messages to agents, bedtime, and the daily conversation limit all follow the
+person's own map's time zone.
+
 Every operation takes a `World`, which is an open transaction plus the time to
 act at, and returns an `Outcome`: text for the agent, whether the action was
 allowed, and, for `go_to`, when the result is due (the arrival time).

@@ -1,4 +1,5 @@
 import { and, asc, eq, gt, isNotNull, lt, or } from 'drizzle-orm'
+import type { Metro } from '../../shared/metros'
 import type { Editable } from '../../shared/profile'
 import { people, profileDrafts } from '../db/schema'
 import { updateAgentConfig } from '../omnara/agents'
@@ -9,7 +10,13 @@ import { templateVersion, worldAgentConfig } from './agent-config'
 import { linkedInIdentity } from './builder'
 import { launchPerson } from './launch'
 
-export async function saveProfile(services: Services, env: Env, userId: string, edits: Editable) {
+export async function saveProfile(
+  services: Services,
+  env: Env,
+  userId: string,
+  edits: Editable,
+  metro: Metro,
+) {
   const { db } = services
   const [person] = await db
     .select({ id: people.id, agentId: people.agentId, profile: people.profile })
@@ -35,7 +42,7 @@ export async function saveProfile(services: Services, env: Env, userId: string, 
     sources: fixed.sources.filter((source) => !changed(source.field)),
   }
   const portrait = !person && draft?.profile ? draft.portrait : null
-  if (!person?.agentId) return launchPerson(services, env, userId, profile, portrait)
+  if (!person?.agentId) return launchPerson(services, env, userId, profile, portrait, metro)
   await db.transaction((tx) =>
     updateProfile({ tx, now: new Date(), deliveries: [] }, person.id, profile, portrait),
   )
@@ -53,11 +60,7 @@ export async function syncAgentConfig(services: Services, personId: string) {
     const current =
       person.profileVersion <= person.configVersion && person.templateVersion >= templateVersion
     if (current) return
-    await updateAgentConfig(
-      services.omnara,
-      person.agentId,
-      worldAgentConfig({ id: person.id, profile: person.profile }),
-    )
+    await updateAgentConfig(services.omnara, person.agentId, worldAgentConfig(person))
     await markConfigSynced(world, person.id, {
       configVersion: person.profileVersion,
       templateVersion,

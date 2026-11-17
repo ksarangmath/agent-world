@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
 import { placesById } from '../../shared/map/places'
 import { usePersonCard, useWorld } from '../api'
+import { useHomeMetro } from '../elsewhere'
 import { doingNow } from '../map/doing'
 import { watch } from '../map/watching'
 import { ago, Overlay, Portrait } from './Overlay'
@@ -13,6 +14,7 @@ export function PersonOverlay() {
   const people = world.data?.snapshot.people ?? []
   const live = people.find((person) => person.id === personId)
   const navigate = useNavigate()
+  const elsewhere = useHomeMetro(card.data?.metro, `people/${personId}`)
   if (!card.data) {
     return (
       <Overlay label="Person">
@@ -21,6 +23,7 @@ export function PersonOverlay() {
     )
   }
   const person = card.data
+  if (elsewhere) return null
   return (
     <Overlay label={person.name}>
       <div className="person">

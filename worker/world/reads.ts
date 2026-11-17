@@ -9,6 +9,8 @@ import {
   type Transcript,
 } from '../../shared/api'
 import { alias } from 'drizzle-orm/pg-core'
+import { placesById } from '../../shared/map/places'
+import { homeMetro } from '../../shared/metros'
 import type { Database, Transaction } from '../db/client'
 import {
   conversations,
@@ -55,6 +57,7 @@ export async function transcript(
       : undefined
   return {
     id: conversation.id,
+    metro: placesById.get(conversation.placeId)?.metro ?? homeMetro,
     placeId: conversation.placeId,
     people: pair.map((p) => ({
       id: p.id,
@@ -188,6 +191,7 @@ export async function personCard(db: Database, personId: string): Promise<Person
   const [person] = await db
     .select({
       id: people.id,
+      metro: people.metro,
       profile: people.profile,
       conversationId: people.conversationId,
       portrait: sql<boolean>`${people.portrait} is not null`,
@@ -197,6 +201,7 @@ export async function personCard(db: Database, personId: string): Promise<Person
   if (!person) return null
   return {
     id: person.id,
+    metro: person.metro,
     name: person.profile.name,
     headline: person.profile.headline,
     currentWork: person.profile.current_work,

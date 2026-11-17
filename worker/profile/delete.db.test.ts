@@ -181,7 +181,7 @@ test('a launch that finds its person deleted removes the memory store it made', 
     await gone()
     return 'store-new'
   })
-  expect(await launchPerson(services, env, userId, profile, null)).toBeNull()
+  expect(await launchPerson(services, env, userId, profile, null, 'bay')).toBeNull()
   expect(vi.mocked(deleteMemoryStore).mock.calls.map((call) => call[1])).toEqual(['store-new'])
   expect(launchAgent).not.toHaveBeenCalled()
 })
@@ -193,6 +193,6 @@ test('a launch that finds its person deleted stops the agent it started', async 
     await gone()
     return 'agent-new'
   })
-  expect(await launchPerson(services, env, userId, profile, null)).toBeNull()
+  expect(await launchPerson(services, env, userId, profile, null, 'bay')).toBeNull()
   expect(vi.mocked(archiveAgent).mock.calls.map((call) => call[1])).toEqual(['agent-new'])
 })

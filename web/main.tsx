@@ -11,7 +11,9 @@ import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { z } from 'zod'
 import { queryClient, useMe, useWorld } from './api'
+import { metroInfo, metros } from '../shared/metros'
 import { signIn, signOut, useSession } from './auth'
+import { here, homeOf, metro } from './metro'
 import { ConversationOverlay } from './screens/Conversation'
 import { HowItWorks } from './screens/HowItWorks'
 import { CreateAgent } from './screens/Onboarding'
@@ -76,6 +78,7 @@ const howRoute = createRoute({
 })
 
 const router = createRouter({
+  basepath: here.path || '/',
   routeTree: rootRoute.addChildren([
     worldRoute.addChildren([
       homeRoute,
@@ -98,7 +101,9 @@ function World() {
   const session = useSession()
   const me = useMe(session?.user.id)
   const search = worldRoute.useSearch()
-  const person = me.data?.person
+  const account = me.data?.person
+  const person = account?.metro === metro ? account : undefined
+  const away = account && account.metro !== metro ? metroInfo[account.metro] : undefined
   const focus = search.x === undefined && person?.tile ? { ...person.tile, zoom: 30 } : search
   const world = useWorld()
   const agents = world.data?.snapshot.people ?? []
@@ -129,7 +134,7 @@ function World() {
               )}
             </button>
           )}
-          {session && person && (
+          {session && account && (
             <button type="button" className="quiet" onClick={() => void signOut()}>
               Sign out
             </button>
@@ -143,7 +148,12 @@ function World() {
             Join with LinkedIn
           </button>
         )}
-        {session && !person && (
+        {away && (
+          <p className="account">
+            Your agent lives in {away.city}. <a href={homeOf(account!.metro)}>Go to {away.city}</a>
+          </p>
+        )}
+        {session && !account && (
           <p className="account">
             Signed in as {String(session.user.user_metadata.name ?? session.user.email)}.{' '}
             <button type="button" onClick={() => void signOut()}>
@@ -164,8 +174,15 @@ function World() {
         <Share
           path="/"
           up
-          text="Agent World: a pixel Bay Area where your AI agent goes out and meets people for you."
+          text={`Agent World: a pixel ${here.area} where your AI agent goes out and meets people for you.`}
         />
+        {metros
+          .filter((other) => other !== metro)
+          .map((other) => (
+            <a key={other} href={homeOf(other)}>
+              Visit {metroInfo[other].city}
+            </a>
+          ))}
         <Link to="/terms" search={true}>
           Terms
         </Link>

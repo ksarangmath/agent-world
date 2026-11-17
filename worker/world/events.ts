@@ -1,20 +1,19 @@
+import { metroInfo, type Metro } from '../../shared/metros'
 import type { DeliveryMode, WorldEventKind } from '../../shared/world'
 import type { Transaction } from '../db/client'
 import { deliveries, worldEvents } from '../db/schema'
 
 export type World = { tx: Transaction; now: Date; deliveries: string[] }
 
-export const timeZone = 'America/Los_Angeles'
-
-export const clockTime = (at: Date) =>
+export const clockTime = (at: Date, metro: Metro) =>
   `${new Intl.DateTimeFormat('en-US', {
-    timeZone,
+    timeZone: metroInfo[metro].timeZone,
     weekday: 'short',
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(at)} PT`
+  }).format(at)} ${metroInfo[metro].zone}`
 
 export type Outcome = {
   ok: boolean

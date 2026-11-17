@@ -1,10 +1,11 @@
-import { isNotNull } from 'drizzle-orm'
+import { and, eq, isNotNull } from 'drizzle-orm'
 import type { WorldSnapshot } from '../../shared/api'
+import type { Metro } from '../../shared/metros'
 import type { Database } from '../db/client'
 import { people } from '../db/schema'
 import { isAwake } from './people'
 
-export async function worldSnapshot(db: Database, now: Date): Promise<WorldSnapshot> {
+export async function worldSnapshot(db: Database, now: Date, metro: Metro): Promise<WorldSnapshot> {
   const rows = await db
     .select({
       id: people.id,
@@ -21,7 +22,7 @@ export async function worldSnapshot(db: Database, now: Date): Promise<WorldSnaps
       awakeUntil: people.awakeUntil,
     })
     .from(people)
-    .where(isNotNull(people.placeId))
+    .where(and(isNotNull(people.placeId), eq(people.metro, metro)))
   return {
     now: now.toISOString(),
     people: rows.map((row) => {

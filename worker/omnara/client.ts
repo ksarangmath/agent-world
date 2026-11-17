@@ -1,4 +1,5 @@
 import { ApiError, bearerToken, createOmnaraClient, type OmnaraClient } from '@omnara/sdk'
+import type { Metro } from '../../shared/metros'
 
 export type Omnara = {
   client: OmnaraClient
@@ -17,6 +18,9 @@ export function omnara(env: Env): Omnara {
     path: { orgID: env.OMNARA_ORG_ID, projectID: env.OMNARA_PROJECT_ID },
   }
 }
+
+export const worldProfileId = (env: Env, metro: Metro) =>
+  ({ bay: env.OMNARA_WORLD_PROFILE_ID, austin: env.OMNARA_AUSTIN_WORLD_PROFILE_ID })[metro]
 
 export const isPermanent = (error: unknown) =>
   error instanceof ApiError && [400, 404, 410, 422].includes(error.status)

@@ -1,9 +1,16 @@
 import type { Tile } from './map/route'
+import type { Metro } from './metros'
 import type { Avatar, Profile } from './profile'
 import type { OwnerMessageDirection, Verdict, WorldEventKind } from './world'
 
 export type MeResponse = {
-  person: { id: string; profile: Profile; tile: Tile | null; awakeUntil: string | null } | null
+  person: {
+    id: string
+    metro: Metro
+    profile: Profile
+    tile: Tile | null
+    awakeUntil: string | null
+  } | null
 }
 
 export type WorldPerson = {
@@ -28,6 +35,7 @@ export type OnboardingStatus =
 
 export type Transcript = {
   id: string
+  metro: Metro
   placeId: string
   people: { id: string; name: string; headline: string; portrait: boolean }[]
   endedAt: string | null
@@ -81,6 +89,7 @@ export type TimelineEvent = {
 
 export type PersonCard = {
   id: string
+  metro: Metro
   name: string
   headline: string
   currentWork: string

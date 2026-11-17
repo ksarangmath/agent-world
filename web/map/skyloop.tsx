@@ -9,6 +9,9 @@ import {
   type InstancedMesh,
 } from 'three'
 import { mapWidth } from '../../shared/map/grid'
+import type { Metro } from '../../shared/metros'
+import { metro } from '../metro'
+import { warp } from './atlas'
 import { heightAt } from './elevation'
 import { toon } from './paint'
 import { seeThrough } from './sightlines'
@@ -19,26 +22,61 @@ const easeOver = 9
 const corridor = 0.8
 const apart = 0.28
 
-const stops: readonly [x: number, y: number, station?: string][] = [
-  [243, 184, 'Ferry Plaza'],
-  [262, 179],
-  [304, 183],
-  [328, 181, 'Oaktown'],
-  [353, 203],
-  [370, 241, 'Coliseum'],
-  [394, 300],
-  [407, 354, 'Fremont Flats'],
-  [407, 408],
-  [392, 439, 'San José'],
-  [348, 437, 'Mountain View'],
-  [322, 431, 'Palo Alto'],
-  [265, 404],
-  [226, 398, 'Millbrae'],
-  [217, 370],
-  [229, 320],
-  [237, 215, 'King Street'],
-  [242, 198],
-]
+type Stop = readonly [x: number, y: number, station?: string]
+
+const at = (lon: number, lat: number, station?: string): Stop => [...warp(lon, lat), station]
+
+const loops: Record<Metro, () => Stop[]> = {
+  bay: () => [
+    [243, 184, 'Ferry Plaza'],
+    [262, 179],
+    [304, 183],
+    [328, 181, 'Oaktown'],
+    [353, 203],
+    [370, 241, 'Coliseum'],
+    [394, 300],
+    [407, 354, 'Fremont Flats'],
+    [407, 408],
+    [392, 439, 'San José'],
+    [348, 437, 'Mountain View'],
+    [322, 431, 'Palo Alto'],
+    [265, 404],
+    [226, 398, 'Millbrae'],
+    [217, 370],
+    [229, 320],
+    [237, 215, 'King Street'],
+    [242, 198],
+  ],
+  austin: () => [
+    at(-97.736, 30.2626, 'Downtown'),
+    at(-97.7278, 30.2623),
+    at(-97.7091, 30.2798),
+    at(-97.7135, 30.302),
+    at(-97.7162, 30.3286, 'Highland'),
+    at(-97.7196, 30.3385),
+    at(-97.7176, 30.3695),
+    at(-97.7164, 30.3928, 'The Domain'),
+    at(-97.7017, 30.44),
+    at(-97.745, 30.468),
+    at(-97.7866, 30.481, 'Lakeline'),
+    at(-97.85, 30.405),
+    at(-97.905, 30.352),
+    at(-97.945, 30.308, 'The Hive'),
+    at(-97.915, 30.262),
+    at(-97.86, 30.235, 'Oak Hill'),
+    at(-97.8, 30.205),
+    at(-97.735, 30.2075),
+    at(-97.7, 30.2145),
+    at(-97.6685, 30.2175, 'Delay Valle'),
+    at(-97.676, 30.229),
+    at(-97.693, 30.2365),
+    at(-97.724, 30.2405),
+    at(-97.737, 30.2465),
+    at(-97.7352, 30.2545),
+  ],
+}
+
+const stops = loops[metro]()
 
 const curve = new CatmullRomCurve3(
   stops.map(([x, y]) => new Vector3(x, 0, y)),

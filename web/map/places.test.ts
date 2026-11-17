@@ -1,7 +1,6 @@
 import { expect, test } from 'vitest'
-import { places } from '../../shared/map/places'
-import { spots } from '../../shared/map/spots'
 import { propsOf } from './places'
+import { places, spots } from './atlas'
 
 test("nothing tall and bulky stands on anybody's spot", () => {
   for (const place of places) {

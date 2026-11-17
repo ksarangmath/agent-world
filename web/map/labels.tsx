@@ -1,13 +1,13 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { Vector3 } from 'three'
-import { warp } from '../../shared/map/grid'
 import type { WorldPerson } from '../../shared/api'
-import { places, regionNames, type Region } from '../../shared/map/places'
+import { regionNames, type Region } from '../../shared/map/places'
 import { flyTo } from './camera'
 import { surfaceAt } from './decks'
 import { neighborhoods } from './neighborhoods'
 import { visit, visiting } from './watching'
+import { places, warp } from './atlas'
 
 type Label = {
   text: string
@@ -25,12 +25,18 @@ const regionAnchors: Record<Region, [lon: number, lat: number]> = {
   marin: [-122.55, 37.9],
   east_bay: [-122.22, 37.83],
   south_bay: [-122.08, 37.4],
+  austin: [-97.745, 30.275],
+  hill_country: [-97.93, 30.27],
+  silicon_hills: [-97.72, 30.46],
+  brisket_belt: [-97.61, 30.16],
 }
 
+const regions = [...new Set(places.map((place) => place.region))]
+
 const labels: Label[] = [
-  ...Object.entries(regionAnchors).map(([region, [lon, lat]]): Label => {
-    const [x, y] = warp(lon, lat)
-    return { text: regionNames[region as Region], x, y, lift: 4, kind: 'region', zooms: [0, 3.5] }
+  ...regions.map((region): Label => {
+    const [x, y] = warp(...regionAnchors[region])
+    return { text: regionNames[region], x, y, lift: 4, kind: 'region', zooms: [0, 3.5] }
   }),
   ...areas.map((neighborhood): Label => ({
     text: neighborhood.name,

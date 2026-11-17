@@ -2,8 +2,8 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { Vector3 } from 'three'
 import type { WorldPerson } from '../../shared/api'
+import { metro } from '../metro'
 import { placesById, type Activity } from '../../shared/map/places'
-import { spots } from '../../shared/map/spots'
 import { positionOnRoute, type Route } from '../../shared/map/route'
 import { onScreen, viewFrom } from './clock'
 import { doingNow } from './doing'
@@ -16,6 +16,7 @@ import { carriers, rideAt, Rides, type Seat } from './rides'
 import type { RouteReply, RouteRequest } from './routing.worker'
 import { body, Sprites, type Facing, type Placement } from './sprites'
 import { Wings } from './wings'
+import { spots } from './atlas'
 
 const capacity = 2000
 const hoverZoom = 14
@@ -135,7 +136,10 @@ export function People({ people, serverOffsetMs, onSelect }: Props) {
   const requested = useRef(new Set<string>())
   useEffect(() => {
     const [pending, known] = [requested.current, routes.current]
-    const worker = new Worker(new URL('./routing.worker.ts', import.meta.url), { type: 'module' })
+    const worker = new Worker(new URL('./routing.worker.ts', import.meta.url), {
+      type: 'module',
+      name: metro,
+    })
     worker.addEventListener('message', ({ data }: MessageEvent<RouteReply>) => {
       if (pending.has(data.key)) known.set(data.key, data.route)
     })

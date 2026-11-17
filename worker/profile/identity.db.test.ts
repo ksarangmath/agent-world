@@ -169,7 +169,7 @@ describe('LinkedIn identity', () => {
       ],
       about_me: 'Quiet at first, then talks about climbing for hours.',
     })
-    await expect(saveProfile(services, {} as Env, userId, edits)).rejects.toThrow()
+    await expect(saveProfile(services, {} as Env, userId, edits, 'bay')).rejects.toThrow()
     const [person] = await db
       .select({ profile: people.profile })
       .from(people)

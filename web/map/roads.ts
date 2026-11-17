@@ -1,7 +1,8 @@
 import { mapHeight, mapWidth } from '../../shared/map/grid'
-import { roadClasses, roadLines, type RoadClass } from '../../shared/map/route'
+import { roadClasses, type RoadClass } from '../../shared/map/route'
 import { hash } from './elevation'
 import { chains, reversed } from './lines'
+import { roadLines } from './atlas'
 
 export const fieldScale = 4
 export const halfWidths: Record<RoadClass, number> = { local: 0.36, street: 0.4, freeway: 0.46 }

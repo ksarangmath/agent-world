@@ -13,6 +13,7 @@ import {
 } from '../shared/api'
 import type { Editable } from '../shared/profile'
 import { supabase } from './auth'
+import { metro } from './metro'
 
 export const queryClient = new QueryClient()
 
@@ -41,7 +42,7 @@ export const useWorld = () =>
   useQuery({
     queryKey: ['world'],
     queryFn: async () => {
-      const snapshot = await getJson<WorldSnapshot>('/api/world', false)
+      const snapshot = await getJson<WorldSnapshot>(`/api/world?metro=${metro}`, false)
       return { snapshot, serverOffsetMs: Date.parse(snapshot.now) - Date.now() }
     },
     refetchInterval: 1000,
@@ -84,7 +85,8 @@ export const useOnboarding = (userId: string | undefined) =>
 export const startOnboarding = (linkedin: string) =>
   send<OnboardingStatus>('/api/onboarding', 'POST', { linkedin, consent: true })
 
-export const saveProfile = (edits: Editable) => send<unknown>('/api/me/profile', 'PUT', edits)
+export const saveProfile = (edits: Editable) =>
+  send<unknown>(`/api/me/profile?metro=${metro}`, 'PUT', edits)
 
 export const deleteAccount = () => send<unknown>('/api/me', 'DELETE')
 

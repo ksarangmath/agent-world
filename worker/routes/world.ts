@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { createMiddleware } from 'hono/factory'
 import { database } from '../db/client'
 import { z } from 'zod'
+import { homeMetro, metros } from '../../shared/metros'
 import { personCard, portraitOf, transcript } from '../world/reads'
 import { worldSnapshot } from '../world/snapshot'
 
@@ -10,9 +11,11 @@ const publicForOneSecond = createMiddleware(async (c, next) => {
   c.header('Cache-Control', 'public, max-age=1')
 })
 
-export const world = new Hono<{ Bindings: Env }>()
-  .use(publicForOneSecond)
-  .get('/', async (c) => c.json(await worldSnapshot(database(c.env), new Date())))
+export const world = new Hono<{ Bindings: Env }>().use(publicForOneSecond).get('/', async (c) => {
+  const metro = z.enum(metros).default(homeMetro).safeParse(c.req.query('metro'))
+  if (!metro.success) return c.json({ error: 'There is no such map.' }, 400)
+  return c.json(await worldSnapshot(database(c.env), new Date(), metro.data))
+})
 
 export const conversation = new Hono<{ Bindings: Env }>()
   .use(publicForOneSecond)

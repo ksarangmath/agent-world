@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { homeMetro, metros } from '../../shared/metros'
 import { editableSchema } from '../../shared/profile'
 import { maxOwnerMessageLength } from '../../shared/world'
 import type { MeResponse } from '../../shared/api'
@@ -34,6 +35,7 @@ export const me = new Hono<SignedIn>()
     const [row] = await database(c.env)
       .select({
         id: people.id,
+        metro: people.metro,
         profile: people.profile,
         x: people.tileX,
         y: people.tileY,
@@ -44,6 +46,7 @@ export const me = new Hono<SignedIn>()
       .where(eq(people.userId, c.var.userId))
     const person = row && {
       id: row.id,
+      metro: row.metro,
       profile: row.profile,
       tile: row.x === null || row.y === null ? null : { x: row.x, y: row.y },
       awakeUntil: isAwake(row, new Date()) ? row.awakeUntil!.toISOString() : null,
@@ -74,8 +77,10 @@ export const me = new Hono<SignedIn>()
   .put('/profile', async (c) => {
     const parsed = editableSchema.safeParse(await c.req.json().catch(() => null))
     if (!parsed.success) return c.json({ error: z.prettifyError(parsed.error) }, 400)
+    const metro = z.enum(metros).default(homeMetro).safeParse(c.req.query('metro'))
+    if (!metro.success) return c.json({ error: 'There is no such map.' }, 400)
     const services = { db: database(c.env), omnara: omnara(c.env) }
-    const id = await saveProfile(services, c.env, c.var.userId, parsed.data)
+    const id = await saveProfile(services, c.env, c.var.userId, parsed.data, metro.data)
     if (!id) return c.json({ error: 'Build your profile first.' }, 409)
     return c.json({ person: { id } })
   })

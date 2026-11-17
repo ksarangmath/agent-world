@@ -22,5 +22,7 @@ world, the tools, and the UI.
 - **`webhook.ts`**: verifies a webhook's Standard Webhooks signature and
   timestamp on the raw body before trusting the payload.
 
-Webhooks are subscriptions on each profile, not part of agent configs.
+World agents run under one profile per map (`worldProfileId` in `client.ts`),
+and profile builders under one more. Webhooks are subscriptions on each
+profile, not part of agent configs.
 `pnpm webhooks` creates or updates them from `.env`.

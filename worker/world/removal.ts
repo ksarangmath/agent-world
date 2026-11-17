@@ -55,7 +55,7 @@ export async function removePerson(
         with_person_id: personId,
         ended_by: 'them',
         reason: 'They left Agent World.',
-        time: clockTime(now),
+        time: clockTime(now, person.metro),
         next: 'They have left Agent World for good, so there is nothing to record about them. Carry on with your day.',
       }),
     )

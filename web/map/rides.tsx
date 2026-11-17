@@ -1,11 +1,10 @@
 import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useRef } from 'react'
 import { CatmullRomCurve3, Object3D, Vector3, type InstancedMesh } from 'three'
-import { mapWidth, warp } from '../../shared/map/grid'
+import { mapWidth } from '../../shared/map/grid'
 import {
   legSeconds,
   rideBoardingSeconds,
-  rides,
   type Leg,
   type Route,
   type Tile,
@@ -25,6 +24,7 @@ import {
   type Path,
   type Pose,
 } from './traffic'
+import { rides, warp } from './atlas'
 
 const most = 64
 const walkSpeed = 1.2

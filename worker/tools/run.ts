@@ -2,12 +2,13 @@ import { and, asc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from 'drizz
 import { alias } from 'drizzle-orm/pg-core'
 import type { Database, Transaction } from '../db/client'
 import { deliveries, handledToolCalls, people, profileDrafts } from '../db/schema'
-import { isPermanent, type Omnara } from '../omnara/client'
+import { isPermanent, worldProfileId, type Omnara } from '../omnara/client'
 import { sendInput } from '../omnara/inputs'
 import {
   deferred,
   toolWorker,
   type ToolCall,
+  type ToolWorker,
   type ToolHandler,
   type ToolResult,
 } from '../omnara/tool-calls'
@@ -22,6 +23,7 @@ import {
 } from '../profile/builder'
 import { drawPortrait } from '../profile/portrait'
 import { touch } from '../world/people'
+import { metros, type Metro } from '../../shared/metros'
 import type { Profile } from '../../shared/profile'
 import { builderTools, portraitTools } from './builder'
 import { worldTools } from './world'
@@ -367,11 +369,16 @@ export function toolWorkers(
   background?: Background,
 ) {
   return {
-    world: toolWorker(
-      services.omnara,
-      env.OMNARA_WORLD_PROFILE_ID,
-      each(worldTools, (call) => runWorldCall(services, call, background)),
-    ),
+    world: Object.fromEntries(
+      metros.map((metro) => [
+        metro,
+        toolWorker(
+          services.omnara,
+          worldProfileId(env, metro),
+          each(worldTools, (call) => runWorldCall(services, call, background)),
+        ),
+      ]),
+    ) as Record<Metro, ToolWorker>,
     builder: toolWorker(services.omnara, env.OMNARA_BUILDER_PROFILE_ID, {
       ...each(builderTools, (call) => runBuilderCall(services, env, call)),
       ...(scheduled && each(portraitTools, (call) => runPortraitCall(services, env, call))),

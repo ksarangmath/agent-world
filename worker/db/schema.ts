@@ -16,6 +16,7 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
 import { authenticatedRole, authUid, authUsers } from 'drizzle-orm/supabase'
+import { metros } from '../../shared/metros'
 import type { Profile } from '../../shared/profile'
 import {
   deliveryModes,
@@ -47,6 +48,7 @@ export const linkedInProblem = pgEnum('linkedin_problem', linkedInProblems)
 export const ownerMessageDirection = pgEnum('owner_message_direction', ownerMessageDirections)
 export const deliveryMode = pgEnum('delivery_mode', deliveryModes)
 export const worldEventKind = pgEnum('world_event_kind', worldEventKinds)
+export const metro = pgEnum('metro', metros)
 
 export const people = pgTable(
   'people',
@@ -57,6 +59,7 @@ export const people = pgTable(
       .unique()
       .references(() => authUsers.id, { onDelete: 'cascade' }),
     profile: jsonb().$type<Profile>().notNull(),
+    metro: metro().notNull().default('bay'),
     agentId: text().unique(),
     memoryStoreId: text(),
     placeId: text(),

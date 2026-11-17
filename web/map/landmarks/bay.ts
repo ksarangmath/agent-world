@@ -1,30 +1,12 @@
-import { warp } from '../../../shared/map/grid'
 import { heightAt, shoreHeight } from '../elevation'
 import { wetAt } from './bridges'
 import { beam, reserve, solid, type Light, type Part, type Point } from './shapes'
+import { angleBetween, offset, site, xy, type Site } from './sites'
+import { warp } from '../atlas'
 
-type Site = { x: number; y: number; ground: number }
+export const windmillSite = () => site(-122.5094, 37.7705)
 
-export const windmillSite = site(-122.5094, 37.7705)
-
-function site(lon: number, lat: number): Site {
-  const [x, y] = warp(lon, lat)
-  return { x, y, ground: Math.max(heightAt(x, y), shoreHeight) }
-}
-
-const angleBetween = (a: [number, number], b: [number, number]) => {
-  const [ax, ay] = warp(...a)
-  const [bx, by] = warp(...b)
-  return Math.atan2(bx - ax, by - ay)
-}
-
-const offset = (s: Site, yaw: number, along: number, across = 0, up = 0): Point => [
-  s.x + Math.sin(yaw) * along + Math.cos(yaw) * across,
-  s.ground + up,
-  s.y + Math.cos(yaw) * along - Math.sin(yaw) * across,
-]
-
-export function icons() {
+export function bayIcons() {
   const parts: Part[] = []
   const lights: Light[] = []
   const reserved = new Set<number>()
@@ -316,7 +298,7 @@ export function icons() {
     }
   }
 
-  const windmill = windmillSite
+  const windmill = windmillSite()
   add(windmill, 1.3)
   parts.push(solid('taper', '#e9e2d0', [windmill.x, windmill.ground, windmill.y], [1.3, 2.6, 1.3]))
   parts.push(
@@ -499,8 +481,4 @@ export function icons() {
   })
 
   return { parts, lights, reserved }
-}
-
-function xy([x, , z]: Point): [number, number] {
-  return [x, z]
 }

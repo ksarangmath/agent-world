@@ -18,7 +18,11 @@ const settings = {
   signing_secret_id: env('OMNARA_WEBHOOK_SECRET_ID'),
 }
 
-for (const profileId of [env('OMNARA_WORLD_PROFILE_ID'), env('OMNARA_BUILDER_PROFILE_ID')]) {
+for (const profileId of [
+  env('OMNARA_WORLD_PROFILE_ID'),
+  env('OMNARA_AUSTIN_WORLD_PROFILE_ID'),
+  env('OMNARA_BUILDER_PROFILE_ID'),
+]) {
   const { data } = await sdk.listEventWebhooks({
     client,
     path,

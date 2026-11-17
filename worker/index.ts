@@ -4,7 +4,7 @@ import { HTTPException } from 'hono/http-exception'
 import { logError } from './log'
 import { me } from './routes/me'
 import { onboarding } from './routes/onboarding'
-import { personPage } from './routes/preview'
+import { pages } from './routes/preview'
 import { webhook } from './routes/webhook'
 import { conversation, person, portrait, world } from './routes/world'
 import { scheduled } from './scheduled'
@@ -24,6 +24,6 @@ const api = new Hono<{ Bindings: Env }>()
     return c.json({ error: 'Something went wrong.' }, 500)
   })
 
-export const app = new Hono<{ Bindings: Env }>().route('/api', api).route('/people', personPage)
+export const app = new Hono<{ Bindings: Env }>().route('/api', api).route('/', pages)
 
 export default { fetch: app.fetch, scheduled } satisfies ExportedHandler<Env>

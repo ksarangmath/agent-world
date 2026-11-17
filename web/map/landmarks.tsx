@@ -8,16 +8,24 @@ import {
   type Group,
   type InstancedMesh,
 } from 'three'
+import type { Metro } from '../../shared/metros'
+import { metro } from '../metro'
 import { sky } from './clock'
 import { toon } from './paint'
+import { austinIcons } from './landmarks/austin'
+import { bayIcons, windmillSite } from './landmarks/bay'
 import { bridges } from './landmarks/bridgeworks'
-import { icons, windmillSite } from './landmarks/icons'
 import { shapes, type Light, type Part, type Shape } from './landmarks/shapes'
 import { seeThrough } from './sightlines'
 import { skyloopTiles } from './skyloop'
 
 const bridgework = bridges()
-const landmarks = icons()
+const cities: Record<Metro, { icons: typeof bayIcons; windmill: boolean }> = {
+  bay: { icons: bayIcons, windmill: true },
+  austin: { icons: austinIcons, windmill: false },
+}
+const city = cities[metro]
+const landmarks = city.icons()
 const parts = [...bridgework.parts, ...landmarks.parts]
 const lights = [...bridgework.lights, ...landmarks.lights]
 
@@ -94,14 +102,12 @@ function Lights({ list }: { list: Light[] }) {
 
 function Windmill() {
   const sails = useRef<Group>(null)
+  const mill = useMemo(() => windmillSite(), [])
   useFrame(() => {
     sails.current!.rotation.x = (Date.now() / 1000) * 0.8
   })
   return (
-    <group
-      ref={sails}
-      position={[windmillSite.x - 0.72, windmillSite.ground + 2.45, windmillSite.y]}
-    >
+    <group ref={sails} position={[mill.x - 0.72, mill.ground + 2.45, mill.y]}>
       {[0, 1, 2, 3].map((k) => (
         <group key={k} rotation-x={(k * Math.PI) / 2}>
           <mesh material={spokeMaterial} position={[0, 1.1, 0]}>
@@ -128,7 +134,7 @@ export function Landmarks() {
         list.length ? <Solids key={shape} shape={shape} list={list} /> : null,
       )}
       <Lights list={lights} />
-      <Windmill />
+      {city.windmill && <Windmill />}
     </>
   )
 }

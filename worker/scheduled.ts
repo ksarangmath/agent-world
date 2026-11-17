@@ -26,9 +26,11 @@ async function recover(worker: ToolWorker, limit: number) {
 
 async function recoverToolCalls(services: Services, env: Env) {
   const { world, builder } = toolWorkers(services, env, true)
-  await recover(world, worldPageSize).catch((error: unknown) =>
-    logError('world tool call recovery stopped', error),
-  )
+  for (const worker of Object.values(world)) {
+    await recover(worker, worldPageSize).catch((error: unknown) =>
+      logError('world tool call recovery stopped', error),
+    )
+  }
   await recover(builder, builderPageSize)
 }
 

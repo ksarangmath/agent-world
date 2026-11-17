@@ -14,6 +14,7 @@ import {
   sql,
 } from 'drizzle-orm'
 import { placesById } from '../../shared/map/places'
+import type { Metro } from '../../shared/metros'
 import type { Database } from '../db/client'
 import { conversationRequests, conversations, deliveries, messages, people } from '../db/schema'
 import {
@@ -76,16 +77,16 @@ async function breakAfter({ tx, now }: World, personId: string) {
   return new Date(Math.max(now.getTime() + restAfterConversationMs, windowOpens))
 }
 
-async function talkedToday({ tx, now }: World, personId: string) {
+async function talkedToday({ tx, now }: World, person: Person) {
   const [today] = await tx
     .select({ n: count() })
     .from(conversations)
-    .where(and(involving(personId), gte(conversations.startedAt, startOfDay(now))))
+    .where(and(involving(person.id), gte(conversations.startedAt, startOfDay(now, person.metro))))
   return today!.n
 }
 
-const afterConversation = (restingUntil: Date) =>
-  `The conversation is over, so no more messages to them. Update your memory file for them, then call record_impression. You're on a break from conversations until ${clockTime(restingUntil)}. It's one conversation per visit, so head somewhere else now: a place for something you like doing.`
+const afterConversation = (restingUntil: Date, metro: Metro) =>
+  `The conversation is over, so no more messages to them. Update your memory file for them, then call record_impression. You're on a break from conversations until ${clockTime(restingUntil, metro)}. It's one conversation per visit, so head somewhere else now: a place for something you like doing.`
 
 async function notifyAll(world: World, items: { to: string; text: string }[]) {
   if (items.length === 0) return
@@ -148,7 +149,7 @@ export async function requestConversation(
   if (myStatus === 'asleep') return asleep
   if (myStatus === 'resting') {
     return refuse(
-      `You're on a break from conversations until ${clockTime(me.restingUntil!)}. Update your notes, look around, or go somewhere new, and ask again after.`,
+      `You're on a break from conversations until ${clockTime(me.restingUntil!, me.metro)}. Update your notes, look around, or go somewhere new, and ask again after.`,
     )
   }
   if (!me.placeId || !isAt(them, me.placeId, now)) return refuse("That person isn't here.")
@@ -172,12 +173,12 @@ export async function requestConversation(
     )
   }
 
-  if ((await talkedToday(world, meId)) >= conversationsPerDay) {
+  if ((await talkedToday(world, me)) >= conversationsPerDay) {
     return refuse(
       `You've had ${conversationsPerDay} conversations today, which is the limit. No more until tomorrow; you can still look around and visit places.`,
     )
   }
-  if ((await talkedToday(world, personId)) >= conversationsPerDay) {
+  if ((await talkedToday(world, them)) >= conversationsPerDay) {
     return refuse('That person has had a full day of conversations. Ask someone else.')
   }
 
@@ -247,7 +248,9 @@ export async function requestConversation(
     }
     const catchUpAt = new Date(last.startedAt.getTime() + pairGapMs)
     if (catchUpAt > now) {
-      return refuse(`You two talked not long ago. You can catch up after ${clockTime(catchUpAt)}.`)
+      return refuse(
+        `You two talked not long ago. You can catch up after ${clockTime(catchUpAt, me.metro)}.`,
+      )
     }
   }
 
@@ -341,7 +344,7 @@ export async function respondToRequest(
     return refuse('That request has expired: one of you is no longer free in the same place.')
   }
   for (const person of [me, them]) {
-    if ((await talkedToday(world, person.id)) < conversationsPerDay) continue
+    if ((await talkedToday(world, person)) < conversationsPerDay) continue
     await expire('one of you has had a full day of conversations')
     return refuse('That request has expired: one of you has had a full day of conversations.')
   }
@@ -366,7 +369,7 @@ export async function respondToRequest(
     worldEvent('conversation_started', {
       with_person_id: me.id,
       place: place.name,
-      time: clockTime(now),
+      time: clockTime(now, them.metro),
       next: `You asked, so say hello first with send_message. ${ending}`,
     }),
   )
@@ -383,7 +386,7 @@ export async function respondToRequest(
     JSON.stringify({
       conversation_started_with: them.id,
       place: place.name,
-      time: clockTime(now),
+      time: clockTime(now, me.metro),
       next: `They asked, so wait for their first message, then reply with send_message. ${ending}`,
     }),
   )
@@ -463,7 +466,7 @@ async function lastWord(world: World, talk: Talk, text: string) {
   return done(
     JSON.stringify({
       ended: true,
-      next: afterConversation(restingUntil),
+      next: afterConversation(restingUntil, talk.me.metro),
       record_impression_for: talk.partner.id,
     }),
   )
@@ -541,8 +544,8 @@ async function finish(
         with_person_id: other.id,
         ended_by: endedBy,
         reason: how.reason,
-        time: clockTime(now),
-        next: afterConversation(restingUntil.get(person.id)!),
+        time: clockTime(now, person.metro),
+        next: afterConversation(restingUntil.get(person.id)!, person.metro),
       }),
       { dueAt: how.heardAt },
     )

@@ -1,9 +1,10 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { DataTexture, FloatType, LinearFilter, RedFormat, ShaderMaterial, type Mesh } from 'three'
-import { groundKinds, mapHeight, mapWidth, warp } from '../../shared/map/grid'
-import { ground, isDry } from '../../shared/map/terrain'
+import { groundKinds, mapHeight, mapWidth } from '../../shared/map/grid'
+import { isDry } from '../../shared/map/terrain'
 import { sky } from './clock'
+import { ground, warp } from './atlas'
 
 const altitude = 5
 const [, goldenGate] = warp(-122.478, 37.815)

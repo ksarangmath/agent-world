@@ -1,6 +1,7 @@
-import { mapHeight, mapWidth, warp } from '../../shared/map/grid'
+import { mapHeight, mapWidth } from '../../shared/map/grid'
 import { heightAt, shoreDistance, shoreHeight } from './elevation'
-import { axes, deckPieces, shores, wetAt, type Major, type Span } from './landmarks/bridges'
+import { axes, deckPieces, majors, shores, wetAt, type Major, type Span } from './landmarks/bridges'
+import { warp } from './atlas'
 
 const strayed = 1
 const fade = 0.3
@@ -32,7 +33,7 @@ export const decks = deckPieces.map((deck) => ({ ...deck, height: level(deck, de
 function routeOf(span: Major) {
   const pieces = deckPieces.filter((deck) => deck.span === span)
   const profile = pieces[0]!
-  const axis = axes[span].map(([lon, lat]) => warp(lon, lat))
+  const axis = axes[span]!.map(([lon, lat]) => warp(lon, lat))
   const alongAxis = (x: number, y: number) => {
     let [along, away, walked] = [0, Infinity, 0]
     for (let i = 0; i + 1 < axis.length; i++) {
@@ -119,11 +120,7 @@ function routeOf(span: Major) {
 
 export type Route = ReturnType<typeof routeOf>
 
-export const routes: Record<Major, Route> = {
-  goldenGate: routeOf('goldenGate'),
-  bayWest: routeOf('bayWest'),
-  bayEast: routeOf('bayEast'),
-}
+export const routes = new Map(majors.map((span) => [span, routeOf(span)]))
 
 type Point = readonly [x: number, height: number, y: number]
 export type Slab = { span: Span; from: Point; to: Point; width: number }
@@ -141,7 +138,7 @@ function pieceSlab(deck: (typeof deckPieces)[number]): Slab {
 }
 
 function routeSlabs(span: Major): Slab[] {
-  const route = routes[span]
+  const route = routes.get(span)!
   const stops = [...Array.from({ length: Math.ceil(route.length) }, (_, s) => s), route.length]
   return stops.slice(1).map((stop, i) => {
     const [from, to] = [route.at(stops[i]!), route.at(stop)]
@@ -156,7 +153,7 @@ function routeSlabs(span: Major): Slab[] {
 
 export const slabs: Slab[] = [
   ...deckPieces.filter((deck) => deck.span === 'generic').map(pieceSlab),
-  ...(Object.keys(routes) as Major[]).flatMap(routeSlabs),
+  ...majors.flatMap(routeSlabs),
 ]
 
 const slabsByTile = new Map<number, Slab[]>()
@@ -176,7 +173,7 @@ for (const slab of slabs) {
 
 const spanIndex: Record<Span, number> = { generic: 0, goldenGate: 1, bayWest: 2, bayEast: 3 }
 const blend = 0.3
-const crowded = Math.max(...[...slabsByTile.values()].map((held) => held.length))
+const crowded = Math.max(0, ...[...slabsByTile.values()].map((held) => held.length))
 const closest = new Float32Array(4)
 const reaches = new Float32Array(4)
 const aways = new Float32Array(crowded)

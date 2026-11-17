@@ -1,9 +1,46 @@
 import { useMemo } from 'react'
-import { warp } from '../../shared/map/grid'
-import { accessRoad } from '../../shared/map/route'
 import { surfaceAt } from './decks'
 import { journey, roadEdges } from './roads'
 import { box, makePath, model, sample, Vehicles, type Fleet, type Pose } from './traffic'
+import type { Metro } from '../../shared/metros'
+import { metro } from '../metro'
+import { accessRoad, warp } from './atlas'
+
+type LonLat = [lon: number, lat: number]
+
+const scenes: Record<
+  Metro,
+  { alley: LonLat; hydrant: LonLat; corners: LonLat[]; watcher: [street: LonLat, shore: LonLat] }
+> = {
+  bay: {
+    alley: [-122.4862, 37.7533],
+    hydrant: [-122.427, 37.748],
+    corners: [
+      [-122.4089, 37.7936],
+      [-122.4372, 37.801],
+      [-122.1432, 37.4419],
+    ],
+    watcher: [
+      [-122.5095, 37.7605],
+      [-122.5128, 37.7605],
+    ],
+  },
+  austin: {
+    alley: [-97.7242, 30.2618],
+    hydrant: [-97.7282, 30.3042],
+    corners: [
+      [-97.7418, 30.2725],
+      [-97.7248, 30.4012],
+      [-97.7605, 30.219],
+    ],
+    watcher: [
+      [-97.7572, 30.2625],
+      [-97.7572, 30.2648],
+    ],
+  },
+}
+
+const scene = scenes[metro]
 
 const road = (lon: number, lat: number) => {
   const [x, y] = warp(lon, lat)
@@ -26,7 +63,7 @@ const cat = (fur: string) =>
   )
 
 function catFight(): Fleet[] {
-  const alley = road(-122.4862, 37.7533)
+  const alley = road(...scene.alley)
   const fighters = ['#2b2b2f', '#e08a3c']
   const squaring = (seconds: number) => seconds % 14 < 9
   return [
@@ -57,7 +94,7 @@ function catFight(): Fleet[] {
 }
 
 function hydrant(): Fleet[] {
-  const corner = road(-122.427, 37.748)
+  const corner = road(...scene.hydrant)
   const [x, z] = [corner.x + 0.25, corner.z]
   const drops = 9
   return [
@@ -126,7 +163,7 @@ function driverlessTaxi(): Fleet[] {
 }
 
 function manInBlack(): Fleet[] {
-  const corners = [road(-122.4089, 37.7936), road(-122.4372, 37.801), road(-122.1432, 37.4419)]
+  const corners = scene.corners.map((corner) => road(...corner))
   const lookout = (i: number, seconds: number) => Math.max(0, Math.sin(seconds * 0.35 + i * 2)) ** 3
   return [
     {
@@ -155,8 +192,8 @@ function manInBlack(): Fleet[] {
 }
 
 function oceanWatcher(): Fleet[] {
-  const [streetX, streetZ] = warp(-122.5095, 37.7605)
-  const [shoreX, shoreZ] = warp(-122.5128, 37.7605)
+  const [streetX, streetZ] = warp(...scene.watcher[0])
+  const [shoreX, shoreZ] = warp(...scene.watcher[1])
   const [outing, gazing] = [70, 45]
   const trip = (seconds: number) => {
     const moment = seconds % (outing * 2 + gazing * 2)

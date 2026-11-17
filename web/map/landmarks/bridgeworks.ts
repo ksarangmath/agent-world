@@ -1,4 +1,5 @@
 import { decks, routes, slabs, type Route, type Slab } from '../decks'
+import { majors } from './bridges'
 import type { Major, Span } from './bridges'
 import { beam, reserve, solid, type Light, type Part, type Point } from './shapes'
 
@@ -137,8 +138,7 @@ const plank = (color: string, slab: Slab, below: number, thickness: number, widt
     width,
   )
 
-function goldenGate(parts: Part[], lights: Light[], reserved: Set<number>) {
-  const route = routes.goldenGate
+function goldenGate(parts: Part[], lights: Light[], reserved: Set<number>, route: Path) {
   roadway(parts, lights, reserved, 'goldenGate', route)
   const color = colors.goldenGate
   const [south, north] = [route.length * 0.22, route.length * 0.78]
@@ -168,8 +168,7 @@ function goldenGate(parts: Part[], lights: Light[], reserved: Set<number>) {
   suspenders(parts, lights, color, route, 0.85, height, 0, route.length)
 }
 
-function bayWest(parts: Part[], lights: Light[], reserved: Set<number>) {
-  const route = routes.bayWest
+function bayWest(parts: Part[], lights: Light[], reserved: Set<number>, route: Path) {
   roadway(parts, lights, reserved, 'bayWest', route)
   const color = colors.bayWest
   const towers = [0.12, 0.36, 0.64, 0.88].map((f) => f * route.length)
@@ -210,8 +209,7 @@ function bayWest(parts: Part[], lights: Light[], reserved: Set<number>) {
   suspenders(parts, lights, color, route, 0.75, height, 0, route.length, '#f4f7ff')
 }
 
-function bayEast(parts: Part[], lights: Light[], reserved: Set<number>) {
-  const route = routes.bayEast
+function bayEast(parts: Part[], lights: Light[], reserved: Set<number>, route: Path) {
   roadway(parts, lights, reserved, 'bayEast', route)
   const color = colors.bayEast
   const s = route.length * 0.2
@@ -228,6 +226,8 @@ function bayEast(parts: Part[], lights: Light[], reserved: Set<number>) {
   for (const offset of [-0.6, 0.6]) cable(parts, color, route, offset, height, from, to)
   suspenders(parts, lights, color, route, 0.6, height, from, to)
 }
+
+const spans = { goldenGate, bayWest, bayEast }
 
 export function bridges() {
   const parts: Part[] = []
@@ -264,8 +264,6 @@ export function bridges() {
       })
     }
   }
-  goldenGate(parts, lights, reserved)
-  bayWest(parts, lights, reserved)
-  bayEast(parts, lights, reserved)
+  for (const span of majors) spans[span](parts, lights, reserved, routes.get(span)!)
   return { parts, lights, reserved }
 }

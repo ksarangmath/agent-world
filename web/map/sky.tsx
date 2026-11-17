@@ -2,10 +2,10 @@ import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useRef } from 'react'
 import { Color, type DirectionalLight, type HemisphereLight } from 'three'
 import { getPosition } from 'suncalc'
+import { here } from '../metro'
 import { sky, view } from './clock'
 import { levels, quality } from './quality'
 
-const sanFrancisco = { latitude: 37.7749, longitude: -122.4194 }
 const day = new Color('#9fd3ee')
 const dusk = new Color('#f4a27a')
 const night = new Color('#141a3a')
@@ -36,7 +36,7 @@ export function Sky() {
     light.shadow.camera.far = sunDistance * 2.5
   }, [])
   useFrame((state) => {
-    const position = getPosition(new Date(), sanFrancisco.latitude, sanFrancisco.longitude)
+    const position = getPosition(new Date(), here.sun.latitude, here.sun.longitude)
     const height = Math.sin(position.altitude * radians)
     const daylight = Math.max(0, Math.min(1, (height + 0.12) / 0.22))
     const twilight = Math.max(0, 1 - Math.abs(height) / 0.2)

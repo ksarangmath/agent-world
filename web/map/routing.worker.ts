@@ -1,4 +1,5 @@
-import { route, type Route, type Tile } from '../../shared/map/route'
+import { type Route, type Tile } from '../../shared/map/route'
+import { route } from './atlas'
 
 export type RouteRequest = { key: string; from: Tile; to: Tile }
 export type RouteReply = { key: string; route: Route }

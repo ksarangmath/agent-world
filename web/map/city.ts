@@ -1,8 +1,5 @@
 import { groundKinds, mapHeight, mapWidth } from '../../shared/map/grid'
-import { places, type Activity } from '../../shared/map/places'
-import { accessRoad, roads } from '../../shared/map/route'
-import { spots } from '../../shared/map/spots'
-import { ground } from '../../shared/map/terrain'
+import { type Activity } from '../../shared/map/places'
 import { hash, heightAt, noise } from './elevation'
 import { reservedTiles } from './landmarks'
 import {
@@ -10,10 +7,13 @@ import {
   neighborhoodAt,
   peaks,
   styles,
+  woods,
+  zoned,
   type Crown,
   type Style,
   type Wild,
 } from './neighborhoods'
+import { accessRoad, ground, places, roads, spots } from './atlas'
 
 export type Building = {
   x: number
@@ -199,9 +199,10 @@ export function buildCity() {
     }
   }
   const built = new Uint8Array(mapWidth * mapHeight)
+  const cell = zoned ? 1 : 8
   const styleCache = new Map<number, { style: Style; name: string }>()
   const styleAt = (x: number, y: number) => {
-    const key = Math.floor(y / 8) * mapWidth + Math.floor(x / 8)
+    const key = Math.floor(y / cell) * mapWidth + Math.floor(x / cell)
     let found = styleCache.get(key)
     if (!found) {
       const neighborhood = neighborhoodAt(x, y)
@@ -270,6 +271,7 @@ export function buildCity() {
         const n = ny * mapWidth + nx
         if (nx < 0 || ny < 0 || nx >= mapWidth || ny >= mapHeight) continue
         if (block[n] !== -1 || !buildable(n, style)) continue
+        if (zoned && styleAt(nx, ny).name !== name) continue
         block[n] = id
         tiles.push(n)
       }
@@ -465,10 +467,10 @@ export function buildCity() {
       else if (kind === 'sand') color = '#f5dfa8'
       else if (kind === 'park') {
         const { name } = styleAt(x, y)
-        const woods = name === 'Presidio Woods'
+        const wooded = woods.has(name)
         color = mix('#4fb548', '#86d16b', (clusters + 1) / 2)
-        treeChance = woods ? 0.55 + 0.3 * clusters : 0.22 + 0.35 * clusters
-        kinds = woods
+        treeChance = wooded ? 0.55 + 0.3 * clusters : 0.22 + 0.35 * clusters
+        kinds = wooded
           ? ['cypress', 'pine', 'pine']
           : ['round', 'round', 'cypress', 'pine', 'blossom', 'oak']
       } else if (kind === 'campus') {

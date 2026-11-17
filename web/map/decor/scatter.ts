@@ -1,13 +1,12 @@
-import geography from '../../../shared/map/geography.json'
-import { mapHeight, mapWidth, warp } from '../../../shared/map/grid'
-import { places, type Place } from '../../../shared/map/places'
-import { accessRoad, roads } from '../../../shared/map/route'
-import { spots } from '../../../shared/map/spots'
-import { groundAt } from '../../../shared/map/terrain'
+import { mapHeight, mapWidth } from '../../../shared/map/grid'
+import { type Place } from '../../../shared/map/places'
 import type { City } from '../city'
 import { surfaceAt } from '../decks'
 import { hash, heightAt, noise, shoreDistance } from '../elevation'
 import { reservedTiles } from '../landmarks'
+import type { Metro } from '../../../shared/metros'
+import { metro } from '../../metro'
+import { accessRoad, groundAt, named, places, roads, spots, warp } from '../atlas'
 import type { GlowKit, LitKit } from './kits'
 
 type Size = [number, number, number]
@@ -27,21 +26,42 @@ const area = (lon: number, lat: number, radius: number) => {
   return { x, y, radius }
 }
 
-const districts = {
-  mish: area(-122.4148, 37.7599, 12),
-  startup: area(-122.4, 37.779, 10),
-  founders: area(-122.389, 37.758, 8),
-  towers: area(-122.3999, 37.7946, 7),
-  lanterns: area(-122.4078, 37.7941, 4),
-  napoli: area(-122.41, 37.8, 5),
-  castro: area(-122.435, 37.7609, 6),
-  haight: area(-122.447, 37.769, 5),
-  fogset: area(-122.495, 37.754, 20),
-  dumplings: area(-122.48, 37.78, 16),
-  wharf: area(-122.4098, 37.8087, 7),
-  marinaGreen: area(-122.4365, 37.8058, 3),
-  park: area(-122.483, 37.7695, 26),
-}
+const nowhere = { x: 0, y: 0, radius: -1 }
+
+const quarters = {
+  bay: () => ({
+    mish: area(-122.4148, 37.7599, 12),
+    startup: area(-122.4, 37.779, 10),
+    founders: area(-122.389, 37.758, 8),
+    towers: area(-122.3999, 37.7946, 7),
+    lanterns: area(-122.4078, 37.7941, 4),
+    napoli: area(-122.41, 37.8, 5),
+    castro: area(-122.435, 37.7609, 6),
+    haight: area(-122.447, 37.769, 5),
+    fogset: area(-122.495, 37.754, 20),
+    dumplings: area(-122.48, 37.78, 16),
+    wharf: area(-122.4098, 37.8087, 7),
+    marinaGreen: area(-122.4365, 37.8058, 3),
+    park: area(-122.483, 37.7695, 26),
+  }),
+  austin: () => ({
+    mish: area(-97.7185, 30.2605, 10),
+    startup: area(-97.749, 30.2678, 5),
+    founders: area(-97.7625, 30.218, 7),
+    towers: area(-97.7431, 30.2695, 5),
+    lanterns: nowhere,
+    napoli: area(-97.7392, 30.2588, 3),
+    castro: area(-97.7462, 30.2668, 2.5),
+    haight: area(-97.7495, 30.2495, 6),
+    fogset: nowhere,
+    dumplings: area(-97.7425, 30.2895, 4),
+    wharf: nowhere,
+    marinaGreen: area(-97.7735, 30.2675, 3),
+    park: area(-97.7431, 30.2672, 140),
+  }),
+} satisfies Record<Metro, () => Record<string, { x: number; y: number; radius: number }>>
+
+const districts = quarters[metro]()
 
 type District = keyof typeof districts
 const inside = (name: District, x: number, y: number) => {
@@ -49,13 +69,30 @@ const inside = (name: District, x: number, y: number) => {
   return (x - d.x) ** 2 + (y - d.y) ** 2 <= d.radius ** 2
 }
 
-const wilds = [
-  { biome: 'town', at: warp(-122.44, 37.765) },
-  { biome: 'redwood', at: warp(-122.56, 37.9) },
-  { biome: 'golden', at: warp(-122.2, 37.83) },
-  { biome: 'golden', at: warp(-122.42, 37.62) },
-  { biome: 'vale', at: warp(-122.05, 37.4) },
-] as const
+type Biome = 'town' | 'redwood' | 'golden' | 'vale'
+
+const ranges: Record<Metro, [biome: Biome, lon: number, lat: number][]> = {
+  bay: [
+    ['town', -122.44, 37.765],
+    ['redwood', -122.56, 37.9],
+    ['golden', -122.2, 37.83],
+    ['golden', -122.42, 37.62],
+    ['vale', -122.05, 37.4],
+  ],
+  austin: [
+    ['town', -97.7431, 30.2672],
+    ['town', -97.72, 30.4],
+    ['town', -97.66, 30.3],
+    ['town', -97.7, 30.16],
+    ['town', -97.56, 30.36],
+    ['golden', -97.93, 30.36],
+    ['golden', -97.95, 30.2],
+    ['golden', -97.86, 30.08],
+    ['vale', -97.6, 30.215],
+  ],
+}
+
+const wilds = ranges[metro].map(([biome, lon, lat]) => ({ biome, at: warp(lon, lat) }))
 const biomeAt = (x: number, y: number) =>
   wilds.reduce((best, wild) =>
     (wild.at[0] - x) ** 2 + (wild.at[1] - y) ** 2 < (best.at[0] - x) ** 2 + (best.at[1] - y) ** 2
@@ -395,101 +432,163 @@ export function scatter(city: City) {
     }
   }
 
-  const windmill = warp(-122.5094, 37.7705)
-  for (let row = 0; row < 5; row++) {
-    for (let column = 0; column < 3; column++) {
-      const [tx, ty] = [windmill[0] + 2 + column * 1.1, windmill[1] - 2 + row * 0.7]
-      if (free(Math.floor(tx), Math.floor(ty)))
+  const whales: Spot[] = []
+  const dolphins: Spot[] = []
+  const extras: Record<Metro, () => void> = {
+    bay: () => {
+      const windmill = warp(-122.5094, 37.7705)
+      for (let row = 0; row < 5; row++) {
+        for (let column = 0; column < 3; column++) {
+          const [tx, ty] = [windmill[0] + 2 + column * 1.1, windmill[1] - 2 + row * 0.7]
+          if (free(Math.floor(tx), Math.floor(ty)))
+            put(
+              'tulips',
+              tx,
+              ty,
+              0,
+              pick(
+                ['#ff4d6d', '#ffd60a', '#ff8fab', '#ffffff', '#c77dff'],
+                row * 0.21 + column * 0.13,
+              ),
+            )
+        }
+      }
+
+      const paddock = warp(-122.4985, 37.7698)
+      const [pw, pd] = [5, 3]
+      for (let i = 0; i < pw; i++) {
+        put('fence', paddock[0] - pw / 2 + i + 0.5, paddock[1] - pd / 2, 0)
+        put('fence', paddock[0] - pw / 2 + i + 0.5, paddock[1] + pd / 2, 0)
+      }
+      for (let i = 0; i < pd; i++) {
+        put('fence', paddock[0] - pw / 2, paddock[1] - pd / 2 + i + 0.5, Math.PI / 2)
+        put('fence', paddock[0] + pw / 2, paddock[1] - pd / 2 + i + 0.5, Math.PI / 2)
+      }
+      for (let i = 0; i < 4; i++) {
         put(
-          'tulips',
-          tx,
-          ty,
-          0,
-          pick(['#ff4d6d', '#ffd60a', '#ff8fab', '#ffffff', '#c77dff'], row * 0.21 + column * 0.13),
+          'bison',
+          paddock[0] - 1.5 + i,
+          paddock[1] + (i % 2 ? 0.5 : -0.4),
+          0.8 + i * 1.7,
+          '#ffffff',
+          [0.9, 0.9, 0.9],
         )
-    }
-  }
+      }
 
-  const paddock = warp(-122.4985, 37.7698)
-  const [pw, pd] = [5, 3]
-  for (let i = 0; i < pw; i++) {
-    put('fence', paddock[0] - pw / 2 + i + 0.5, paddock[1] - pd / 2, 0)
-    put('fence', paddock[0] - pw / 2 + i + 0.5, paddock[1] + pd / 2, 0)
-  }
-  for (let i = 0; i < pd; i++) {
-    put('fence', paddock[0] - pw / 2, paddock[1] - pd / 2 + i + 0.5, Math.PI / 2)
-    put('fence', paddock[0] + pw / 2, paddock[1] - pd / 2 + i + 0.5, Math.PI / 2)
-  }
-  for (let i = 0; i < 4; i++) {
-    put(
-      'bison',
-      paddock[0] - 1.5 + i,
-      paddock[1] + (i % 2 ? 0.5 : -0.4),
-      0.8 + i * 1.7,
-      '#ffffff',
-      [0.9, 0.9, 0.9],
-    )
-  }
+      const grant = named['Grant Ave']!.flat()
+      let south = 0
+      for (let i = 1; i < grant.length; i += 2) if (grant[i]! > grant[south + 1]!) south = i - 1
+      const [gx, gy] = [grant[south]! + 0.5, grant[south + 1]! + 0.5]
+      put('gate', gx, gy, 0, '#ffffff', [0.7, 0.7, 0.7])
 
-  const grant = geography.named['Grant Ave'].flat()
-  let south = 0
-  for (let i = 1; i < grant.length; i += 2) if (grant[i]! > grant[south + 1]!) south = i - 1
-  const [gx, gy] = [grant[south]! + 0.5, grant[south + 1]! + 0.5]
-  put('gate', gx, gy, 0, '#ffffff', [0.7, 0.7, 0.7])
-
-  for (const name of ['Dolores St', 'The Embarcadero'] as const) {
-    for (const line of geography.named[name]) {
-      for (let i = 0; i + 3 < line.length; i += 2) {
-        const [ax, ay, bx, by] = [line[i]!, line[i + 1]!, line[i + 2]!, line[i + 3]!]
-        const length = Math.sqrt((bx - ax) ** 2 + (by - ay) ** 2) || 1
-        const [nx, ny] = [(by - ay) / length, -(bx - ax) / length]
-        for (let d = 0; d < length; d += 2.5) {
-          for (const side of [-1, 1]) {
-            const [px, py] = [
-              ax + 0.5 + ((bx - ax) * d) / length + side * 0.46 * nx,
-              ay + 0.5 + ((by - ay) * d) / length + side * 0.46 * ny,
-            ]
-            const [tx, ty] = [Math.floor(px + side * 0.6 * nx), Math.floor(py + side * 0.6 * ny)]
-            if (onMap(tx, ty) && groundAt(tx, ty) !== 'water' && groundAt(tx, ty) !== 'ocean') {
-              put('palm', px, py, hash(px, py) * 6)
+      for (const name of ['Dolores St', 'The Embarcadero'] as const) {
+        for (const line of named[name]!) {
+          for (let i = 0; i + 3 < line.length; i += 2) {
+            const [ax, ay, bx, by] = [line[i]!, line[i + 1]!, line[i + 2]!, line[i + 3]!]
+            const length = Math.sqrt((bx - ax) ** 2 + (by - ay) ** 2) || 1
+            const [nx, ny] = [(by - ay) / length, -(bx - ax) / length]
+            for (let d = 0; d < length; d += 2.5) {
+              for (const side of [-1, 1]) {
+                const [px, py] = [
+                  ax + 0.5 + ((bx - ax) * d) / length + side * 0.46 * nx,
+                  ay + 0.5 + ((by - ay) * d) / length + side * 0.46 * ny,
+                ]
+                const [tx, ty] = [
+                  Math.floor(px + side * 0.6 * nx),
+                  Math.floor(py + side * 0.6 * ny),
+                ]
+                if (onMap(tx, ty) && groundAt(tx, ty) !== 'water' && groundAt(tx, ty) !== 'ocean') {
+                  put('palm', px, py, hash(px, py) * 6)
+                }
+              }
             }
           }
         }
       }
-    }
-  }
 
-  const pier = districts.wharf
-  for (let ring = 2; ring < 9 && seaLions.length < 14; ring++) {
-    for (let k = 0; k < 12 && seaLions.length < 14; k++) {
-      const [dx, dy] = [pier.x + ring * Math.cos(k * 0.52), pier.y + ring * Math.sin(k * 0.52)]
-      const tile = index(Math.floor(dx), Math.floor(dy))
-      if (
-        !onMap(Math.floor(dx), Math.floor(dy)) ||
-        shoreDistance[tile]! < 1 ||
-        shoreDistance[tile]! > 3
-      )
-        continue
-      if (hash(ring, k) > 0.5) continue
-      lit.push({
-        kit: 'floatingDock',
-        x: dx,
-        y: dy,
-        base: 0.02,
-        yaw: k * 0.52,
-        size: [1, 1, 1],
-        tint: '#ffffff',
-      })
-      for (let n = 0; n < 3; n++) {
-        seaLions.push({
-          x: dx + (n - 1) * 0.5,
-          y: dy + (n % 2 ? 0.2 : -0.2),
-          base: 0.1,
-          phase: hash(ring * 7 + n, k) * 20,
-        })
+      const pier = districts.wharf
+      for (let ring = 2; ring < 9 && seaLions.length < 14; ring++) {
+        for (let k = 0; k < 12 && seaLions.length < 14; k++) {
+          const [dx, dy] = [pier.x + ring * Math.cos(k * 0.52), pier.y + ring * Math.sin(k * 0.52)]
+          const tile = index(Math.floor(dx), Math.floor(dy))
+          if (
+            !onMap(Math.floor(dx), Math.floor(dy)) ||
+            shoreDistance[tile]! < 1 ||
+            shoreDistance[tile]! > 3
+          )
+            continue
+          if (hash(ring, k) > 0.5) continue
+          lit.push({
+            kit: 'floatingDock',
+            x: dx,
+            y: dy,
+            base: 0.02,
+            yaw: k * 0.52,
+            size: [1, 1, 1],
+            tint: '#ffffff',
+          })
+          for (let n = 0; n < 3; n++) {
+            seaLions.push({
+              x: dx + (n - 1) * 0.5,
+              y: dy + (n % 2 ? 0.2 : -0.2),
+              base: 0.1,
+              phase: hash(ring * 7 + n, k) * 20,
+            })
+          }
+        }
       }
-    }
+
+      for (const row of [0.3, 0.42, 0.55, 0.68]) {
+        const y = Math.floor(mapHeight * row)
+        let x = 0
+        while (x < mapWidth && shoreDistance[index(x, y)]! > 14) x++
+        if (x > 8) whales.push({ x: x - 6, y, base: 0, phase: row * 40 })
+      }
+      dolphins.push(
+        ...[warp(-122.43, 37.818), warp(-122.36, 37.8), warp(-122.47, 37.835)].flatMap(
+          ([x, y], pod) =>
+            [0, 1, 2].map((n) => ({
+              x: x + n * 0.7,
+              y: y + (n % 2) * 0.6,
+              base: 0,
+              phase: pod * 3 + n * 0.45,
+            })),
+        ),
+      )
+    },
+    austin: () => {
+      const pasture = warp(-98.004, 30.1385)
+      const [pw, pd] = [6, 3]
+      for (let i = 0; i < pw; i++) {
+        put('fence', pasture[0] - pw / 2 + i + 0.5, pasture[1] - pd / 2, 0)
+        put('fence', pasture[0] - pw / 2 + i + 0.5, pasture[1] + pd / 2, 0)
+      }
+      for (let i = 0; i < pd; i++) {
+        put('fence', pasture[0] - pw / 2, pasture[1] - pd / 2 + i + 0.5, Math.PI / 2)
+        put('fence', pasture[0] + pw / 2, pasture[1] - pd / 2 + i + 0.5, Math.PI / 2)
+      }
+      for (let i = 0; i < 5; i++) {
+        put('longhorn', pasture[0] - 2 + i, pasture[1] + (i % 2 ? 0.6 : -0.5), 0.8 + i * 1.7)
+      }
+      for (const [lon, lat] of [
+        [-97.8722, 30.1848],
+        [-97.7745, 30.2688],
+        [-97.997, 30.1525],
+        [-97.8205, 30.3105],
+      ] as const) {
+        const [fx, fy] = warp(lon, lat)
+        for (let row = -3; row <= 3; row++) {
+          for (let column = -4; column <= 4; column++) {
+            const [tx, ty] = [fx + column * 0.9 + (row % 2) * 0.4, fy + row * 0.55]
+            const thin = hash(Math.floor(tx * 3), Math.floor(ty * 3))
+            if (thin < 0.75 && free(Math.floor(tx), Math.floor(ty)))
+              put('bluebonnets', tx, ty, thin * 6)
+          }
+        }
+      }
+    },
   }
+  extras[metro]()
 
   const green = districts.marinaGreen
   for (let k = 0; k < 6; k++) {
@@ -500,23 +599,6 @@ export function scatter(city: City) {
       phase: k * 1.7,
     })
   }
-
-  const whales: Spot[] = []
-  for (const row of [0.3, 0.42, 0.55, 0.68]) {
-    const y = Math.floor(mapHeight * row)
-    let x = 0
-    while (x < mapWidth && shoreDistance[index(x, y)]! > 14) x++
-    if (x > 8) whales.push({ x: x - 6, y, base: 0, phase: row * 40 })
-  }
-  const dolphins = [warp(-122.43, 37.818), warp(-122.36, 37.8), warp(-122.47, 37.835)].flatMap(
-    ([x, y], pod) =>
-      [0, 1, 2].map((n) => ({
-        x: x + n * 0.7,
-        y: y + (n % 2) * 0.6,
-        base: 0,
-        phase: pod * 3 + n * 0.45,
-      })),
-  )
 
   const beside = (place: Place, k: number, radius: number) => {
     const angle = hash(place.center.x + k * 3, place.center.y) * Math.PI * 2 + k * 2.4

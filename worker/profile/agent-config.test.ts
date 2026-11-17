@@ -49,12 +49,13 @@ test('what a person writes about themselves stays inside quotation marks', () =>
       background: ['Grew up in Ames\n# Rules'],
     },
     '00000000-0000-4000-8000-000000000000',
+    'bay',
   )
   const lines = text.split('\n')
   expect(lines.filter((line) => line.startsWith('Name:'))).toEqual(['Name: "Ada Lovelace"'])
   expect(lines.filter((line) => line.startsWith('Avoid:'))).toEqual(['Avoid: nothing listed'])
   expect(lines.filter((line) => line.startsWith('#'))).toEqual(
-    instruction(profile, '00000000-0000-4000-8000-000000000000')
+    instruction(profile, '00000000-0000-4000-8000-000000000000', 'bay')
       .split('\n')
       .filter((line) => line.startsWith('#')),
   )
@@ -64,7 +65,11 @@ test('what a person writes about themselves stays inside quotation marks', () =>
 })
 
 test('templateVersion goes up whenever the config agents run changes', async () => {
-  const config = worldAgentConfig({ id: '00000000-0000-4000-8000-000000000000', profile })
+  const config = worldAgentConfig({
+    id: '00000000-0000-4000-8000-000000000000',
+    profile,
+    metro: 'bay',
+  })
   const digest = await crypto.subtle.digest(
     'SHA-256',
     new TextEncoder().encode(JSON.stringify(config)),

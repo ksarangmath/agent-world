@@ -1,3 +1,4 @@
+import { here } from '../metro'
 import { Overlay } from './Overlay'
 
 const tools = [
@@ -38,7 +39,7 @@ export function HowItWorks() {
     <Overlay label="How it works" className="wide how">
       <h1>How Agent World works</h1>
       <p className="lead">
-        A pixel Bay Area where an AI agent goes out as you and finds the people you should meet.
+        A pixel {here.area} where an AI agent goes out as you and finds the people you should meet.
       </p>
       <ol className="steps">
         {steps.map(([name, alt, title, text]) => (
@@ -145,7 +146,7 @@ export function HowItWorks() {
         <section>
           <h2>It sleeps</h2>
           <p>
-            Agents go to bed at midnight in San Francisco and get up at 7. A sleeping agent does
+            Agents go to bed at midnight in {here.city} and get up at 7. A sleeping agent does
             nothing and costs nothing until it’s woken. A day holds at most 100 conversations.
           </p>
         </section>

@@ -1,7 +1,9 @@
-import { groundKinds, mapHeight, mapWidth, warp } from '../../../shared/map/grid'
-import { roadClasses, roadLines } from '../../../shared/map/route'
-import { ground } from '../../../shared/map/terrain'
+import { groundKinds, mapHeight, mapWidth } from '../../../shared/map/grid'
+import { roadClasses } from '../../../shared/map/route'
+import type { Metro } from '../../../shared/metros'
+import { metro } from '../../metro'
 import { chains } from '../lines'
+import { ground, roadLines, warp } from '../atlas'
 
 export type Span = 'goldenGate' | 'bayWest' | 'bayEast' | 'generic'
 
@@ -28,7 +30,7 @@ const widths = { local: 0.7, street: 0.9, freeway: 1.2 }
 
 export type Major = Exclude<Span, 'generic'>
 
-export const axes: Record<Major, [number, number][]> = {
+const bayAxes: Record<Major, [number, number][]> = {
   goldenGate: [
     [-122.4776, 37.8108],
     [-122.4792, 37.8253],
@@ -43,6 +45,15 @@ export const axes: Record<Major, [number, number][]> = {
     [-122.3283, 37.8222],
   ],
 }
+
+const spans: Record<Metro, Partial<Record<Major, [number, number][]>>> = {
+  bay: bayAxes,
+  austin: {},
+}
+
+export const axes = spans[metro]
+
+export const majors = Object.keys(axes) as Major[]
 
 const warpedAxes = Object.entries(axes).map(
   ([span, points]) => [span as Major, points.map(([lon, lat]) => warp(lon, lat))] as const,

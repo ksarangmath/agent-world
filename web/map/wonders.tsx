@@ -1,7 +1,11 @@
 import { useMemo } from 'react'
 import { BoxGeometry, CatmullRomCurve3, Vector3 } from 'three'
+import type { Metro } from '../../shared/metros'
+import { metro } from '../metro'
+import { groundAt, warp } from './atlas'
 import { sky } from './clock'
 import { hash } from './elevation'
+import { wheelSite } from './landmarks/austin'
 import { colored } from './paint'
 import { box, makePath, model, sample, Vehicles, type Fleet } from './traffic'
 
@@ -102,6 +106,11 @@ const models = {
     box(0.9, 0.1, 0.16, 0.65, 2.6, 0, '#c2413b'),
   ),
   spark: model(box(0.16, 0.16, 0.16, 0, 0, 0, '#ffffff')),
+  bat: model(
+    box(0.1, 0.04, 0.05, 0, -0.02, 0, '#241c2c'),
+    colored(new BoxGeometry(0.07, 0.012, 0.16).rotateX(0.4).translate(0, 0.02, -0.08), '#33283d'),
+    colored(new BoxGeometry(0.07, 0.012, 0.16).rotateX(-0.4).translate(0, 0.02, 0.08), '#33283d'),
+  ),
   spokes: model(
     box(8.4, 0.08, 0.1, 0, -0.04, 0, '#f4f6f8'),
     box(0.12, 1.66, 0.14, 4.2, -0.83, 0, '#ff5d8f'),
@@ -129,18 +138,108 @@ const models = {
 
 const candy = ['#ff5d5d', '#ffd166', '#06d6a0', '#4cc9f0', '#b28dff', '#ff8fab', '#f4a261']
 
+type Spot = [x: number, z: number]
+const over = (lon: number, lat: number): Spot => warp(lon, lat)
+
+const scenes: Record<
+  Metro,
+  () => {
+    balloons: Spot[]
+    airships: [cx: number, cz: number, rx: number, rz: number]
+    dragon: Spot[] | null
+    whales: [x: number, z: number, heading: number][]
+    saucer: Spot
+    launch: Spot
+    fireworks: Spot[]
+    wheel: Spot
+    bats: Spot[] | null
+  }
+> = {
+  bay: () => ({
+    balloons: [
+      [170, 232],
+      [205, 212],
+      [150, 188],
+      [236, 300],
+      [352, 250],
+      [380, 398],
+      [262, 412],
+      [330, 196],
+      [128, 120],
+    ],
+    airships: [292, 300, 150, 170],
+    dragon: [
+      [171, 249],
+      [134, 226],
+      [118, 190],
+      [140, 150],
+      [118, 122],
+      [160, 128],
+      [205, 150],
+      [236, 176],
+      [228, 212],
+      [200, 236],
+    ],
+    whales: [
+      [150, 162, 0.6],
+      [246, 126, 2.4],
+      [262, 168, 4.2],
+      [96, 236, 1.2],
+    ],
+    saucer: [134, 226],
+    launch: [352, 430],
+    fireworks: [
+      [258, 172],
+      [214, 150],
+      [238, 150],
+    ],
+    wheel: [222.5, 163.5],
+    bats: null,
+  }),
+  austin: () => ({
+    balloons: [
+      over(-97.7735, 30.2675),
+      over(-97.7431, 30.2795),
+      over(-97.7065, 30.2975),
+      over(-97.7245, 30.4025),
+      over(-97.6795, 30.5085),
+      over(-97.93, 30.38),
+      over(-97.95, 30.16),
+      over(-97.635, 30.1345),
+      over(-97.84, 30.09),
+    ],
+    airships: [232, 250, 140, 150],
+    dragon: null,
+    whales: [],
+    saucer: over(-97.905, 30.105),
+    launch: over(-97.565, 30.395),
+    fireworks: [over(-97.7475, 30.2628), over(-97.7575, 30.2658), over(-97.739, 30.2598)],
+    wheel: [wheelSite().x, wheelSite().y],
+    bats: downstream(over(-97.7452, 30.2612), 60),
+  }),
+}
+
+function downstream([x, z]: Spot, tiles: number): Spot[] {
+  const wet = (tx: number, tz: number) => groundAt(Math.floor(tx), Math.floor(tz)) === 'water'
+  const course: Spot[] = [[x, z]]
+  for (let step = 3; step <= tiles; step += 3) {
+    const column = x + step
+    const reach = Array.from({ length: 25 }, (_, k) => z + (k % 2 ? (k + 1) / 2 : -k / 2))
+    const near = reach.find((row) => wet(column, row))
+    if (near === undefined) break
+    let [top, bottom] = [near, near]
+    while (wet(column, top - 1)) top--
+    while (wet(column, bottom + 1)) bottom++
+    z = (top + bottom) / 2
+    course.push([column + 0.5, z + 0.5])
+  }
+  return course
+}
+
+const scene = scenes[metro]()
+
 function balloons(): Fleet {
-  const anchors: [x: number, z: number][] = [
-    [170, 232],
-    [205, 212],
-    [150, 188],
-    [236, 300],
-    [352, 250],
-    [380, 398],
-    [262, 412],
-    [330, 196],
-    [128, 120],
-  ]
+  const anchors = scene.balloons
   return {
     count: anchors.length,
     model: models.balloon,
@@ -160,7 +259,7 @@ function balloons(): Fleet {
 }
 
 function airships(): Fleet {
-  const [cx, cz, rx, rz] = [292, 300, 150, 170]
+  const [cx, cz, rx, rz] = scene.airships
   return {
     count: 2,
     model: models.airship,
@@ -178,20 +277,9 @@ function airships(): Fleet {
 
 const karl = { segments: 34, gap: 0.95, speed: 6.5, height: 14, wave: 2.2 }
 
-function dragon(): Fleet[] {
+function dragon(route: Spot[]): Fleet[] {
   const flight = new CatmullRomCurve3(
-    [
-      [171, 249],
-      [134, 226],
-      [118, 190],
-      [140, 150],
-      [118, 122],
-      [160, 128],
-      [205, 150],
-      [236, 176],
-      [228, 212],
-      [200, 236],
-    ].map(([x, z]) => new Vector3(x, 0, z)),
+    route.map(([x, z]) => new Vector3(x, 0, z)),
     true,
     'centripetal',
   )
@@ -222,12 +310,7 @@ function dragon(): Fleet[] {
 }
 
 function whales(): Fleet {
-  const pods: [x: number, z: number, heading: number][] = [
-    [150, 162, 0.6],
-    [246, 126, 2.4],
-    [262, 168, 4.2],
-    [96, 236, 1.2],
-  ]
+  const pods = scene.whales
   const [every, leap] = [38, 3.4]
   return {
     count: pods.length,
@@ -253,15 +336,22 @@ function saucer(): Fleet {
     glow: models.saucerBeam,
     place: (_, seconds, out) => {
       out.scale = dark() ? 1.4 : 0
-      out.x = 134 + 3 * Math.cos(seconds * 0.13)
-      out.z = 226 + 3 * Math.sin(seconds * 0.17)
+      out.x = scene.saucer[0] + 3 * Math.cos(seconds * 0.13)
+      out.z = scene.saucer[1] + 3 * Math.sin(seconds * 0.17)
       out.y = 11 + 0.4 * Math.sin(seconds * 0.9)
       out.heading = seconds * 0.6
     },
   }
 }
 
-const launch = { x: 352, z: 430, every: 150, burn: 11, thrust: 0.9, ground: 0.5 }
+const launch = {
+  x: scene.launch[0],
+  z: scene.launch[1],
+  every: 150,
+  burn: 11,
+  thrust: 0.9,
+  ground: 0.5,
+}
 
 function rocket(): Fleet[] {
   const altitude = (seconds: number) => {
@@ -298,11 +388,7 @@ function rocket(): Fleet[] {
 const show = { bursts: 7, sparks: 30, every: 8, lasts: 2.6, spread: 3.4 }
 
 function fireworks(): Fleet {
-  const stages: [x: number, z: number][] = [
-    [258, 172],
-    [214, 150],
-    [238, 150],
-  ]
+  const stages = scene.fireworks
   const golden = Math.PI * (3 - Math.sqrt(5))
   return {
     count: show.bursts * show.sparks,
@@ -333,7 +419,14 @@ function fireworks(): Fleet {
   }
 }
 
-const wheel = { x: 222.5, z: 163.5, hub: 5.3, radius: 4.2, spokes: 8, turn: 0.1 }
+const wheel = {
+  x: scene.wheel[0],
+  z: scene.wheel[1],
+  hub: 5.3,
+  radius: 4.2,
+  spokes: 8,
+  turn: 0.1,
+}
 
 function bigWheel(): Fleet[] {
   const hub = (out: { x: number; y: number; z: number }) =>
@@ -369,18 +462,51 @@ function bigWheel(): Fleet[] {
   ]
 }
 
+const colony = { bats: 220, speed: 3.4, height: 3.2, spread: 0.7, size: 2.4 }
+
+function bats(route: Spot[]): Fleet {
+  const flight = new CatmullRomCurve3(
+    route.map(([x, z]) => new Vector3(x, 0, z)),
+    false,
+    'centripetal',
+  )
+  const points = flight.getSpacedPoints(160)
+  const path = makePath(points.flatMap(({ x, z }) => [x, z]))
+  const lap = path.length + 6
+  return {
+    count: colony.bats,
+    model: models.bat,
+    place: (i, seconds, out) => {
+      const dusk =
+        sky.golden.value > 0.08 || (sky.daylight.value > 0.02 && sky.daylight.value < 0.5)
+      const along = (seconds * colony.speed * (0.8 + 0.4 * hash(i, 3)) + hash(i, 7) * lap) % lap
+      const share = along / path.length
+      sample(path, along, out)
+      const sway = seconds * 2.2 + i * 1.7
+      const wide = colony.spread * (0.4 + 2.2 * share)
+      out.x += wide * (hash(i, 11) - 0.5) * 2 + 0.25 * Math.sin(sway)
+      out.z += wide * (hash(i, 13) - 0.5) * 2 + 0.25 * Math.cos(sway * 0.8)
+      out.y = 0.9 + colony.height * Math.min(1, share * 3) * (0.5 + hash(i, 17)) + 3 * share
+      out.stretch = 1 + 0.5 * Math.sin(seconds * 16 + i)
+      out.scale = dusk && share < 1 ? colony.size : 0
+    },
+  }
+}
+
 export function Wonders() {
   const fleets = useMemo(
-    () => [
-      balloons(),
-      airships(),
-      ...dragon(),
-      whales(),
-      saucer(),
-      ...rocket(),
-      fireworks(),
-      ...bigWheel(),
-    ],
+    () =>
+      [
+        balloons(),
+        airships(),
+        ...(scene.dragon ? dragon(scene.dragon) : []),
+        whales(),
+        ...(scene.bats ? [bats(scene.bats)] : []),
+        saucer(),
+        ...rocket(),
+        fireworks(),
+        ...bigWheel(),
+      ].filter((fleet) => fleet.count > 0),
     [],
   )
   return fleets.map((fleet, i) => <Vehicles key={i} fleet={fleet} />)

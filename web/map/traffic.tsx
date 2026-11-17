@@ -11,8 +11,6 @@ import {
   type InstancedMesh,
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import geography from '../../shared/map/geography.json'
-import { warp } from '../../shared/map/grid'
 import { onScreen, sky, useDetail } from './clock'
 import { surfaceAt } from './decks'
 import { hash } from './elevation'
@@ -21,6 +19,10 @@ import { Fog } from './fog'
 import { colored, toon } from './paint'
 import { journey, roadEdges, rounded } from './roads'
 import { skyloop } from './skyloop'
+import type { Metro } from '../../shared/metros'
+import { metro } from '../metro'
+import { airport } from './airports'
+import { named, warp } from './atlas'
 
 export type Pose = {
   x: number
@@ -94,6 +96,13 @@ const sedan = [
   ...wheels(0.19, 0.125),
   ...beams(0.31, 0.08),
 ]
+
+const bird = (body: string, wings: string) =>
+  model(
+    box(0.14, 0.04, 0.04, 0, -0.02, 0, body),
+    colored(new BoxGeometry(0.08, 0.015, 0.2).rotateX(0.35).translate(0, 0.03, -0.1), wings),
+    colored(new BoxGeometry(0.08, 0.015, 0.2).rotateX(-0.35).translate(0, 0.03, 0.1), wings),
+  )
 
 const models = {
   sedan: model(...sedan),
@@ -187,11 +196,8 @@ const models = {
     box(0.6, 0.75, 0.07, -1.7, 0.18, 0, '#2f5fa8'),
     box(0.45, 0.06, 1.4, -1.75, 0.05, 0, '#d9dde2'),
   ),
-  gull: model(
-    box(0.14, 0.04, 0.04, 0, -0.02, 0, '#f6f6f2'),
-    colored(new BoxGeometry(0.08, 0.015, 0.2).rotateX(0.35).translate(0, 0.03, -0.1), '#f6f6f2'),
-    colored(new BoxGeometry(0.08, 0.015, 0.2).rotateX(-0.35).translate(0, 0.03, 0.1), '#f6f6f2'),
-  ),
+  gull: bird('#f6f6f2', '#f6f6f2'),
+  grackle: bird('#1c1a2b', '#2c2f5a'),
 }
 
 export function makePath(points: ArrayLike<number>, offset = 0, heights?: ArrayLike<number>): Path {
@@ -277,16 +283,140 @@ function clipped(lines: number[][], keep: (x: number, z: number) => boolean) {
   })
 }
 
-const [fidiX, fidiZ] = warp(-122.3999, 37.7946)
-const sanFrancisco = [
-  [-122.53, 37.7],
-  [-122.35, 37.84],
-].map(([lon, lat]) => warp(lon!, lat!))
-const insideSanFrancisco = (x: number, z: number) =>
-  x > sanFrancisco[0]![0] &&
-  x < sanFrancisco[1]![0] &&
-  z > sanFrancisco[1]![1] &&
-  z < sanFrancisco[0]![1]
+type LatLon = [lat: number, lon: number]
+type Track = { name: string; count: number; eastOf?: number }
+
+const scenes: Record<
+  Metro,
+  {
+    downtown: LatLon
+    city: [southwest: LatLon, northeast: LatLon]
+    cableCars: Track[]
+    streetcars: Track[]
+    ferryLanes: LatLon[][]
+    shippingLane: LatLon[]
+    anchorages: [lat: number, lon: number, rx: number, rz: number, boats: number][]
+    birds: { model: 'gull' | 'grackle'; colonies: LatLon[] }
+    fog: boolean
+  }
+> = {
+  bay: {
+    downtown: [37.7946, -122.3999],
+    city: [
+      [37.7, -122.53],
+      [37.84, -122.35],
+    ],
+    cableCars: [
+      { name: 'Powell St', count: 2 },
+      { name: 'Hyde St', count: 2 },
+      { name: 'California St', count: 2, eastOf: warp(-122.4225, 37.79)[0] },
+    ],
+    streetcars: [
+      { name: 'Market St', count: 3 },
+      { name: 'The Embarcadero', count: 3 },
+    ],
+    ferryLanes: [
+      [
+        [37.7962, -122.3905],
+        [37.806, -122.386],
+        [37.818, -122.412],
+        [37.84, -122.45],
+        [37.8565, -122.478],
+      ],
+      [
+        [37.7962, -122.3905],
+        [37.8, -122.36],
+        [37.797, -122.33],
+        [37.7955, -122.315],
+        [37.7945, -122.307],
+        [37.7935, -122.295],
+        [37.7945, -122.2785],
+      ],
+      [
+        [37.7962, -122.3905],
+        [37.806, -122.386],
+        [37.83, -122.41],
+        [37.85, -122.452],
+        [37.866, -122.452],
+        [37.872, -122.455],
+      ],
+      [
+        [37.8105, -122.403],
+        [37.818, -122.412],
+        [37.8245, -122.4195],
+      ],
+    ],
+    shippingLane: [
+      [37.795, -122.56],
+      [37.812, -122.52],
+      [37.8195, -122.4785],
+      [37.818, -122.44],
+      [37.812, -122.405],
+      [37.8, -122.376],
+      [37.798, -122.35],
+      [37.797, -122.33],
+      [37.7955, -122.315],
+    ],
+    anchorages: [
+      [37.8095, -122.44, 6, 2.5, 5],
+      [37.852, -122.468, 4, 3, 4],
+      [37.822, -122.43, 6, 4, 5],
+      [37.816, -122.38, 3, 2.5, 3],
+      [37.87, -122.49, 3, 2.5, 3],
+    ],
+    birds: {
+      model: 'gull',
+      colonies: [
+        [37.8085, -122.415],
+        [37.799, -122.3965],
+        [37.765, -122.512],
+        [37.857, -122.478],
+        [37.8267, -122.423],
+        [37.806, -122.465],
+        [37.787, -122.507],
+        [37.7945, -122.279],
+      ],
+    },
+    fog: true,
+  },
+  austin: {
+    downtown: [30.2672, -97.7431],
+    city: [
+      [30.14, -97.87],
+      [30.47, -97.6],
+    ],
+    cableCars: [],
+    streetcars: [],
+    ferryLanes: [],
+    shippingLane: [],
+    anchorages: [
+      [30.427, -97.9135, 4, 2.2, 5],
+      [30.415, -97.955, 3.5, 2, 4],
+      [30.288, -97.604, 2.6, 3, 4],
+    ],
+    birds: {
+      model: 'grackle',
+      colonies: [
+        [30.2672, -97.7405],
+        [30.2862, -97.7394],
+        [30.2505, -97.7495],
+        [30.2975, -97.7065],
+        [30.2595, -97.7215],
+        [30.2675, -97.7735],
+        [30.4025, -97.7245],
+        [30.2175, -97.7605],
+      ],
+    },
+    fog: false,
+  },
+}
+
+const scene = scenes[metro]
+const lonLat = ([lat, lon]: LatLon) => warp(lon, lat)
+const [fidiX, fidiZ] = lonLat(scene.downtown)
+const cityBox = scene.city.map(lonLat)
+const insideCity = (x: number, z: number) =>
+  x > cityBox[0]![0] && x < cityBox[1]![0] && z > cityBox[1]![1] && z < cityBox[0]![1]
 
 const carColors = [
   '#f2f2f2',
@@ -384,7 +514,7 @@ function cars(): Fleet[] {
         span(line) *
         roadTraffic[roadClass].density *
         (1 + 3 * downtown) *
-        (insideSanFrancisco(mx, mz) ? 1 : 0.5)
+        (insideCity(mx, mz) ? 1 : 0.5)
       return Array.from({ length: Math.floor(expected + hash(n, 11)) }, (_, i) => {
         let pick = hash(n + 5, i + 9)
         return {
@@ -416,11 +546,9 @@ function cars(): Fleet[] {
   })
 }
 
-type Track = { name: keyof typeof geography.named; count: number; eastOf?: number }
-
 function tracks(names: Track[], speed: number) {
   return names.flatMap(({ name, count, eastOf }) =>
-    chains(clipped(geography.named[name], (x) => eastOf === undefined || x >= eastOf))
+    chains(clipped(named[name] ?? [], (x) => eastOf === undefined || x >= eastOf))
       .map((line) => makePath(rounded(line), 0.5))
       .filter((path) => path.length > 8)
       .flatMap((path, n) =>
@@ -452,65 +580,17 @@ function railCars(
   }
 }
 
-export const ferryLanes: [lat: number, lon: number][][] = [
-  [
-    [37.7962, -122.3905],
-    [37.806, -122.386],
-    [37.818, -122.412],
-    [37.84, -122.45],
-    [37.8565, -122.478],
-  ],
-  [
-    [37.7962, -122.3905],
-    [37.8, -122.36],
-    [37.797, -122.33],
-    [37.7955, -122.315],
-    [37.7945, -122.307],
-    [37.7935, -122.295],
-    [37.7945, -122.2785],
-  ],
-  [
-    [37.7962, -122.3905],
-    [37.806, -122.386],
-    [37.83, -122.41],
-    [37.85, -122.452],
-    [37.866, -122.452],
-    [37.872, -122.455],
-  ],
-  [
-    [37.8105, -122.403],
-    [37.818, -122.412],
-    [37.8245, -122.4195],
-  ],
-]
-
-const shippingLane: [number, number][] = [
-  [37.795, -122.56],
-  [37.812, -122.52],
-  [37.8195, -122.4785],
-  [37.818, -122.44],
-  [37.812, -122.405],
-  [37.8, -122.376],
-  [37.798, -122.35],
-  [37.797, -122.33],
-  [37.7955, -122.315],
-]
-
-const anchorages: [lat: number, lon: number, rx: number, rz: number, boats: number][] = [
-  [37.8095, -122.44, 6, 2.5, 5],
-  [37.852, -122.468, 4, 3, 4],
-  [37.822, -122.43, 6, 4, 5],
-  [37.816, -122.38, 3, 2.5, 3],
-  [37.87, -122.49, 3, 2.5, 3],
-]
+export const ferryLanes = scene.ferryLanes
 
 function boats(): Fleet[] {
-  const ferries = ferryLanes.flatMap((stops, n) => {
+  const ferries = scene.ferryLanes.flatMap((stops, n) => {
     const path = lonLatPath(stops)
     return [0, 0.5].map((offset) => ({ path, offset: offset + 0.13 * n }))
   })
-  const ships = [0, 0.33, 0.66].map((offset) => ({ path: lonLatPath(shippingLane), offset }))
-  const sailboats = anchorages.flatMap(([lat, lon, rx, rz, count], n) => {
+  const ships = scene.shippingLane.length
+    ? [0, 0.33, 0.66].map((offset) => ({ path: lonLatPath(scene.shippingLane), offset }))
+    : []
+  const sailboats = scene.anchorages.flatMap(([lat, lon, rx, rz, count], n) => {
     const [cx, cz] = warp(lon, lat)
     return Array.from({ length: count }, (_, i) => ({
       cx,
@@ -613,8 +693,8 @@ function maglev(): Fleet {
 }
 
 function planes(): Fleet {
-  const [east, west] = [warp(-122.3577, 37.6136), warp(-122.3934, 37.6286)]
-  const [south, north] = [warp(-122.3815, 37.6061), warp(-122.3705, 37.627)]
+  const [east, west] = [lonLat(airport.landing[0]), lonLat(airport.landing[1])]
+  const [south, north] = [lonLat(airport.takeoff[0]), lonLat(airport.takeoff[1])]
   const beyond = ([ax, az]: number[], [bx, bz]: number[], distance: number) => {
     const length = Math.hypot(bx! - ax!, bz! - az!)
     return [bx! + ((bx! - ax!) / length) * distance, bz! + ((bz! - az!) / length) * distance]
@@ -642,19 +722,8 @@ function planes(): Fleet {
   }
 }
 
-const colonies: [lat: number, lon: number][] = [
-  [37.8085, -122.415],
-  [37.799, -122.3965],
-  [37.765, -122.512],
-  [37.857, -122.478],
-  [37.8267, -122.423],
-  [37.806, -122.465],
-  [37.787, -122.507],
-  [37.7945, -122.279],
-]
-
 function gulls(): Fleet {
-  const birds = colonies.flatMap(([lat, lon], n) => {
+  const birds = scene.birds.colonies.flatMap(([lat, lon], n) => {
     const [cx, cz] = warp(lon, lat)
     return Array.from({ length: 6 }, (_, i) => ({
       cx: cx + (hash(n, i) - 0.5) * 3,
@@ -667,7 +736,7 @@ function gulls(): Fleet {
   })
   return {
     count: birds.length,
-    model: models.gull,
+    model: models[scene.birds.model],
     place: (i, seconds, out) => {
       const bird = birds[i]!
       const angle = bird.phase + seconds * bird.speed
@@ -733,37 +802,16 @@ const vintage = ['#e8742c', '#3f7a4a', '#f0c43a', '#c23a3a', '#e9e2cf', '#2f6a8a
 
 export function Traffic() {
   const fleets = useMemo(
-    () => [
-      ...cars(),
-      railCars(
-        tracks(
-          [
-            { name: 'Powell St', count: 2 },
-            { name: 'Hyde St', count: 2 },
-            { name: 'California St', count: 2, eastOf: warp(-122.4225, 37.79)[0] },
-          ],
-          1.4,
-        ),
-        models.cableCar,
-        models.tramWindows,
-      ),
-      railCars(
-        tracks(
-          [
-            { name: 'Market St', count: 3 },
-            { name: 'The Embarcadero', count: 3 },
-          ],
-          2.2,
-        ),
-        models.streetcar,
-        models.tramWindows,
-        vintage,
-      ),
-      ...boats(),
-      maglev(),
-      planes(),
-      gulls(),
-    ],
+    () =>
+      [
+        ...cars(),
+        railCars(tracks(scene.cableCars, 1.4), models.cableCar, models.tramWindows),
+        railCars(tracks(scene.streetcars, 2.2), models.streetcar, models.tramWindows, vintage),
+        ...boats(),
+        maglev(),
+        planes(),
+        gulls(),
+      ].filter((fleet) => fleet.count > 0),
     [],
   )
   return (
@@ -771,7 +819,7 @@ export function Traffic() {
       {fleets.map((fleet, i) => (
         <Vehicles key={i} fleet={fleet} />
       ))}
-      <Fog />
+      {scene.fog && <Fog />}
     </>
   )
 }

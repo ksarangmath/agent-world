@@ -1,5 +1,4 @@
-import geography from './geography.json'
-import { mapHeight, mapWidth, warp } from './grid'
+import { mapHeight, mapWidth, type Warp } from './grid'
 
 export const walkTilesPerSecond = 1
 export const rideTilesPerSecond = 6
@@ -122,9 +121,11 @@ function withoutTwins(kept: Kept[]): Kept[] {
   return kept.filter((entry) => !dropped.has(entry))
 }
 
-function tidied(): Record<RoadClass, number[][]> {
+export type RoadLines = Record<RoadClass, number[][]>
+
+function tidied(source: RoadLines): RoadLines {
   const all = roadClasses.flatMap((roadClass) =>
-    geography.roads[roadClass].map((road) => ({ roadClass, road, cells: cellsOf(road) })),
+    source[roadClass].map((road) => ({ roadClass, road, cells: cellsOf(road) })),
   )
   const kept = withoutSpurs(withoutTwins(withoutSpurs(all)))
   const of = (roadClass: RoadClass) =>
@@ -132,22 +133,16 @@ function tidied(): Record<RoadClass, number[][]> {
   return { local: of('local'), street: of('street'), freeway: of('freeway') }
 }
 
-export const roadLines = tidied()
-
-function rasterize(): Uint8Array {
-  const grid = new Uint8Array(mapWidth * mapHeight)
+export function buildRoads(source: RoadLines): { roadLines: RoadLines; roads: Uint8Array } {
+  const roadLines = tidied(source)
+  const roads = new Uint8Array(mapWidth * mapHeight)
   roadClasses.forEach((roadClass, i) => {
     for (const road of roadLines[roadClass]) {
-      for (const cell of cellsOf(road)) grid[cell] = i + 1
+      for (const cell of cellsOf(road)) roads[cell] = i + 1
     }
   })
-  return grid
+  return { roadLines, roads }
 }
-
-export const roads: Uint8Array = rasterize()
-
-export const roadAt = (x: number, y: number): RoadClass | undefined =>
-  inside(x, y) ? roadClasses[roads[index(x, y)]! - 1] : undefined
 
 function nearest(tile: Tile, candidates: number[]): number {
   let best = candidates[0]!
@@ -159,95 +154,11 @@ function nearest(tile: Tile, candidates: number[]): number {
   return best
 }
 
-const roadTiles: number[] = []
-roads.forEach((road, i) => road && roadTiles.push(i))
-
-const at = (lon: number, lat: number): Tile => {
-  const [x, y] = warp(lon, lat)
-  return tileOf(nearest({ x: Math.round(x), y: Math.round(y) }, roadTiles))
-}
-
-const stations = {
-  embarcadero: at(-122.3968, 37.7929),
-  westOakland: at(-122.2951, 37.8048),
-  fourthAndKing: at(-122.3947, 37.7766),
-  millbrae: at(-122.3867, 37.6003),
-  paloAlto: at(-122.1649, 37.4434),
-  mountainView: at(-122.076, 37.3947),
-  sanJose: at(-121.9026, 37.3297),
-  ferryBuilding: at(-122.3937, 37.7955),
-  sausalito: at(-122.4778, 37.8568),
-  jackLondon: at(-122.2777, 37.795),
-}
-
-export const ferryTerminal: Tile = stations.ferryBuilding
-
-export const rides: readonly { name: string; by: 'rail' | 'ferry'; from: Tile; to: Tile }[] = [
-  { name: 'Bay Rail', by: 'rail', from: stations.embarcadero, to: stations.westOakland },
-  { name: 'Peninsula Rail', by: 'rail', from: stations.fourthAndKing, to: stations.millbrae },
-  { name: 'Peninsula Rail', by: 'rail', from: stations.millbrae, to: stations.paloAlto },
-  { name: 'Peninsula Rail', by: 'rail', from: stations.paloAlto, to: stations.mountainView },
-  { name: 'Peninsula Rail', by: 'rail', from: stations.mountainView, to: stations.sanJose },
-  { name: 'Sausalito ferry', by: 'ferry', from: stations.ferryBuilding, to: stations.sausalito },
-  { name: 'Oakland ferry', by: 'ferry', from: stations.ferryBuilding, to: stations.jackLondon },
-]
-
-const rideLinks = new Map<number, { to: number; seconds: number }[]>()
-for (const ride of rides) {
-  const [a, b] = [index(ride.from.x, ride.from.y), index(ride.to.x, ride.to.y)]
-  const seconds = rideBoardingSeconds + distance(ride.from, ride.to) / rideTilesPerSecond
-  rideLinks.set(a, [...(rideLinks.get(a) ?? []), { to: b, seconds }])
-  rideLinks.set(b, [...(rideLinks.get(b) ?? []), { to: a, seconds }])
-}
-
 const steps = [-1, 0, 1].flatMap((dy) =>
   [-1, 0, 1]
     .filter((dx) => dx || dy)
     .map((dx) => ({ dx, dy, seconds: Math.sqrt(dx * dx + dy * dy) / walkTilesPerSecond })),
 )
-
-function connections(i: number, visit: (next: number, seconds: number, ride: boolean) => void) {
-  const { x, y } = tileOf(i)
-  for (const step of steps) {
-    const [nx, ny] = [x + step.dx, y + step.dy]
-    if (inside(nx, ny) && roads[index(nx, ny)]) visit(index(nx, ny), step.seconds, false)
-  }
-  for (const link of rideLinks.get(i) ?? []) visit(link.to, link.seconds, true)
-}
-
-function reachableFrom(start: Tile): Uint8Array {
-  const seen = new Uint8Array(mapWidth * mapHeight)
-  const stack = [index(start.x, start.y)]
-  seen[stack[0]!] = 1
-  while (stack.length > 0) {
-    connections(stack.pop()!, (next) => {
-      if (seen[next]) return
-      seen[next] = 1
-      stack.push(next)
-    })
-  }
-  return seen
-}
-
-const routable = reachableFrom(ferryTerminal)
-
-export function accessRoad(tile: Tile): Tile {
-  let best = -1
-  let bestDistance = Infinity
-  for (let radius = 0; radius * radius <= bestDistance && radius < mapWidth; radius++) {
-    for (let dy = -radius; dy <= radius; dy++) {
-      const step = Math.abs(dy) === radius ? 1 : 2 * radius
-      for (let dx = -radius; dx <= radius; dx += step || 1) {
-        const [x, y] = [tile.x + dx, tile.y + dy]
-        if (!inside(x, y) || !routable[index(x, y)]) continue
-        const d = dx * dx + dy * dy
-        const i = index(x, y)
-        if (d < bestDistance || (d === bestDistance && i < best)) [best, bestDistance] = [i, d]
-      }
-    }
-  }
-  return tileOf(best)
-}
 
 type Entry = readonly [cost: number, tile: number]
 const before = (a: Entry, b: Entry) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1])
@@ -280,48 +191,6 @@ function pop(heap: Entry[]): Entry {
   return top
 }
 
-const costs = new Float64Array(mapWidth * mapHeight).fill(Infinity)
-const previous = new Int32Array(mapWidth * mapHeight).fill(-1)
-const rode = new Uint8Array(mapWidth * mapHeight)
-const settled = new Uint8Array(mapWidth * mapHeight)
-
-function shortestPath(start: number, goal: number): { tiles: number[]; rides: Set<number> } {
-  const touched = [start]
-  const queue: Entry[] = [[0, start]]
-  costs[start] = 0
-  try {
-    while (queue.length > 0) {
-      const [cost, current] = pop(queue)
-      if (settled[current]) continue
-      settled[current] = 1
-      if (current === goal) break
-      connections(current, (next, seconds, ride) => {
-        if (cost + seconds >= costs[next]!) return
-        if (costs[next] === Infinity) touched.push(next)
-        costs[next] = cost + seconds
-        previous[next] = current
-        rode[next] = ride ? 1 : 0
-        push(queue, [cost + seconds, next])
-      })
-    }
-    if (!settled[goal]) throw new Error(`no road route between tiles ${start} and ${goal}`)
-    const tiles = [goal]
-    const rideEnds = new Set<number>()
-    for (let tile = goal; tile !== start; tile = previous[tile]!) {
-      if (rode[tile]) rideEnds.add(tile)
-      tiles.push(previous[tile]!)
-    }
-    return { tiles: tiles.reverse(), rides: rideEnds }
-  } finally {
-    for (const tile of touched) {
-      costs[tile] = Infinity
-      previous[tile] = -1
-      rode[tile] = 0
-      settled[tile] = 0
-    }
-  }
-}
-
 function straighten(path: Tile[]): Tile[] {
   return path.filter((tile, i) => {
     const [before, after] = [path[i - 1], path[i + 1]]
@@ -337,27 +206,151 @@ export const legSeconds = (leg: Leg) => {
     : rideBoardingSeconds + tiles / rideTilesPerSecond
 }
 
-export function route(from: Tile, to: Tile): Route {
-  if (from.x === to.x && from.y === to.y) return { legs: [], seconds: 0 }
-  const [startTile, goalTile] = [accessRoad(from), accessRoad(to)]
-  const [start, goal] = [index(startTile.x, startTile.y), index(goalTile.x, goalTile.y)]
-  const { tiles, rides: rideEnds } = shortestPath(start, goal)
-  const legs: Leg[] = []
-  let walk: Tile[] = [from]
-  tiles.forEach((i, n) => {
-    const tile = tileOf(i)
-    if (rideEnds.has(i) && n > 0) {
-      legs.push({ mode: 'walk', path: straighten(walk) })
-      legs.push({ mode: 'ride', path: [tileOf(tiles[n - 1]!), tile] })
-      walk = [tile]
-    } else {
-      walk.push(tile)
+export type Ride = { name: string; by: 'rail' | 'ferry'; from: Tile; to: Tile }
+
+export type Transit = {
+  stations: Record<string, readonly [lon: number, lat: number]>
+  arrival: string
+  rides: readonly { name: string; by: Ride['by']; from: string; to: string }[]
+}
+
+export function buildRouter(roads: Uint8Array, warp: Warp, transit: Transit) {
+  const roadAt = (x: number, y: number): RoadClass | undefined =>
+    inside(x, y) ? roadClasses[roads[index(x, y)]! - 1] : undefined
+
+  const roadTiles: number[] = []
+  roads.forEach((road, i) => road && roadTiles.push(i))
+
+  const station = (name: string): Tile => {
+    const [x, y] = warp(...transit.stations[name]!)
+    return tileOf(nearest({ x: Math.round(x), y: Math.round(y) }, roadTiles))
+  }
+
+  const arrival = station(transit.arrival)
+  const rides: Ride[] = transit.rides.map((ride) => ({
+    name: ride.name,
+    by: ride.by,
+    from: station(ride.from),
+    to: station(ride.to),
+  }))
+
+  const rideLinks = new Map<number, { to: number; seconds: number }[]>()
+  for (const ride of rides) {
+    const [a, b] = [index(ride.from.x, ride.from.y), index(ride.to.x, ride.to.y)]
+    const seconds = rideBoardingSeconds + distance(ride.from, ride.to) / rideTilesPerSecond
+    rideLinks.set(a, [...(rideLinks.get(a) ?? []), { to: b, seconds }])
+    rideLinks.set(b, [...(rideLinks.get(b) ?? []), { to: a, seconds }])
+  }
+
+  function connections(i: number, visit: (next: number, seconds: number, ride: boolean) => void) {
+    const { x, y } = tileOf(i)
+    for (const step of steps) {
+      const [nx, ny] = [x + step.dx, y + step.dy]
+      if (inside(nx, ny) && roads[index(nx, ny)]) visit(index(nx, ny), step.seconds, false)
     }
-  })
-  walk.push(to)
-  legs.push({ mode: 'walk', path: straighten(walk) })
-  const nonEmpty = legs.filter((leg) => leg.path.length > 1)
-  return { legs: nonEmpty, seconds: nonEmpty.reduce((sum, leg) => sum + legSeconds(leg), 0) }
+    for (const link of rideLinks.get(i) ?? []) visit(link.to, link.seconds, true)
+  }
+
+  function reachableFrom(start: Tile): Uint8Array {
+    const seen = new Uint8Array(mapWidth * mapHeight)
+    const stack = [index(start.x, start.y)]
+    seen[stack[0]!] = 1
+    while (stack.length > 0) {
+      connections(stack.pop()!, (next) => {
+        if (seen[next]) return
+        seen[next] = 1
+        stack.push(next)
+      })
+    }
+    return seen
+  }
+
+  const routable = reachableFrom(arrival)
+
+  function accessRoad(tile: Tile): Tile {
+    let best = -1
+    let bestDistance = Infinity
+    for (let radius = 0; radius * radius <= bestDistance && radius < mapWidth; radius++) {
+      for (let dy = -radius; dy <= radius; dy++) {
+        const step = Math.abs(dy) === radius ? 1 : 2 * radius
+        for (let dx = -radius; dx <= radius; dx += step || 1) {
+          const [x, y] = [tile.x + dx, tile.y + dy]
+          if (!inside(x, y) || !routable[index(x, y)]) continue
+          const d = dx * dx + dy * dy
+          const i = index(x, y)
+          if (d < bestDistance || (d === bestDistance && i < best)) [best, bestDistance] = [i, d]
+        }
+      }
+    }
+    return tileOf(best)
+  }
+
+  const costs = new Float64Array(mapWidth * mapHeight).fill(Infinity)
+  const previous = new Int32Array(mapWidth * mapHeight).fill(-1)
+  const rode = new Uint8Array(mapWidth * mapHeight)
+  const settled = new Uint8Array(mapWidth * mapHeight)
+
+  function shortestPath(start: number, goal: number): { tiles: number[]; rides: Set<number> } {
+    const touched = [start]
+    const queue: Entry[] = [[0, start]]
+    costs[start] = 0
+    try {
+      while (queue.length > 0) {
+        const [cost, current] = pop(queue)
+        if (settled[current]) continue
+        settled[current] = 1
+        if (current === goal) break
+        connections(current, (next, seconds, ride) => {
+          if (cost + seconds >= costs[next]!) return
+          if (costs[next] === Infinity) touched.push(next)
+          costs[next] = cost + seconds
+          previous[next] = current
+          rode[next] = ride ? 1 : 0
+          push(queue, [cost + seconds, next])
+        })
+      }
+      if (!settled[goal]) throw new Error(`no road route between tiles ${start} and ${goal}`)
+      const tiles = [goal]
+      const rideEnds = new Set<number>()
+      for (let tile = goal; tile !== start; tile = previous[tile]!) {
+        if (rode[tile]) rideEnds.add(tile)
+        tiles.push(previous[tile]!)
+      }
+      return { tiles: tiles.reverse(), rides: rideEnds }
+    } finally {
+      for (const tile of touched) {
+        costs[tile] = Infinity
+        previous[tile] = -1
+        rode[tile] = 0
+        settled[tile] = 0
+      }
+    }
+  }
+
+  function route(from: Tile, to: Tile): Route {
+    if (from.x === to.x && from.y === to.y) return { legs: [], seconds: 0 }
+    const [startTile, goalTile] = [accessRoad(from), accessRoad(to)]
+    const [start, goal] = [index(startTile.x, startTile.y), index(goalTile.x, goalTile.y)]
+    const { tiles, rides: rideEnds } = shortestPath(start, goal)
+    const legs: Leg[] = []
+    let walk: Tile[] = [from]
+    tiles.forEach((i, n) => {
+      const tile = tileOf(i)
+      if (rideEnds.has(i) && n > 0) {
+        legs.push({ mode: 'walk', path: straighten(walk) })
+        legs.push({ mode: 'ride', path: [tileOf(tiles[n - 1]!), tile] })
+        walk = [tile]
+      } else {
+        walk.push(tile)
+      }
+    })
+    walk.push(to)
+    legs.push({ mode: 'walk', path: straighten(walk) })
+    const nonEmpty = legs.filter((leg) => leg.path.length > 1)
+    return { legs: nonEmpty, seconds: nonEmpty.reduce((sum, leg) => sum + legSeconds(leg), 0) }
+  }
+
+  return { roadAt, accessRoad, route, rides, arrival }
 }
 
 export type Position = {

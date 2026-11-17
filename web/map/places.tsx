@@ -1,13 +1,13 @@
 import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useRef } from 'react'
 import { BoxGeometry, Color, MeshBasicMaterial, Object3D, type InstancedMesh } from 'three'
-import { places, type Place } from '../../shared/map/places'
-import { spots } from '../../shared/map/spots'
+import { type Place } from '../../shared/map/places'
 import { useDetail, viewFrom } from './clock'
 import { surfaceAt } from './decks'
 import { hash } from './elevation'
 import { toon } from './paint'
 import { seeThrough } from './sightlines'
+import { places, spots } from './atlas'
 
 type Move = 'spin' | 'sway' | 'bob' | 'bounce' | 'flicker' | 'beat' | 'disco'
 type Prop = {

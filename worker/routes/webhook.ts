@@ -14,9 +14,8 @@ export const webhook = new Hono<{ Bindings: Env }>().post('/', async (c) => {
   if (payload.event === 'tool_call_update') {
     const services = { db: database(c.env), omnara: omnara(c.env) }
     const background = (task: Promise<unknown>) => c.executionCtx.waitUntil(task)
-    const handling = Object.values(toolWorkers(services, c.env, false, background)).map((worker) =>
-      worker.handle(payload.data),
-    )
+    const { world, builder } = toolWorkers(services, c.env, false, background)
+    const handling = [...Object.values(world), builder].map((worker) => worker.handle(payload.data))
     c.executionCtx.waitUntil(Promise.allSettled(handling))
   }
   return c.body(null, 204)

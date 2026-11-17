@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { here } from '../metro'
 import { Pixel } from './Pixel'
 
 export function Share({
@@ -23,7 +24,7 @@ export function Share({
     document.addEventListener('pointerdown', close)
     return () => document.removeEventListener('pointerdown', close)
   }, [open])
-  const url = `${location.origin}${path}`
+  const url = `${location.origin}${here.path}${path}`
   const share = () => {
     if ('share' in navigator && matchMedia('(pointer: coarse)').matches) {
       void navigator.share({ title: 'Agent World', text, url }).catch(() => undefined)
