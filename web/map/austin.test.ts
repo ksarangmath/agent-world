@@ -73,6 +73,22 @@ describe('the Austin map view', () => {
     expect(acrossTheLake).toEqual([])
   })
 
+  test('leaves the Capitol in plain view across its grounds from the lawn', () => {
+    const [x, y] = map.atlas.warp(-97.7404, 30.2749)
+    const lawn = map.atlas.places.find((place) => place.id === 'capitol-lawn')!
+    const inTheWay = map.city
+      .buildCity()
+      .buildings.filter(
+        (building) =>
+          building.x + building.width > x - 3 &&
+          building.x < x + 3 &&
+          building.y + building.depth > y - 1.5 &&
+          building.y < lawn.center.y,
+      )
+    expect(inTheWay).toEqual([])
+    expect(map.atlas.groundAt(Math.floor(x), Math.floor(y) + 2)).toBe('park')
+  })
+
   test('stands no landmark and no stretch of Skyloop on a spot where people stand', () => {
     const spotTiles = new Set(
       map.atlas.places.flatMap((place) =>

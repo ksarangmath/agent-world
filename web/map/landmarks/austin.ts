@@ -5,7 +5,7 @@ import { warp } from '../atlas'
 import { heightAt } from '../elevation'
 import { clearSite, offset, site, type Site } from './sites'
 
-const granite = '#d9a590'
+const granite = '#dc9c96'
 const limestone = '#ece2cb'
 const rust = '#9a4f2e'
 const burntOrange = '#bf5700'
@@ -24,13 +24,13 @@ export function austinIcons() {
   const add = (s: Site, radius: number) => reserve(reserved, s.x, s.y, radius)
   const at = (s: Site, up = 0, dx = 0, dy = 0): Point => [s.x + dx, s.ground + up, s.y + dy]
 
-  const capitol = site(-97.7404, 30.2757)
+  const capitol = site(-97.7404, 30.2749)
   add(capitol, 3.2)
   parts.push(solid('box', granite, at(capitol, -0.2), [5.6, 1.9, 2.2]))
-  parts.push(solid('box', '#e3b39f', at(capitol, -0.2, 0, 0.9), [1.8, 2.3, 1.2]))
-  parts.push(solid('gable', '#c98f7a', at(capitol, 2.1, 0, 0.9), [1.2, 0.6, 1.8], Math.PI / 2))
+  parts.push(solid('box', '#e8b0aa', at(capitol, -0.2, 0, 0.9), [1.8, 2.3, 1.2]))
+  parts.push(solid('gable', '#cc8882', at(capitol, 2.1, 0, 0.9), [1.2, 0.6, 1.8], Math.PI / 2))
   for (const side of [-1, 1]) {
-    parts.push(solid('box', '#cf9984', at(capitol, -0.2, side * 2.5), [0.9, 2.3, 2.5]))
+    parts.push(solid('box', '#d4928c', at(capitol, -0.2, side * 2.5), [0.9, 2.3, 2.5]))
   }
   parts.push(solid('cylinder', granite, at(capitol, 1.7), [1.9, 2.2, 1.9]))
   for (let i = 0; i < 10; i++) {
@@ -44,12 +44,22 @@ export function austinIcons() {
       ),
     )
   }
-  parts.push(solid('dome', '#c98f7a', at(capitol, 3.9), [2, 1.25, 2]))
+  parts.push(solid('dome', '#cc8882', at(capitol, 3.9), [2, 1.25, 2]))
   parts.push(solid('cylinder', granite, at(capitol, 6.3), [0.5, 0.8, 0.5]))
   parts.push(solid('cone', '#f3ead8', at(capitol, 7.1), [0.3, 1, 0.3]))
   lights.push({ position: at(capitol, 8.2), color: '#fff3d0' })
   for (const side of [-1.6, 1.6]) {
     lights.push({ position: at(capitol, 1.2, side, 1.3), color: '#ffe2a8' })
+  }
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2
+    lights.push({
+      position: at(capitol, 3.75, Math.sin(angle) * 1.15, Math.cos(angle) * 1.15),
+      color: '#ffe2a8',
+    })
+  }
+  for (const side of [-2.5, 2.5]) {
+    lights.push({ position: at(capitol, 2.2, side, 1.35), color: '#ffe2a8' })
   }
 
   const tower = clearSite(-97.7394, 30.2862, 1)
