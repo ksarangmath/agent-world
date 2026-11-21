@@ -6,7 +6,7 @@ import type { AgentConfig } from '../omnara/agents'
 import { customTools } from '../tools/tool'
 import { worldTools } from '../tools/world'
 
-export const templateVersion = 36
+export const templateVersion = 37
 
 export const memoryStoreName = (personId: string) => `agent-${personId}`
 
@@ -154,7 +154,7 @@ export function worldAgentConfig(person: {
     instruction: instruction(person.profile, person.id, person.metro),
     model: {
       provider_config: 'omnara-openrouter',
-      name: 'openai/gpt-6.1-sol',
+      name: 'openai/gpt-6-luna',
       context_window_tokens: 128_000,
     },
     tools: customTools(worldTools),

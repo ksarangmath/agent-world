@@ -48,7 +48,7 @@ The person is waiting, so the whole job should take about a minute. Work in roun
 export const builderConfig: AgentConfig = {
   version: 'v1',
   instruction,
-  model: { provider_config: 'omnara-openrouter', name: 'anthropic/claude-opus-5.5' },
+  model: { provider_config: 'omnara-openrouter', name: 'openai/gpt-6-luna' },
   tools: { ...customTools(builderTools), ...customTools(portraitTools) },
 }
 
