@@ -16,7 +16,7 @@ import { metroInfo, metros, type Metro } from '../../shared/metros'
 import type { Profile } from '../../shared/profile'
 import type { PersonStatus } from '../../shared/world'
 import { conversationRequests, deliveries, people } from '../db/schema'
-import { clockTime, deliver, refuse, worldEvent, type World } from './events'
+import { clockTime, deliver, refuse, stopNow, worldEvent, type World } from './events'
 
 export type Person = Omit<typeof people.$inferSelect, 'portrait'>
 
@@ -57,7 +57,7 @@ export function statusOf(person: Person, now: Date): PersonStatus {
 }
 
 export const asleep = refuse(
-  "You're asleep until you're woken up. Stop here: nothing more happens until then.",
+  `You're asleep until you're woken up. ${stopNow}: nothing more happens until then.`,
 )
 
 export const isAt = (person: Person, placeId: string, now: Date) =>

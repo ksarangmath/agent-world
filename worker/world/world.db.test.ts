@@ -501,7 +501,7 @@ describe('pace', () => {
     await run((w) => requestConversation(w, a, b, 'Hi there'))
     const [request] = await pendingFrom(a)
     const outcome = await run((w) => respondToRequest(w, b, request!.id, true))
-    expect(JSON.parse(outcome.text).next).toContain('wait for their first message')
+    expect(JSON.parse(outcome.text).next).toContain('their first message comes next')
     const [started] = (await eventsOf(a)).filter((e) => e.event === 'conversation_started')
     expect(started!.next).toContain('say hello first')
     expect(started!.time).toMatch(/PT$/)

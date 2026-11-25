@@ -23,6 +23,7 @@ import {
   done,
   record,
   refuse,
+  stopNow,
   worldEvent,
   type Outcome,
   type World,
@@ -283,7 +284,9 @@ export async function requestConversation(
       answer_with: 'respond_to_request',
     }),
   )
-  return done('Request sent. It expires in 5 minutes, and the answer arrives as a [world] event.')
+  return done(
+    `Request sent. It expires in 5 minutes. ${stopNow}: the answer arrives as a [world] event once you stop.`,
+  )
 }
 
 export async function respondToRequest(
@@ -387,13 +390,15 @@ export async function respondToRequest(
       conversation_started_with: them.id,
       place: place.name,
       time: clockTime(now, me.metro),
-      next: `They asked, so wait for their first message, then reply with send_message. ${ending}`,
+      next: `They asked, so their first message comes next. ${stopNow}, then answer it with send_message. ${ending}`,
     }),
   )
 }
 
-const alreadyLeft = () => refuse('You already said goodbye. Wait for their last message.')
-const stillLanding = () => refuse('Hold on: the last message is still landing. Wait for it.')
+const alreadyLeft = () =>
+  refuse(`You already said goodbye. ${stopNow}, and their last message reaches you.`)
+const stillLanding = () =>
+  refuse(`Hold on: the last message is still landing. ${stopNow}, and it reaches you.`)
 
 async function myConversation(world: World, meId: string) {
   const { tx } = world
@@ -479,7 +484,9 @@ export async function sendMessage(world: World, meId: string, text: string): Pro
   if (talk.leaving === meId) return alreadyLeft()
   if (talk.last && talk.last.visibleAt > world.now) return stillLanding()
   if (talk.last?.senderId === meId) {
-    return refuse("You just sent a message. Wait for their reply; it's their turn.")
+    return refuse(
+      `You just sent a message, and it's their turn. ${stopNow}: their reply reaches you once you stop.`,
+    )
   }
   if (talk.leaving) return lastWord(world, talk, text)
   const [sent] = await world.tx
@@ -492,13 +499,15 @@ export async function sendMessage(world: World, meId: string, text: string): Pro
   if (sent!.n + 1 < wrapUpAfter) {
     await say(world, talk, text)
     return done(
-      'Sent. It takes a moment to say out loud. Stop here: their reply reaches you once you stop.',
+      `Sent. It takes a moment to say out loud. ${stopNow}: their reply reaches you once you stop.`,
     )
   }
   await say(world, talk, text, {
     next: 'This has run long enough. Say goodbye with end_conversation, and name the plan if you made one.',
   })
-  return done('Sent. Time to wrap up: when they answer, say goodbye with end_conversation.')
+  return done(
+    `Sent. Time to wrap up: when they answer, say goodbye with end_conversation. ${stopNow}: their answer reaches you once you stop.`,
+  )
 }
 
 async function finish(
@@ -576,7 +585,7 @@ export async function endConversation(
   return done(
     JSON.stringify({
       said: true,
-      next: 'They get one last message back. Wait for it: the world tells you when the conversation is over.',
+      next: `They get one last message back. ${stopNow}: the world tells you when the conversation is over.`,
     }),
   )
 }

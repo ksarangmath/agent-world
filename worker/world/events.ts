@@ -26,6 +26,8 @@ export const done = (text: string, dueAt?: Date): Outcome => ({ ok: true, text, 
 
 export const refuse = (text: string): Outcome => ({ ok: false, text })
 
+export const stopNow = 'Stop now by replying "ok" with no tool call'
+
 export async function deliver(
   world: World,
   to: string,

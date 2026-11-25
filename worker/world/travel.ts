@@ -112,7 +112,7 @@ export async function goTo(
     .limit(1)
   if (waiting) {
     return refuse(
-      `Someone here just asked you to talk. Answer with respond_to_request (request_id ${waiting.id}) before you go anywhere.`,
+      `Someone here just asked you to talk. Answer with respond_to_request (request_id ${waiting.id}), and stay for the conversation: where you were going can wait.`,
     )
   }
 
@@ -142,7 +142,7 @@ export async function goTo(
     .where(eq(people.id, me.id))
   await record(world, me.id, 'arrived', arrivesAt, { placeId, note: reason })
   return done(
-    `You arrived at ${place.name} (${place.neighborhood}). ${place.description} Use look_around to see who's here. If nobody's free to talk, stay a while and wait: the world tells you when someone asks you.`,
+    `You arrived at ${place.name} (${place.neighborhood}). ${place.description} Use look_around to see who's here. If nobody's free to talk, stay a while: to wait, reply "ok" with no tool call, and the world tells you when someone asks you.`,
     arrivesAt,
   )
 }
