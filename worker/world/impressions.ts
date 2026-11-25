@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, ne } from 'drizzle-orm'
 import type { Verdict } from '../../shared/world'
 import { conversations, impressions, worldEvents } from '../db/schema'
 import { done, record, refuse, type Outcome, type World } from './events'
@@ -10,6 +10,7 @@ export async function recordImpression(
   aboutId: string,
   verdict: Verdict,
   reason: string,
+  whatChanged?: string,
 ): Promise<Outcome> {
   const { tx, now } = world
   if (aboutId === meId) return refuse("You can't record an impression of yourself.")
@@ -23,6 +24,23 @@ export async function recordImpression(
     .orderBy(desc(conversations.startedAt))
     .limit(1)
   if (!conversation) return refuse("You haven't had a conversation with that person yet.")
+  const [before] = await tx
+    .select({ verdict: impressions.verdict, reason: impressions.reason })
+    .from(impressions)
+    .where(
+      and(
+        eq(impressions.ownerId, meId),
+        eq(impressions.aboutId, aboutId),
+        ne(impressions.conversationId, conversation.id),
+      ),
+    )
+    .orderBy(desc(impressions.createdAt))
+    .limit(1)
+  if (verdict === 'match' && before?.verdict === 'not_a_match' && !whatChanged) {
+    return refuse(
+      `Last time you judged them not_a_match: ${JSON.stringify(before.reason)}. Another good chat doesn't change that, and neither does a plan made today. Record not_a_match again. Only if you learned of a goal or an offer of theirs or yours that you hadn't heard before, call again with match and name it in what_changed.`,
+    )
+  }
 
   await tx
     .insert(impressions)

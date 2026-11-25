@@ -64,10 +64,15 @@ export const worldTools: Record<string, Tool<WorldCall>> = {
     ({ world, personId: me }, input) => endConversation(world, me, input.goodbye, input.reason),
   ),
   record_impression: tool(
-    'After a conversation, record whether your owner should meet this person, and why. Only your owner sees it.',
-    z.object({ person_id: z.uuid(), verdict: z.enum(verdicts), reason: reason.min(1) }),
+    'After a conversation, record whether your owner should meet this person, and why. Only your owner sees it. To call someone a match after judging them not_a_match before, name in what_changed the goal or offer you had not heard before.',
+    z.object({
+      person_id: z.uuid(),
+      verdict: z.enum(verdicts),
+      reason: reason.min(1),
+      what_changed: reason.optional(),
+    }),
     ({ world, personId: me }, input) =>
-      recordImpression(world, me, input.person_id, input.verdict, input.reason),
+      recordImpression(world, me, input.person_id, input.verdict, input.reason, input.what_changed),
   ),
   message_owner: tool(
     'Send your owner a short message about a strong match or a notable moment. Use it sparingly.',

@@ -16,7 +16,14 @@ import {
 import { placesById } from '../../shared/map/places'
 import type { Metro } from '../../shared/metros'
 import type { Database } from '../db/client'
-import { conversationRequests, conversations, deliveries, messages, people } from '../db/schema'
+import {
+  conversationRequests,
+  conversations,
+  deliveries,
+  impressions,
+  messages,
+  people,
+} from '../db/schema'
 import {
   clockTime,
   deliver,
@@ -366,6 +373,22 @@ export async function respondToRequest(
   await expirePendingRequests(world, [a, b], 'they started another conversation')
   const place = placesById.get(me.placeId)!
   const ending = 'End it with end_conversation when it has run its course.'
+  const lastTime = async (ownerId: string, aboutId: string) => {
+    const [last] = await tx
+      .select({ verdict: impressions.verdict, reason: impressions.reason })
+      .from(impressions)
+      .where(and(eq(impressions.ownerId, ownerId), eq(impressions.aboutId, aboutId)))
+      .orderBy(desc(impressions.createdAt))
+      .limit(1)
+    return {
+      last_time: last && { your_verdict: last.verdict, your_reason: last.reason },
+      catchUp:
+        last?.verdict === 'not_a_match'
+          ? " You judged them not_a_match last time, so keep this a catch-up: no new plan, yours or theirs, unless a goal comes up that you hadn't heard before."
+          : '',
+    }
+  }
+  const [mine, theirs] = [await lastTime(me.id, them.id), await lastTime(them.id, me.id)]
   await deliver(
     world,
     them.id,
@@ -373,7 +396,8 @@ export async function respondToRequest(
       with_person_id: me.id,
       place: place.name,
       time: clockTime(now, them.metro),
-      next: `You asked, so say hello first with send_message. ${ending}`,
+      last_time: theirs.last_time,
+      next: `You asked, so say hello first with send_message. ${ending}${theirs.catchUp}`,
     }),
   )
   for (const [person, other] of [
@@ -390,7 +414,8 @@ export async function respondToRequest(
       conversation_started_with: them.id,
       place: place.name,
       time: clockTime(now, me.metro),
-      next: `They asked, so their first message comes next. ${stopNow}, then answer it with send_message. ${ending}`,
+      last_time: mine.last_time,
+      next: `They asked, so their first message comes next. ${stopNow}, then answer it with send_message. ${ending}${mine.catchUp}`,
     }),
   )
 }

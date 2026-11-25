@@ -462,6 +462,41 @@ describe('conversations', () => {
     expect(matches).toHaveLength(2)
   })
 
+  test('a catch-up starts with the last verdict, and turning a past not_a_match into a match needs something new', async () => {
+    const [a, b] = [await person('A'), await person('B')]
+    await talking(a, b)
+    const first = await parted(a, b, later(minutes(5)))
+    await run((w) => recordImpression(w, a, b, 'not_a_match', 'Nice chat, no shared goal'), first)
+    await run((w) => recordImpression(w, b, a, 'not_a_match', 'Not what I need'), first)
+    expect(
+      (await run((w) => recordImpression(w, b, a, 'match', 'Second thoughts'), first)).ok,
+    ).toBe(true)
+    await Promise.all([steppedOut(a, first), steppedOut(b, first)])
+
+    const again = later(pairGapMs + 1000)
+    await run((w) => requestConversation(w, b, a, 'Again?'), again)
+    const [request] = await pendingFrom(b)
+    const accepted = await run((w) => respondToRequest(w, a, request!.id, true), again)
+    expect(JSON.parse(accepted.text)).toMatchObject({
+      last_time: { your_verdict: 'not_a_match', your_reason: 'Nice chat, no shared goal' },
+      next: expect.stringContaining('keep this a catch-up'),
+    })
+    const started = (await eventsOf(b)).findLast((event) => event.event === 'conversation_started')
+    expect(started).toMatchObject({ last_time: { your_verdict: 'match' } })
+    expect(started!.next).not.toContain('keep this a catch-up')
+    const second = await parted(a, b, new Date(again.getTime() + minutes(5)))
+
+    const flipped = await run((w) => recordImpression(w, a, b, 'match', 'We made a plan'), second)
+    expect(flipped).toMatchObject({ ok: false, text: expect.stringContaining('what_changed') })
+    expect((await myMatches(db, a)).verdicts).toMatchObject([{ verdict: 'not_a_match' }])
+    const renewed = await run(
+      (w) => recordImpression(w, a, b, 'match', 'She is hiring', 'She now needs an engineer'),
+      second,
+    )
+    expect(renewed.ok).toBe(true)
+    expect((await myMatches(db, a)).verdicts[0]).toMatchObject({ verdict: 'match' })
+  })
+
   test("an owner's matches, conversations, and timeline say who it was and which conversation", async () => {
     const [a, b] = [await person('A'), await person('B')]
     await db
