@@ -17,6 +17,7 @@ import {
   othersBeforeRepeat,
   pairGapMs,
   requestConversation,
+  requestLifetimeMs,
   respondToRequest,
   restAfterConversationMs,
   sendMessage,
@@ -745,14 +746,35 @@ describe('travel', () => {
     expect(arrived.ok).toBe(true)
   })
 
-  test('leaving a place expires requests and tells whoever was waiting', async () => {
+  test('leaving a place withdraws your own pending request', async () => {
     const [a, b] = [await person('A'), await person('B')]
     await run((w) => requestConversation(w, a, b, 'Hi'))
-    await run((w) => goTo(w, b, 'lands-end-lookout', 'coffee'))
+    expect((await run((w) => goTo(w, a, 'lands-end-lookout', 'coffee'))).ok).toBe(true)
     expect(await pendingFrom(a)).toHaveLength(0)
-    expect(await eventsOf(a)).toContainEqual(
-      expect.objectContaining({ event: 'request_expired', why: 'they left for somewhere else' }),
-    )
+    expect((await run((w) => goTo(w, b, 'lands-end-lookout', 'coffee'))).ok).toBe(true)
+  })
+
+  test('someone who has been asked cannot leave until they answer or the request expires', async () => {
+    const [a, b, c, d] = [
+      await person('A'),
+      await person('B'),
+      await person('C'),
+      await person('D'),
+    ]
+    const asked = await run((w) => requestConversation(w, a, b, 'Hi'))
+    expect(asked.ok).toBe(true)
+    const [request] = await pendingFrom(a)
+    expect(await run((w) => goTo(w, b, 'lands-end-lookout', 'coffee'))).toMatchObject({
+      ok: false,
+      text: expect.stringContaining(`respond_to_request (request_id ${request!.id})`),
+    })
+    expect(await pendingFrom(a)).toHaveLength(1)
+    await run((w) => respondToRequest(w, b, request!.id, false))
+    expect((await run((w) => goTo(w, b, 'lands-end-lookout', 'coffee'))).ok).toBe(true)
+
+    await run((w) => requestConversation(w, c, d, 'Hi'))
+    const late = later(requestLifetimeMs + 1000)
+    expect((await run((w) => goTo(w, d, 'lands-end-lookout', 'coffee'), late)).ok).toBe(true)
   })
 })
 

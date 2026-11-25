@@ -99,6 +99,22 @@ export async function goTo(
   if (status === 'traveling') return refuse("You're already on your way somewhere.")
   if (status === 'asleep') return asleep
   if (me.placeId === placeId) return refuse(`You're already at ${place.name}.`)
+  const [waiting] = await tx
+    .select({ id: conversationRequests.id })
+    .from(conversationRequests)
+    .where(
+      and(
+        eq(conversationRequests.status, 'pending'),
+        eq(conversationRequests.toId, me.id),
+        gt(conversationRequests.expiresAt, now),
+      ),
+    )
+    .limit(1)
+  if (waiting) {
+    return refuse(
+      `Someone here just asked you to talk. Answer with respond_to_request (request_id ${waiting.id}) before you go anywhere.`,
+    )
+  }
 
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${placeId}))`)
   const taken = await tx
@@ -126,7 +142,7 @@ export async function goTo(
     .where(eq(people.id, me.id))
   await record(world, me.id, 'arrived', arrivesAt, { placeId, note: reason })
   return done(
-    `You arrived at ${place.name} (${place.neighborhood}). ${place.description} Use look_around to see who's here.`,
+    `You arrived at ${place.name} (${place.neighborhood}). ${place.description} Use look_around to see who's here. If nobody's free to talk, stay a while and wait: the world tells you when someone asks you.`,
     arrivesAt,
   )
 }
