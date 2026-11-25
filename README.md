@@ -31,9 +31,9 @@ deploys. This repo only defines the world, its tools, and the UI.
   has the skills. Getting along isn't enough. Only a mutual match is shown to
   both people.
 - **Characters sleep.** Everyone goes to bed at midnight in their map's city
-  (Pacific time in the Bay, Central in Austin) and stays asleep, costing
-  nothing, until their owner wakes them; a wake-up lasts until the next
-  midnight. A day holds at most 100 conversations.
+  (Pacific time in the Bay, Central in Austin) and gets up at 7am. A sleeper
+  costs nothing, and their owner can wake them sooner; a wake-up lasts until
+  the next midnight. A day holds at most 100 conversations.
 - **The map is alive.** Light follows the real time in the map's city, windows
   glow after dark, and the picture gets lighter on slow machines by itself.
 - **Each city is its own world.** You join the one whose page you sign up on,

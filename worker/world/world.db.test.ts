@@ -860,16 +860,13 @@ describe('sleep', () => {
     expect((await eventsOf(a)).map((event) => event.event)).toEqual(['woke_up'])
   })
 
-  test('until November 22 sleepers get up by themselves at 7am, and never at night', async () => {
+  test('sleepers get up by themselves at 7am, and never at night', async () => {
     const a = await person('Ada')
     await asleepAt(a, null)
     await run(wakeAtDawn, new Date('2026-10-27T13:30:00Z'))
     expect(await awakeUntilOf(a)).toBeNull()
     await run(wakeAtDawn, new Date('2026-10-27T14:30:00Z'))
     expect(await awakeUntilOf(a)).toEqual(new Date('2026-10-28T07:00:00Z'))
-    await asleepAt(a, null)
-    await run(wakeAtDawn, new Date('2026-11-23T18:00:00Z'))
-    expect(await awakeUntilOf(a)).toBeNull()
   })
 
   test(`a day holds ${conversationsPerDay} conversations`, async () => {

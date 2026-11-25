@@ -84,7 +84,6 @@ export async function touch({ tx, now }: World, personId: string) {
 
 export const idleBeforeNudgeMs = 15 * 60 * 1000
 export const wakingHours = { from: 7, to: 24 } as const
-export const selfWakingUntil = new Date('2026-11-22T08:00:00Z')
 const batch = 500
 const clocks = Object.fromEntries(
   metros.map((metro) => [
@@ -156,7 +155,7 @@ export async function wake(world: World, personId: string) {
 export async function wakeAtDawn(world: World) {
   const { tx, now } = world
   const waking = metros.filter((metro) => isWakingHour(now, metro))
-  if (now >= selfWakingUntil || waking.length === 0) return
+  if (waking.length === 0) return
   const sleepers = await tx
     .select({ id: people.id })
     .from(people)
